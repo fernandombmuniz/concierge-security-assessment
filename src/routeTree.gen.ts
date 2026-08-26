@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
+import { Route as ResultadoRouteImport } from './routes/resultado'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const DiagnosticoRoute = DiagnosticoRouteImport.update({
   path: '/diagnostico',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResultadoRoute = ResultadoRouteImport.update({
+  id: '/resultado',
+  path: '/resultado',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
+  '/resultado': typeof ResultadoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
+  '/resultado': typeof ResultadoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
+  '/resultado': typeof ResultadoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/diagnostico'
+  fullPaths: '/' | '/diagnostico' | '/resultado'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/diagnostico'
-  id: '__root__' | '/' | '/diagnostico'
+  to: '/' | '/diagnostico' | '/resultado'
+  id: '__root__' | '/' | '/diagnostico' | '/resultado'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
+  ResultadoRoute: typeof ResultadoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DiagnosticoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/resultado': {
+      id: '/resultado'
+      path: '/resultado'
+      fullPath: '/resultado'
+      preLoaderRoute: typeof ResultadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiagnosticoRoute: DiagnosticoRoute,
+  ResultadoRoute: ResultadoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
