@@ -51,7 +51,8 @@ export function splitBySection(data: AssessmentData): Record<string, Record<stri
   const out: Record<string, Record<string, unknown>> = {};
   for (const [section, fields] of Object.entries(SECTION_FIELDS)) {
     const answers: Record<string, unknown> = {};
-    for (const field of fields) answers[field] = (data as Record<string, unknown>)[field];
+    const record = data as unknown as Record<string, unknown>;
+    for (const field of fields) answers[field] = record[field];
     out[section] = answers;
   }
   out["completo"] = { ...data } as unknown as Record<string, unknown>;
