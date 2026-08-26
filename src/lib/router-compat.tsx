@@ -61,5 +61,5 @@ export function useSearchParams(): [URLSearchParams] {
 }
 
 export function useParams<T extends Record<string, string> = Record<string, string>>(): T {
-  return useRouterParams({ strict: false }) as T;
+  return useRouterParams({ strict: false } as never) as T;
 }

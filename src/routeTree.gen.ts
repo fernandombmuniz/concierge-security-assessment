@@ -10,33 +10,115 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AssessmentRouteImport } from './routes/assessment'
+import { Route as ConcluidoRouteImport } from './routes/concluido'
+import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
+import { Route as ResultadoRouteImport } from './routes/resultado'
+import { Route as InternoIndexRouteImport } from './routes/interno.index'
+import { Route as InternoIdRouteImport } from './routes/interno.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssessmentRoute = AssessmentRouteImport.update({
+  id: '/assessment',
+  path: '/assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConcluidoRoute = ConcluidoRouteImport.update({
+  id: '/concluido',
+  path: '/concluido',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiagnosticoRoute = DiagnosticoRouteImport.update({
+  id: '/diagnostico',
+  path: '/diagnostico',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultadoRoute = ResultadoRouteImport.update({
+  id: '/resultado',
+  path: '/resultado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InternoIndexRoute = InternoIndexRouteImport.update({
+  id: '/interno/',
+  path: '/interno/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InternoIdRoute = InternoIdRouteImport.update({
+  id: '/interno/$id',
+  path: '/interno/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/assessment': typeof AssessmentRoute
+  '/concluido': typeof ConcluidoRoute
+  '/diagnostico': typeof DiagnosticoRoute
+  '/resultado': typeof ResultadoRoute
+  '/interno/$id': typeof InternoIdRoute
+  '/interno/': typeof InternoIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/assessment': typeof AssessmentRoute
+  '/concluido': typeof ConcluidoRoute
+  '/diagnostico': typeof DiagnosticoRoute
+  '/resultado': typeof ResultadoRoute
+  '/interno/$id': typeof InternoIdRoute
+  '/interno': typeof InternoIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/assessment': typeof AssessmentRoute
+  '/concluido': typeof ConcluidoRoute
+  '/diagnostico': typeof DiagnosticoRoute
+  '/resultado': typeof ResultadoRoute
+  '/interno/$id': typeof InternoIdRoute
+  '/interno/': typeof InternoIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/assessment'
+    | '/concluido'
+    | '/diagnostico'
+    | '/resultado'
+    | '/interno/$id'
+    | '/interno/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/assessment'
+    | '/concluido'
+    | '/diagnostico'
+    | '/resultado'
+    | '/interno/$id'
+    | '/interno'
+  id:
+    | '__root__'
+    | '/'
+    | '/assessment'
+    | '/concluido'
+    | '/diagnostico'
+    | '/resultado'
+    | '/interno/$id'
+    | '/interno/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AssessmentRoute: typeof AssessmentRoute
+  ConcluidoRoute: typeof ConcluidoRoute
+  DiagnosticoRoute: typeof DiagnosticoRoute
+  ResultadoRoute: typeof ResultadoRoute
+  InternoIdRoute: typeof InternoIdRoute
+  InternoIndexRoute: typeof InternoIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +130,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assessment': {
+      id: '/assessment'
+      path: '/assessment'
+      fullPath: '/assessment'
+      preLoaderRoute: typeof AssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/concluido': {
+      id: '/concluido'
+      path: '/concluido'
+      fullPath: '/concluido'
+      preLoaderRoute: typeof ConcluidoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diagnostico': {
+      id: '/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof DiagnosticoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resultado': {
+      id: '/resultado'
+      path: '/resultado'
+      fullPath: '/resultado'
+      preLoaderRoute: typeof ResultadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interno/': {
+      id: '/interno/'
+      path: '/interno'
+      fullPath: '/interno/'
+      preLoaderRoute: typeof InternoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interno/$id': {
+      id: '/interno/$id'
+      path: '/interno/$id'
+      fullPath: '/interno/$id'
+      preLoaderRoute: typeof InternoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AssessmentRoute: AssessmentRoute,
+  ConcluidoRoute: ConcluidoRoute,
+  DiagnosticoRoute: DiagnosticoRoute,
+  ResultadoRoute: ResultadoRoute,
+  InternoIdRoute: InternoIdRoute,
+  InternoIndexRoute: InternoIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

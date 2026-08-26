@@ -2,6 +2,8 @@ import {useEffect,useMemo,useState, type ReactNode} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {AssessmentData} from '../types';
 import {loadDraft,saveDraft,saveSubmission} from '../storage';
+import {saveAssessmentProgress,completeAssessment} from '../lib/assessment.functions';
+import {loadSession} from '../lib/assessment-session';
 import ClientHeader from '../components/ClientHeader';
 import {ArrowRight,ArrowLeft,CheckCircle2,Info,Wifi,MonitorSmartphone,Database,KeyRound,Building2} from 'lucide-react';
 
@@ -76,7 +78,33 @@ export default function AssessmentForm(){
     {name:'Acesso',icon:KeyRound,desc:'Identidades, MFA e contexto'}
   ],[]);
 
+  // Sincronização das respostas com o banco (autosave), sem alterar o
+  // comportamento do rascunho local existente. O dep é o conteúdo serializado
+  // para não reiniciar o debounce a cada nova referência de objeto.
+  const snapshot = JSON.stringify(a);
+  useEffect(() => {
+    const session = loadSession();
+    if (!session) return;
+    const t = setTimeout(() => {
+      void saveAssessmentProgress({
+        data: {
+          assessmentId: session.assessmentId,
+          editToken: session.editToken,
+          step,
+          data: JSON.parse(snapshot),
+        },
+      }).catch(() => {});
+    }, 900);
+    return () => clearTimeout(t);
+  }, [snapshot, step]);
+
   const submit=()=>{
+    const session = loadSession();
+    if (session) {
+      void completeAssessment({
+        data: { assessmentId: session.assessmentId, editToken: session.editToken, data: a },
+      }).catch(() => {});
+    }
     const s=saveSubmission(a);
     nav(`/resultado?id=${s.id}&success=true`);
   };
