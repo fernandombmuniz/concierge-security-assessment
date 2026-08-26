@@ -60,6 +60,6 @@ export const getInternalAssessment = createServerFn({ method: "GET" })
     return {
       found: true as const,
       assessment,
-      answers: (response?.answers ?? {}) as Record<string, unknown>,
+      answersJson: JSON.stringify(response?.answers ?? {}),
     };
   });

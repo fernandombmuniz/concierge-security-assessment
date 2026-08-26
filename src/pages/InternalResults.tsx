@@ -18,7 +18,7 @@ export default function InternalResults(){
  const {data,isLoading}=useQuery({queryKey:['internal-assessment',id],queryFn:()=>getInternalAssessment({data:{id:id!}}),enabled:!!id});
  if(isLoading)return <main className="min-h-screen bg-slate-950 p-8 text-slate-200">Carregando assessment…</main>;
  if(!data?.found)return <main className="min-h-screen bg-slate-950 p-8 text-slate-200">Assessment não encontrado.</main>;
- const s={id:data.assessment.id,createdAt:data.assessment.created_at,data:{...emptyAssessment,...(data.answers as Partial<AssessmentData>)}};
+ const s={id:data.assessment.id,createdAt:data.assessment.created_at,data:{...emptyAssessment,...(JSON.parse(data.answersJson) as Partial<AssessmentData>)}};
  const r=scoreAssessment(s.data);
  const domains=[
    {label:'Rede e Perímetro',value:r.scores.network,icon:<Server size={17} className="text-cyan-400"/>},
