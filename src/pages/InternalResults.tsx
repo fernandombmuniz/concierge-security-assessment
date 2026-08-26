@@ -1,5 +1,7 @@
 import {Link,useParams} from 'react-router-dom';
-import {getSubmission} from '../storage';
+import {useQuery} from '@tanstack/react-query';
+import {getInternalAssessment} from '../lib/internal.functions';
+import {emptyAssessment,type AssessmentData} from '../types';
 import {maturityLevel,scoreAssessment} from '../scoring';
 import ScoreGauge from '../components/ScoreGauge';
 import DomainBars from '../components/DomainBars';
