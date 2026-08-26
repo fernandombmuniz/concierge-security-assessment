@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as ResultadoRouteImport } from './routes/resultado'
 import { Route as InternoIndexRouteImport } from './routes/interno.index'
+import { Route as InternoIdRouteImport } from './routes/interno.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,17 +35,24 @@ const InternoIndexRoute = InternoIndexRouteImport.update({
   path: '/interno/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InternoIdRoute = InternoIdRouteImport.update({
+  id: '/interno/$id',
+  path: '/interno/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
+  '/interno/$id': typeof InternoIdRoute
   '/interno/': typeof InternoIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
+  '/interno/$id': typeof InternoIdRoute
   '/interno': typeof InternoIndexRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,28 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
+  '/interno/$id': typeof InternoIdRoute
   '/interno/': typeof InternoIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/diagnostico' | '/resultado' | '/interno/'
+  fullPaths: '/' | '/diagnostico' | '/resultado' | '/interno/$id' | '/interno/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/diagnostico' | '/resultado' | '/interno'
-  id: '__root__' | '/' | '/diagnostico' | '/resultado' | '/interno/'
+  to: '/' | '/diagnostico' | '/resultado' | '/interno/$id' | '/interno'
+  id:
+    | '__root__'
+    | '/'
+    | '/diagnostico'
+    | '/resultado'
+    | '/interno/$id'
+    | '/interno/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
   ResultadoRoute: typeof ResultadoRoute
+  InternoIdRoute: typeof InternoIdRoute
   InternoIndexRoute: typeof InternoIndexRoute
 }
 
@@ -99,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InternoIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/interno/$id': {
+      id: '/interno/$id'
+      path: '/interno/$id'
+      fullPath: '/interno/$id'
+      preLoaderRoute: typeof InternoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,6 +129,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiagnosticoRoute: DiagnosticoRoute,
   ResultadoRoute: ResultadoRoute,
+  InternoIdRoute: InternoIdRoute,
   InternoIndexRoute: InternoIndexRoute,
 }
 export const routeTree = rootRouteImport
