@@ -84,11 +84,8 @@ export default function AssessmentForm(){
   const snapshot = JSON.stringify(a);
   useEffect(() => {
     const session = loadSession();
-    (window as any).__eff = ((window as any).__eff ?? 0) + 1;
-    (window as any).__sess = !!session;
     if (!session) return;
     const t = setTimeout(() => {
-      (window as any).__fired = ((window as any).__fired ?? 0) + 1;
       void saveAssessmentProgress({
         data: {
           assessmentId: session.assessmentId,
