@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as ResultadoRouteImport } from './routes/resultado'
+import { Route as InternoIndexRouteImport } from './routes/interno.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const ResultadoRoute = ResultadoRouteImport.update({
   path: '/resultado',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InternoIndexRoute = InternoIndexRouteImport.update({
+  id: '/interno/',
+  path: '/interno/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
+  '/interno/': typeof InternoIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
+  '/interno': typeof InternoIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
+  '/interno/': typeof InternoIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/diagnostico' | '/resultado'
+  fullPaths: '/' | '/diagnostico' | '/resultado' | '/interno/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/diagnostico' | '/resultado'
-  id: '__root__' | '/' | '/diagnostico' | '/resultado'
+  to: '/' | '/diagnostico' | '/resultado' | '/interno'
+  id: '__root__' | '/' | '/diagnostico' | '/resultado' | '/interno/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
   ResultadoRoute: typeof ResultadoRoute
+  InternoIndexRoute: typeof InternoIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultadoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/interno/': {
+      id: '/interno/'
+      path: '/interno'
+      fullPath: '/interno/'
+      preLoaderRoute: typeof InternoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiagnosticoRoute: DiagnosticoRoute,
   ResultadoRoute: ResultadoRoute,
+  InternoIndexRoute: InternoIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
