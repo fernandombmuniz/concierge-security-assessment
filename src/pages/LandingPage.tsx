@@ -1,9 +1,33 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { startAssessment } from '../lib/assessment.functions';
+import { rememberAttribution, readAttribution, saveSession } from '../lib/assessment-session';
 import ClientHeader from '../components/ClientHeader';
 import { ArrowRight, ShieldCheck, Wifi, MonitorSmartphone, Database, KeyRound } from 'lucide-react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [consent, setConsent] = useState(false);
+  const [starting, setStarting] = useState(false);
+
+  useEffect(() => {
+    rememberAttribution(searchParams.get('ref'), searchParams.get('src'));
+  }, [searchParams]);
+
+  const start = async () => {
+    if (!consent || starting) return;
+    setStarting(true);
+    const { ref, source } = readAttribution();
+    try {
+      const session = await startAssessment({ data: { ref, source, consent: true } });
+      saveSession({ ...session, ref, source, consentAt: new Date().toISOString() });
+    } catch {
+      // Falha ao registrar no servidor não bloqueia o diagnóstico: o rascunho
+      // local continua funcionando e a sincronização é tentada novamente.
+    }
+    navigate('/diagnostico');
+  };
 
   const features = [
     {
@@ -73,12 +97,28 @@ export default function LandingPage() {
               ))}
             </div>
 
-            <div className="mt-10 flex justify-center">
+            <label className="mt-10 mx-auto flex max-w-2xl cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/45 p-4 text-left">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-teal-500"
+              />
+              <span className="text-xs leading-relaxed text-slate-400">
+                Autorizo a Concierge Segurança Digital a coletar e tratar as informações fornecidas neste
+                diagnóstico com a finalidade de elaborar a avaliação de segurança e o contato comercial
+                correspondente, conforme a Lei Geral de Proteção de Dados (LGPD). Os dados são utilizados
+                apenas internamente e podem ser corrigidos ou excluídos a pedido.
+              </span>
+            </label>
+
+            <div className="mt-6 flex justify-center">
               <button
-                onClick={() => navigate('/diagnostico')}
-                className="flex items-center gap-2 rounded-xl bg-teal-600 px-7 py-4 font-bold text-white shadow-lg shadow-teal-950/40 transition hover:bg-teal-500 hover:scale-[1.02] active:scale-[0.98]"
+                onClick={start}
+                disabled={!consent || starting}
+                className="flex items-center gap-2 rounded-xl bg-teal-600 px-7 py-4 font-bold text-white shadow-lg shadow-teal-950/40 transition hover:bg-teal-500 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
               >
-                Iniciar diagnóstico
+                {starting ? 'Preparando…' : 'Iniciar diagnóstico'}
                 <ArrowRight size={20} />
               </button>
             </div>
