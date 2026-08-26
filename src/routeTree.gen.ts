@@ -10,21 +10,32 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AssessmentRouteImport } from './routes/assessment'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ConcluidoRouteImport } from './routes/concluido'
 import { Route as DiagnosticoRouteImport } from './routes/diagnostico'
 import { Route as ResultadoRouteImport } from './routes/resultado'
-import { Route as InternoIndexRouteImport } from './routes/interno.index'
-import { Route as InternoIdRouteImport } from './routes/interno.$id'
+import { Route as AuthenticatedInternoIndexRouteImport } from './routes/_authenticated/interno.index'
+import { Route as AuthenticatedInternoIdRouteImport } from './routes/_authenticated/interno.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssessmentRoute = AssessmentRouteImport.update({
   id: '/assessment',
   path: '/assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConcluidoRoute = ConcluidoRouteImport.update({
@@ -42,50 +53,56 @@ const ResultadoRoute = ResultadoRouteImport.update({
   path: '/resultado',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InternoIndexRoute = InternoIndexRouteImport.update({
-  id: '/interno/',
-  path: '/interno/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InternoIdRoute = InternoIdRouteImport.update({
+const AuthenticatedInternoIndexRoute =
+  AuthenticatedInternoIndexRouteImport.update({
+    id: '/interno/',
+    path: '/interno/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInternoIdRoute = AuthenticatedInternoIdRouteImport.update({
   id: '/interno/$id',
   path: '/interno/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
+  '/auth': typeof AuthRoute
   '/concluido': typeof ConcluidoRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
-  '/interno/$id': typeof InternoIdRoute
-  '/interno/': typeof InternoIndexRoute
+  '/interno/$id': typeof AuthenticatedInternoIdRoute
+  '/interno/': typeof AuthenticatedInternoIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assessment': typeof AssessmentRoute
+  '/auth': typeof AuthRoute
   '/concluido': typeof ConcluidoRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
-  '/interno/$id': typeof InternoIdRoute
-  '/interno': typeof InternoIndexRoute
+  '/interno/$id': typeof AuthenticatedInternoIdRoute
+  '/interno': typeof AuthenticatedInternoIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/assessment': typeof AssessmentRoute
+  '/auth': typeof AuthRoute
   '/concluido': typeof ConcluidoRoute
   '/diagnostico': typeof DiagnosticoRoute
   '/resultado': typeof ResultadoRoute
-  '/interno/$id': typeof InternoIdRoute
-  '/interno/': typeof InternoIndexRoute
+  '/_authenticated/interno/$id': typeof AuthenticatedInternoIdRoute
+  '/_authenticated/interno/': typeof AuthenticatedInternoIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/assessment'
+    | '/auth'
     | '/concluido'
     | '/diagnostico'
     | '/resultado'
@@ -95,6 +112,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/assessment'
+    | '/auth'
     | '/concluido'
     | '/diagnostico'
     | '/resultado'
@@ -103,22 +121,24 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/assessment'
+    | '/auth'
     | '/concluido'
     | '/diagnostico'
     | '/resultado'
-    | '/interno/$id'
-    | '/interno/'
+    | '/_authenticated/interno/$id'
+    | '/_authenticated/interno/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AssessmentRoute: typeof AssessmentRoute
+  AuthRoute: typeof AuthRoute
   ConcluidoRoute: typeof ConcluidoRoute
   DiagnosticoRoute: typeof DiagnosticoRoute
   ResultadoRoute: typeof ResultadoRoute
-  InternoIdRoute: typeof InternoIdRoute
-  InternoIndexRoute: typeof InternoIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -130,11 +150,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assessment': {
       id: '/assessment'
       path: '/assessment'
       fullPath: '/assessment'
       preLoaderRoute: typeof AssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/concluido': {
@@ -158,31 +192,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultadoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/interno/': {
-      id: '/interno/'
+    '/_authenticated/interno/': {
+      id: '/_authenticated/interno/'
       path: '/interno'
       fullPath: '/interno/'
-      preLoaderRoute: typeof InternoIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedInternoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/interno/$id': {
-      id: '/interno/$id'
+    '/_authenticated/interno/$id': {
+      id: '/_authenticated/interno/$id'
       path: '/interno/$id'
       fullPath: '/interno/$id'
-      preLoaderRoute: typeof InternoIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedInternoIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedInternoIdRoute: typeof AuthenticatedInternoIdRoute
+  AuthenticatedInternoIndexRoute: typeof AuthenticatedInternoIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedInternoIdRoute: AuthenticatedInternoIdRoute,
+  AuthenticatedInternoIndexRoute: AuthenticatedInternoIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AssessmentRoute: AssessmentRoute,
+  AuthRoute: AuthRoute,
   ConcluidoRoute: ConcluidoRoute,
   DiagnosticoRoute: DiagnosticoRoute,
   ResultadoRoute: ResultadoRoute,
-  InternoIdRoute: InternoIdRoute,
-  InternoIndexRoute: InternoIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
