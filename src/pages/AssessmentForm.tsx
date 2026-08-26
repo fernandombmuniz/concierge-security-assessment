@@ -86,7 +86,7 @@ export default function AssessmentForm(){
     const t = setTimeout(() => {
       void saveAssessmentProgress({
         data: { assessmentId: session.assessmentId, editToken: session.editToken, step, data: a },
-      }).catch(() => {});
+      }).catch((err) => console.warn('[assessment] autosave falhou', err));
     }, 900);
     return () => clearTimeout(t);
   }, [a, step]);
