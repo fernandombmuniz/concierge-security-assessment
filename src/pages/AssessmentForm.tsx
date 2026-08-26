@@ -82,8 +82,10 @@ export default function AssessmentForm(){
   // comportamento do rascunho local existente.
   useEffect(() => {
     const session = loadSession();
+    console.warn('[assessment] effect', !!session);
     if (!session) return;
     const t = setTimeout(() => {
+      console.warn('[assessment] enviando');
       void saveAssessmentProgress({
         data: { assessmentId: session.assessmentId, editToken: session.editToken, step, data: a },
       }).catch((err) => console.warn('[assessment] autosave falhou', err));
