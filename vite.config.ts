@@ -7,6 +7,15 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  vite: {
+    resolve: {
+      alias: [
+        // As páginas aprovadas usam a API do react-router-dom; a camada de
+        // compatibilidade a implementa sobre o TanStack Router sem alterar o visual.
+        { find: /^react-router-dom$/, replacement: new URL("./src/lib/router-compat.tsx", import.meta.url).pathname },
+      ],
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
