@@ -1,0 +1,2 @@
+import { Severity } from '../scoring';
+export default function SeverityBadge({severity}:{severity:Severity}){const cls=severity==='Alta'?'border-rose-500/30 bg-rose-500/10 text-rose-300':severity==='Média'?'border-amber-500/30 bg-amber-500/10 text-amber-300':'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';return <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] ${cls}`}>{severity}</span>}
