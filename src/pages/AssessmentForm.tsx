@@ -79,19 +79,24 @@ export default function AssessmentForm(){
   ],[]);
 
   // Sincronização das respostas com o banco (autosave), sem alterar o
-  // comportamento do rascunho local existente.
+  // comportamento do rascunho local existente. O dep é o conteúdo serializado
+  // para não reiniciar o debounce a cada nova referência de objeto.
+  const snapshot = JSON.stringify(a);
   useEffect(() => {
     const session = loadSession();
-    console.warn('[assessment] effect', !!session);
     if (!session) return;
     const t = setTimeout(() => {
-      console.warn('[assessment] enviando');
       void saveAssessmentProgress({
-        data: { assessmentId: session.assessmentId, editToken: session.editToken, step, data: a },
-      }).catch((err) => console.warn('[assessment] autosave falhou', err));
+        data: {
+          assessmentId: session.assessmentId,
+          editToken: session.editToken,
+          step,
+          data: JSON.parse(snapshot),
+        },
+      }).catch(() => {});
     }, 900);
     return () => clearTimeout(t);
-  }, [a, step]);
+  }, [snapshot, step]);
 
   const submit=()=>{
     const session = loadSession();
