@@ -95,7 +95,7 @@ export const saveAssessmentProgress = createServerFn({ method: "POST" })
     const rows = Object.entries(sections).map(([section, answers]) => ({
       assessment_id: data.assessmentId,
       section,
-      answers,
+      answers: answers as never,
     }));
     const { error } = await supabaseAdmin
       .from("assessment_responses")
@@ -139,7 +139,7 @@ export const completeAssessment = createServerFn({ method: "POST" })
       Object.entries(sections).map(([section, answers]) => ({
         assessment_id: data.assessmentId,
         section,
-        answers,
+        answers: answers as never,
       })),
       { onConflict: "assessment_id,section" },
     );
@@ -159,8 +159,8 @@ export const completeAssessment = createServerFn({ method: "POST" })
         priority_domain_label: result.priorityLabel,
         maturity_level: maturityLevel(result.overall),
         coverage_percentage: result.completeness,
-        findings: result.findings,
-        scoring_snapshot: result,
+        findings: result.findings as never,
+        scoring_snapshot: result as never,
         methodology_version: METHODOLOGY_VERSION,
       })
       .eq("id", data.assessmentId);
