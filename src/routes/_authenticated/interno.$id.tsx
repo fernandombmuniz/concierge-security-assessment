@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import InternalResults from "@/pages/InternalResults";
 
-export const Route = createFileRoute("/interno/$id")({
+export const Route = createFileRoute("/_authenticated/interno/$id")({
   ssr: false,
   head: () => ({
     meta: [

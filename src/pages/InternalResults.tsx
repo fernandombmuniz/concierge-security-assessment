@@ -1,5 +1,7 @@
 import {Link,useParams} from 'react-router-dom';
-import {getSubmission} from '../storage';
+import {useQuery} from '@tanstack/react-query';
+import {getInternalAssessment} from '../lib/internal.functions';
+import {emptyAssessment,type AssessmentData} from '../types';
 import {maturityLevel,scoreAssessment} from '../scoring';
 import ScoreGauge from '../components/ScoreGauge';
 import DomainBars from '../components/DomainBars';
@@ -12,8 +14,11 @@ const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency
 const usageLabel={light:'Leve',medium:'Médio',high:'Intenso'} as const;
 
 export default function InternalResults(){
- const {id}=useParams(); const s=id?getSubmission(id):undefined;
- if(!s)return <main className="min-h-screen bg-slate-950 p-8 text-slate-200">Assessment não encontrado.</main>;
+ const {id}=useParams();
+ const {data,isLoading}=useQuery({queryKey:['internal-assessment',id],queryFn:()=>getInternalAssessment({data:{id:id!}}),enabled:!!id});
+ if(isLoading)return <main className="min-h-screen bg-slate-950 p-8 text-slate-200">Carregando assessment…</main>;
+ if(!data?.found)return <main className="min-h-screen bg-slate-950 p-8 text-slate-200">Assessment não encontrado.</main>;
+ const s={id:data.assessment.id,createdAt:data.assessment.created_at,data:{...emptyAssessment,...(JSON.parse(data.answersJson) as Partial<AssessmentData>)}};
  const r=scoreAssessment(s.data);
  const domains=[
    {label:'Rede e Perímetro',value:r.scores.network,icon:<Server size={17} className="text-cyan-400"/>},
@@ -24,7 +29,7 @@ export default function InternalResults(){
  const severityCount={Alta:r.findings.filter(f=>f.severity==='Alta').length,Média:r.findings.filter(f=>f.severity==='Média').length,Baixa:r.findings.filter(f=>f.severity==='Baixa').length};
  const knownScore = r.overall!==null;
  return <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-8 md:py-10"><div className="mx-auto max-w-7xl">
-  <div className="mb-6 flex flex-wrap items-center justify-between gap-4"><Link to="/interno" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white"><ArrowLeft size={16}/>Assessments locais</Link><div className="flex items-center gap-3"><img src={logo} className="h-9 rounded-md"/><div className="hidden text-right text-xs text-slate-500 sm:block">Concierge Security Assessment<br/>Prévia interna</div></div></div>
+  <div className="mb-6 flex flex-wrap items-center justify-between gap-4"><Link to="/interno" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white"><ArrowLeft size={16}/>Voltar aos assessments</Link><div className="flex items-center gap-3"><img src={logo} className="h-9 rounded-md"/><div className="hidden text-right text-xs text-slate-500 sm:block">Concierge Security Assessment<br/>Prévia interna</div></div></div>
 
   <section className="glass-card overflow-hidden p-6 md:p-8"><div className="grid gap-8 lg:grid-cols-[1.3fr_.7fr] lg:items-center"><div><div className="text-xs font-bold uppercase tracking-[.22em] text-teal-400">Security Assessment · Uso interno</div><h1 className="mt-3 text-4xl font-extrabold tracking-tight md:text-5xl">{s.data.companyName||'Empresa não informada'}</h1><p className="mt-3 max-w-3xl text-slate-400">Leitura executiva e técnica baseada nas respostas fornecidas. O score representa maturidade relativa dos controles avaliados, não probabilidade absoluta de ataque.</p><div className="mt-6 flex flex-wrap gap-2 text-sm"><span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1.5">{s.data.sector||'Setor não informado'}</span><span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1.5">{s.data.users||'—'} usuários</span><span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1.5">{s.data.sites||1} unidade(s)</span><span className="rounded-full border border-slate-700 bg-slate-950/40 px-3 py-1.5">Dados respondidos: {r.completeness}%</span></div></div><div className="flex justify-center"><ScoreGauge value={r.overall}/></div></div></section>
 
