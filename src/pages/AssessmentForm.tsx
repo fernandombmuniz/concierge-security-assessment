@@ -9,13 +9,13 @@ import {ArrowRight,ArrowLeft,CheckCircle2,Info,Wifi,MonitorSmartphone,Database,K
 
 const Card=({children}:{children:ReactNode})=><div className="glass-card p-6 md:p-8">{children}</div>;
 const Field=({label,help,children}:{label:string,help?:string,children:ReactNode})=> (
-  <label className="question-field block">
-    <span className="question-label font-semibold text-slate-100">{label}</span>
-    <div className="question-control">{children}</div>
-    {help && <span className="question-help block text-sm leading-relaxed text-slate-400">{help}</span>}
+  <label className="question-field flex h-full flex-col">
+    <span className="question-label flex min-h-0 items-end font-semibold leading-snug text-slate-100 md:min-h-[2.9rem]">{label}</span>
+    <div className="question-control mt-2">{children}</div>
+    <span className="question-help mt-2 block min-h-0 text-sm leading-relaxed text-slate-400 md:min-h-[2.6rem]">{help || ''}</span>
   </label>
 );
-const QuestionPair=({children}:{children:ReactNode})=><div className="question-pair">{children}</div>;
+const QuestionPair=({children}:{children:ReactNode})=><div className="grid gap-5 md:grid-cols-2 md:items-stretch">{children}</div>;
 const StepSection=({eyebrow,title,description,children}:{eyebrow:string,title:string,description:string,children:ReactNode})=>(
   <section className="rounded-2xl border border-slate-800/80 bg-slate-950/20 p-5 md:p-6">
     <div className="mb-5 border-b border-slate-800/70 pb-4">
@@ -36,6 +36,12 @@ const sectors=[
 
 const firewallVendors=['MikroTik','Fortinet','SonicWall','Sophos','WatchGuard','Palo Alto Networks','Cisco','Check Point','pfSense / OPNsense','Ubiquiti','Outro','Não sei informar'];
 
+const peopleBucket=(n:number)=>!n?0:n<=10?5:n<=20?15:n<=50?35:n<=100?75:n<=200?150:250;
+const deviceBucket=peopleBucket;
+const serverBucket=(n:number)=>!n?0:n===1?1:n<=5?3:6;
+const teamBucket=(n:number)=>!n?0:n===1?1:n<=5?3:6;
+const backupBucket=(n:number)=>!n?0:n<=100?50:n<=500?300:n<=1000?750:n<=5000?3000:7500;
+
 export default function AssessmentForm(){
   const nav=useNavigate();
   const [step, setStep] = useState(() => {
@@ -43,7 +49,6 @@ export default function AssessmentForm(){
     return saved ? parseInt(saved, 10) : 0;
   });
   const [a,setA]=useState<AssessmentData>(()=>loadDraft());
-  const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const set=(k:keyof AssessmentData,v:any)=>setA(x=>({...x,[k]:v}));
 
@@ -52,32 +57,21 @@ export default function AssessmentForm(){
   }, [step]);
 
   useEffect(() => {
-    setIsSaving(true);
-    const t = setTimeout(() => {
+    const t = window.setTimeout(() => {
       saveDraft(a);
-      setIsSaving(false);
-      window.dispatchEvent(new Event('storage'));
-    }, 180);
-    return () => clearTimeout(t);
+    }, 300);
+
+    return () => {
+      window.clearTimeout(t);
+    };
   }, [a]);
 
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setA(loadDraft());
-      const savedStep = localStorage.getItem('concierge-client-assessment-step-v2');
-      setStep(savedStep ? parseInt(savedStep, 10) : 0);
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
   const steps=useMemo(()=>[
-    {name:'Empresa',icon:Building2,desc:'Contexto e porte do ambiente'},
-    {name:'Rede',icon:Wifi,desc:'Internet, perímetro e conectividade'},
-    {name:'Dispositivos',icon:MonitorSmartphone,desc:'Proteção dos computadores'},
-    {name:'Continuidade',icon:Database,desc:'Backup e capacidade de recuperação'},
-    {name:'Acesso',icon:KeyRound,desc:'Identidades, MFA e contexto'}
+    {name:'Empresa',icon:Building2,desc:'Sobre a empresa e quem utiliza a tecnologia'},
+    {name:'Internet e rede',icon:Wifi,desc:'Como a conexão é protegida e acompanhada'},
+    {name:'Computadores',icon:MonitorSmartphone,desc:'Como os computadores são protegidos no dia a dia'},
+    {name:'Dados e backup',icon:Database,desc:'Onde estão os dados e como a empresa consegue recuperá-los'},
+    {name:'Contas e segurança',icon:KeyRound,desc:'Acessos, e-mail e preparação para incidentes'}
   ],[]);
 
   // Sincronização das respostas com o banco (autosave), sem alterar o
@@ -177,8 +171,8 @@ const submit=async()=>{
           </div>
         </div>
         <div className="mt-1 flex shrink-0 items-center gap-1.5 self-end rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-500 sm:self-start">
-          <span className={`inline-block h-1.5 w-1.5 rounded-full ${isSaving ? 'animate-pulse bg-amber-400' : 'bg-teal-500'}`} />
-          <span>{isSaving ? 'Salvando...' : 'Respostas salvas'}</span>
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-teal-500" />
+          <span>Respostas salvas automaticamente</span>
         </div>
       </div>
 
@@ -194,11 +188,11 @@ const submit=async()=>{
         </QuestionPair>
         <QuestionPair>
           <Field label="E-mail"><input className={input} type="email" value={a.contactEmail} onChange={e=>set('contactEmail',e.target.value)}/></Field>
-          <Field label="Usuários do ambiente"><input className={input} type="number" min="0" value={a.users||''} onChange={e=>set('users',+e.target.value)}/></Field>
+          <Field label="Quantas pessoas utilizam computadores, sistemas ou a rede da empresa?" help="Considere funcionários e colaboradores que utilizam os recursos de TI regularmente."><select className={select} value={peopleBucket(a.users)} onChange={e=>set('users',+e.target.value)}><option value="0">Selecione uma faixa</option><option value="5">Até 10 pessoas</option><option value="15">11 a 20 pessoas</option><option value="35">21 a 50 pessoas</option><option value="75">51 a 100 pessoas</option><option value="150">101 a 200 pessoas</option><option value="250">Mais de 200 pessoas</option></select></Field>
         </QuestionPair>
         <QuestionPair>
-          <Field label="Unidades / filiais" help="Considere matriz, filiais ou unidades que façam parte do ambiente avaliado."><input className={input} type="number" min="1" value={a.sites} onChange={e=>set('sites',+e.target.value)}/></Field>
-          <div className="hidden md:block"/>
+          <Field label="Quantas unidades ou filiais a empresa possui?" help="Considere matriz, filiais ou unidades que façam parte deste diagnóstico."><input className={input} type="number" min="1" value={a.sites} onChange={e=>set('sites',+e.target.value)}/></Field>
+          <Field label="Quem cuida da TI no dia a dia?" help="Isso ajuda a entender quem normalmente administra equipamentos, sistemas e acessos."><select className={select} value={teamBucket(a.itTeamSize)} onChange={e=>set('itTeamSize',+e.target.value)}><option value="0">Não há equipe interna / não sei informar</option><option value="1">1 pessoa interna</option><option value="3">2 a 5 pessoas internas</option><option value="6">Mais de 5 pessoas internas</option></select></Field>
         </QuestionPair>
       </div>}
 
@@ -209,18 +203,18 @@ const submit=async()=>{
           description="Primeiro, queremos entender como a rede é protegida e quem acompanha os alertas de segurança."
         >
           <QuestionPair>
-            <Field label="Qual solução controla hoje o acesso da empresa à internet?" help="Escolha a opção mais próxima. O fabricante, sozinho, não define a pontuação."><select className={select} value={a.firewallLevel} onChange={e=>set('firewallLevel',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Não possui firewall dedicado</option><option value="isp">Utiliza apenas equipamento da operadora</option><option value="router">MikroTik ou roteador corporativo</option><option value="utm">Firewall corporativo com recursos de segurança</option><option value="ngfw">Firewall de próxima geração com proteções ativas</option><option value="managed_ngfw">Firewall avançado acompanhado por equipe especializada</option></select></Field>
-            <Field label="Quem acompanha alertas e eventos de segurança?" help="Queremos entender se existe apenas tecnologia instalada ou também acompanhamento operacional."><select className={select} value={a.monitoring} onChange={e=>set('monitoring',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Ninguém acompanha regularmente</option><option value="reactive_it">Equipe de TI verifica quando necessário</option><option value="outsourced_it">Empresa terceirizada de TI</option><option value="security_team">Equipe especializada de segurança</option><option value="soc">SOC / monitoramento contínuo</option></select></Field>
+            <Field label="Como a empresa protege hoje a conexão com a internet?" help="Escolha a opção mais próxima do que existe hoje. Se não souber, tudo bem."><select className={select} value={a.firewallLevel} onChange={e=>set('firewallLevel',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Não existe uma proteção dedicada além do roteador comum</option><option value="isp">Usa apenas o equipamento fornecido pela operadora</option><option value="router">Usa MikroTik ou outro roteador corporativo</option><option value="utm">Usa um equipamento próprio para proteger a rede</option><option value="ngfw">Usa uma solução de segurança com bloqueios e proteções adicionais</option><option value="managed_ngfw">Usa uma solução de segurança acompanhada por equipe especializada</option></select></Field>
+            <Field label="Quando algo suspeito acontece na rede, quem costuma receber ou verificar os alertas?" help="Queremos saber se alguém acompanha o que acontece, e não apenas se existe um equipamento instalado."><select className={select} value={a.monitoring} onChange={e=>set('monitoring',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Ninguém acompanha regularmente</option><option value="reactive_it">Equipe de TI verifica quando necessário</option><option value="outsourced_it">Empresa terceirizada de TI</option><option value="security_team">Equipe especializada de segurança</option><option value="soc">Equipe especializada com acompanhamento contínuo</option></select></Field>
           </QuestionPair>
           <QuestionPair>
-            <Field label="Além de controlar acessos, existem proteções ativas contra ameaças no equipamento de borda?" help="Considere recursos como prevenção de intrusão, bloqueio de aplicações maliciosas, filtragem e inteligência de ameaças."><select className={select} value={a.firewallThreatPrevention} onChange={e=>set('firewallThreatPrevention',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim, vários desses recursos estão ativos</option><option value="partial">Alguns recursos estão ativos</option><option value="no">Não / atua principalmente como firewall tradicional</option></select></Field>
-            <Field label="Existe rotina para atualizar e revisar as configurações dos equipamentos de rede?"><select className={select} value={a.networkMaintenance} onChange={e=>set('networkMaintenance',e.target.value)}><option value="unknown">Não sei informar</option><option value="formal">Sim, existe rotina definida</option><option value="informal">É feito quando necessário</option><option value="none">Não existe rotina definida</option></select></Field>
+            <Field label="A proteção da internet consegue bloquear ameaças além de simplesmente permitir ou negar acessos?" help="Por exemplo: bloquear sites maliciosos, tentativas de ataque ou aplicações indevidas. Se não souber, escolha “Não sei informar”."><select className={select} value={a.firewallThreatPrevention} onChange={e=>set('firewallThreatPrevention',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim, existem vários bloqueios e proteções adicionais</option><option value="partial">Existem algumas proteções adicionais</option><option value="no">Não, atua principalmente controlando acessos</option></select></Field>
+            <Field label="Alguém revisa e atualiza regularmente os equipamentos que protegem a rede?"><select className={select} value={a.networkMaintenance} onChange={e=>set('networkMaintenance',e.target.value)}><option value="unknown">Não sei informar</option><option value="formal">Sim, existe rotina definida</option><option value="informal">É feito quando necessário</option><option value="none">Não existe rotina definida</option></select></Field>
           </QuestionPair>
 
           {!['none','isp','unknown'].includes(a.firewallLevel)&&<>
             <QuestionPair>
-              <Field label="O licenciamento de segurança está ativo?"><select className={select} value={a.firewallLicense} onChange={e=>set('firewallLicense',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
-              <Field label="Fabricante do firewall, se souber"><select className={select} value={firewallVendorValue} onChange={e=>set('firewallVendor',e.target.value==='Não sei informar'?'':e.target.value)}>{firewallVendors.map(v=><option key={v} value={v}>{v}</option>)}</select></Field>
+              <Field label="A solução de segurança recebe atualizações e mantém os recursos contratados ativos?"><select className={select} value={a.firewallLicense} onChange={e=>set('firewallLicense',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
+              <Field label="Marca do equipamento de segurança, se souber"><select className={select} value={firewallVendorValue} onChange={e=>set('firewallVendor',e.target.value==='Não sei informar'?'':e.target.value)}>{firewallVendors.map(v=><option key={v} value={v}>{v}</option>)}</select></Field>
             </QuestionPair>
             <QuestionPair>
               {firewallVendorValue==='Outro' ? <Field label="Outro fabricante"><input className={input} value={a.firewallVendor==='Outro'?'':a.firewallVendor} onChange={e=>set('firewallVendor',e.target.value)} placeholder="Informe o fabricante"/></Field> : <div className="hidden md:block"/>}
@@ -231,85 +225,85 @@ const submit=async()=>{
 
         <StepSection
           eyebrow="Parte 2 de 2"
-          title="Conectividade e acessos"
-          description="Agora alguns dados de capacidade. Eles ajudam a entender o porte do ambiente e apoiam o pré-dimensionamento interno da Concierge."
+          title="Internet e conexão"
+          description="Agora alguns dados simples sobre a conexão. Se você não souber algum deles, pode deixar em branco."
         >
           <QuestionPair>
-            <Field label="Quantidade de links de internet"><input className={input} type="number" min="1" value={a.internetLinkCount} onChange={e=>set('internetLinkCount',+e.target.value)}/></Field>
-            <Field label="Velocidade total aproximada dos links (Mbps)" help="Informe a soma aproximada das velocidades contratadas."><input className={input} type="number" min="0" value={a.links[0].speedMbps||''} onChange={e=>set('links',[{speedMbps:+e.target.value}])}/></Field>
+            <Field label="Quantas conexões de internet a empresa possui?"><input className={input} type="number" min="1" value={a.internetLinkCount} onChange={e=>set('internetLinkCount',+e.target.value)}/></Field>
+            <Field label="Qual é a velocidade aproximada contratada? (Mbps)" help="Ex.: 500 para um link de 500 Mbps ou 1000 para 1 Gbps. Se houver mais de um link, informe a soma aproximada."><input className={input} type="number" min="0" value={a.links[0].speedMbps||''} onChange={e=>set('links',[{speedMbps:+e.target.value}])}/></Field>
           </QuestionPair>
           <QuestionPair>
-            <Field label="Perfil de uso da internet"><select className={select} value={a.networkUsage} onChange={e=>set('networkUsage',e.target.value)}><option value="light">Leve — navegação, e-mail, sistemas simples</option><option value="medium">Médio — cloud, videoconferência e uso frequente</option><option value="high">Intenso — alto tráfego, múltiplos serviços e transferências</option></select></Field>
-            <Field label="Acessos VPN remotos" help="Se não souber, pode deixar em branco."><input className={input} type="number" min="0" value={a.vpnRemote||''} onChange={e=>set('vpnRemote',+e.target.value)}/></Field>
+            <Field label="Como a internet é usada no dia a dia?"><select className={select} value={a.networkUsage} onChange={e=>set('networkUsage',e.target.value)}><option value="light">Leve — navegação, e-mail, sistemas simples</option><option value="medium">Médio — cloud, videoconferência e uso frequente</option><option value="high">Intenso — alto tráfego, múltiplos serviços e transferências</option></select></Field>
+            <Field label="Quantas pessoas acessam a rede da empresa de fora, por conexão segura (VPN)?" help="Se não souber, pode deixar em branco."><input className={input} type="number" min="0" value={a.vpnRemote||''} onChange={e=>set('vpnRemote',+e.target.value)}/></Field>
           </QuestionPair>
           <QuestionPair>
-            <Field label="VPNs entre unidades" help="Considere túneis entre matriz, filiais ou outras unidades. Se não souber, deixe em branco."><input className={input} type="number" min="0" value={a.vpnSite||''} onChange={e=>set('vpnSite',+e.target.value)}/></Field>
-            <Field label="Quantidade de VLANs" help="Se não souber, pode deixar em branco."><input className={input} type="number" min="0" value={a.vlans||''} onChange={e=>set('vlans',+e.target.value)}/></Field>
+            <Field label="Existem conexões seguras entre matriz e filiais? Quantas?" help="Considere conexões usadas para interligar unidades. Se não souber, deixe em branco."><input className={input} type="number" min="0" value={a.vpnSite||''} onChange={e=>set('vpnSite',+e.target.value)}/></Field>
+            <Field label="A rede é separada em grupos, como Administrativo, Visitantes ou Servidores? Quantos grupos?" help="Se não souber, pode deixar em branco."><input className={input} type="number" min="0" value={a.vlans||''} onChange={e=>set('vlans',+e.target.value)}/></Field>
           </QuestionPair>
         </StepSection>
       </div>}
 
       {step===2&&<div className="space-y-5">
         <QuestionPair>
-          <Field label="Como os computadores são protegidos hoje?" help="Escolha a opção mais próxima do nível de proteção utilizado."><select className={select} value={a.endpointLevel} onChange={e=>set('endpointLevel',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Sem proteção padronizada</option><option value="basic_av">Antivírus gratuito / individual</option><option value="business_av">Antivírus corporativo</option><option value="edr">EDR / XDR</option><option value="managed_edr">EDR / XDR acompanhado por equipe especializada</option></select></Field>
-          <Field label="Computadores e notebooks" help="Informe aproximadamente quantos equipamentos corporativos são utilizados. Esse dado é diferente do número de usuários."><input className={input} type="number" min="0" value={a.endpointCount||a.devices||''} onChange={e=>{set('endpointCount',+e.target.value);set('devices',+e.target.value)}}/></Field>
+          <Field label="Os computadores da empresa utilizam antivírus ou outra proteção de segurança?" help="Escolha a opção que mais se aproxima do que você conhece hoje."><select className={select} value={a.endpointLevel} onChange={e=>set('endpointLevel',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Não existe uma proteção padronizada</option><option value="basic_av">Sim, antivírus instalado individualmente</option><option value="business_av">Sim, antivírus corporativo administrado pela empresa ou TI</option><option value="edr">Sim, proteção avançada que também ajuda a investigar comportamentos suspeitos</option><option value="managed_edr">Sim, proteção avançada que também ajuda a investigar comportamentos suspeitos acompanhado por equipe especializada</option></select></Field>
+          <Field label="Aproximadamente quantos computadores e notebooks a empresa utiliza?" help="Não precisa ser exato. Escolha a faixa mais próxima."><select className={select} value={deviceBucket(a.endpointCount||a.devices)} onChange={e=>{set('endpointCount',+e.target.value);set('devices',+e.target.value)}}><option value="0">Selecione uma faixa</option><option value="5">Até 10 equipamentos</option><option value="15">11 a 20 equipamentos</option><option value="35">21 a 50 equipamentos</option><option value="75">51 a 100 equipamentos</option><option value="150">101 a 200 equipamentos</option><option value="250">Mais de 200 equipamentos</option></select></Field>
         </QuestionPair>
         {a.endpointLevel!=='none' && a.endpointLevel!=='unknown' && <QuestionPair>
-          <Field label="A proteção dos computadores é administrada por uma console central?" help="Uma console central permite aplicar políticas, acompanhar alertas e verificar o estado dos equipamentos."><select className={select} value={a.endpointCentralManagement} onChange={e=>set('endpointCentralManagement',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim, todos ou quase todos</option><option value="partial">Apenas parte dos equipamentos</option><option value="no">Não</option></select></Field>
-          <Field label="Quando uma ameaça ou comportamento suspeito é detectado, quem acompanha o que aconteceu?" help="A pergunta separa a tecnologia instalada da capacidade real de investigar e responder aos alertas."><select className={select} value={a.endpointResponse} onChange={e=>set('endpointResponse',e.target.value)}><option value="unknown">Não sei informar</option><option value="managed_soc">Equipe especializada / SOC acompanha e responde</option><option value="defined_team">Existe equipe ou responsável definido para investigar</option><option value="alerts_only">Recebemos alertas, mas a análise é eventual</option><option value="none">Não existe acompanhamento dos alertas</option></select></Field>
+          <Field label="O responsável pela TI consegue acompanhar e administrar a proteção dos computadores em um único lugar?" help="Por exemplo, visualizar quais computadores estão protegidos, receber alertas e aplicar configurações de forma centralizada."><select className={select} value={a.endpointCentralManagement} onChange={e=>set('endpointCentralManagement',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim, todos ou quase todos</option><option value="partial">Apenas parte dos equipamentos</option><option value="no">Não</option></select></Field>
+          <Field label="Quando uma ameaça é detectada em um computador, alguém acompanha o que aconteceu?" help="Queremos saber se existe alguém responsável por olhar o alerta e decidir o que precisa ser feito."><select className={select} value={a.endpointResponse} onChange={e=>set('endpointResponse',e.target.value)}><option value="unknown">Não sei informar</option><option value="managed_soc">Uma equipe especializada acompanha e responde</option><option value="defined_team">Existe uma pessoa ou equipe definida para verificar</option><option value="alerts_only">Existem alertas, mas são verificados apenas quando necessário</option><option value="none">Não existe acompanhamento dos alertas</option></select></Field>
         </QuestionPair>}
         <QuestionPair>
-          <Field label="A empresa mantém uma relação atualizada dos computadores, servidores e dispositivos corporativos?" help="Pode ser uma ferramenta de inventário ou outro controle mantido de forma consistente."><select className={select} value={a.assetInventory} onChange={e=>set('assetInventory',e.target.value)}><option value="unknown">Não sei informar</option><option value="managed">Sim, inventário atualizado e gerenciado</option><option value="partial">Existe, mas pode estar incompleto</option><option value="informal">Controle informal / planilha sem revisão regular</option><option value="none">Não existe inventário</option></select></Field>
+          <Field label="A empresa possui uma lista atualizada dos computadores, servidores e outros equipamentos usados no trabalho?" help="Pode ser uma ferramenta, planilha ou outro controle que permita saber quais equipamentos existem e quem os utiliza."><select className={select} value={a.assetInventory} onChange={e=>set('assetInventory',e.target.value)}><option value="unknown">Não sei informar</option><option value="managed">Sim, inventário atualizado e gerenciado</option><option value="partial">Existe, mas pode estar incompleto</option><option value="informal">Controle informal / planilha sem revisão regular</option><option value="none">Não existe inventário</option></select></Field>
           <div className="hidden md:block"/>
         </QuestionPair>
         {(a.assetInventory!=='unknown' || ['business_av','edr','managed_edr'].includes(a.endpointLevel)) && <QuestionPair>
-          <Field label="Como a empresa identifica vulnerabilidades ou sistemas desatualizados?" help="Considere varreduras, ferramentas de gestão, revisões técnicas ou verificações periódicas."><select className={select} value={a.vulnerabilityManagement} onChange={e=>set('vulnerabilityManagement',e.target.value)}><option value="unknown">Não sei informar</option><option value="continuous">Monitoramento contínuo / ferramenta dedicada</option><option value="regular">Verificação periódica definida</option><option value="occasional">Verificações ocasionais</option><option value="reactive">Normalmente quando surge um problema</option><option value="none">Não existe processo</option></select></Field>
+          <Field label="A empresa verifica periodicamente se computadores e sistemas precisam de atualizações ou correções de segurança?" help="Pense em atualizações pendentes, versões antigas ou falhas que precisem ser corrigidas."><select className={select} value={a.vulnerabilityManagement} onChange={e=>set('vulnerabilityManagement',e.target.value)}><option value="unknown">Não sei informar</option><option value="continuous">Monitoramento contínuo / ferramenta dedicada</option><option value="regular">Verificação periódica definida</option><option value="occasional">Verificações ocasionais</option><option value="reactive">Normalmente quando surge um problema</option><option value="none">Não existe processo</option></select></Field>
           <div className="hidden md:block"/>
         </QuestionPair>}
         <QuestionPair>
-          <Field label="Servidores"><input className={input} type="number" min="0" value={a.servers||''} onChange={e=>set('servers',+e.target.value)}/></Field>
-          <Field label="Atualizações de segurança são aplicadas automaticamente?"><select className={select} value={a.autoUpdates} onChange={e=>set('autoUpdates',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
+          <Field label="A empresa possui servidores próprios?" help="Considere servidores físicos ou virtuais administrados pela empresa."><select className={select} value={serverBucket(a.servers)} onChange={e=>set('servers',+e.target.value)}><option value="0">Não possui / não sei informar</option><option value="1">1 servidor</option><option value="3">2 a 5 servidores</option><option value="6">Mais de 5 servidores</option></select></Field>
+          <Field label="Os computadores recebem atualizações de segurança automaticamente?"><select className={select} value={a.autoUpdates} onChange={e=>set('autoUpdates',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
         </QuestionPair>
 
       </div>}
 
       {step===3&&<div className="space-y-5">
         <QuestionPair>
-          <Field label="Onde ficam, na prática, os arquivos e dados mais importantes da empresa?" help="Isso ajuda a entender se os dados já estão organizados para uma estratégia de proteção e recuperação."><select className={select} value={a.dataLocation} onChange={e=>set('dataLocation',e.target.value)}><option value="unknown">Não sei informar</option><option value="corporate_central">Ambiente corporativo centralizado (servidor, SharePoint, OneDrive corporativo etc.)</option><option value="saas_only">Principalmente em sistemas SaaS / aplicações em nuvem</option><option value="mixed">Misturados entre nuvem corporativa, servidores e computadores</option><option value="endpoints">Principalmente nos computadores/notebooks dos usuários</option><option value="personal_cloud">Contas pessoais de nuvem ou armazenamento não centralizado</option></select></Field>
+          <Field label="Onde ficam os arquivos e informações mais importantes da empresa?" help="Pense onde as pessoas salvam documentos e informações usadas no dia a dia."><select className={select} value={a.dataLocation} onChange={e=>set('dataLocation',e.target.value)}><option value="unknown">Não sei informar</option><option value="corporate_central">Em um local corporativo centralizado, como servidor, SharePoint ou OneDrive da empresa</option><option value="saas_only">Principalmente dentro de sistemas e aplicações em nuvem</option><option value="mixed">Espalhados entre nuvem da empresa, servidores e computadores</option><option value="endpoints">Principalmente nos computadores e notebooks das pessoas</option><option value="personal_cloud">Em contas pessoais ou locais não administrados pela empresa</option></select></Field>
           <div className="hidden md:block"/>
         </QuestionPair>
         <QuestionPair>
-          <Field label="Como os dados são protegidos hoje?" help="Considere arquivos, servidores, sistemas e dados importantes para a operação."><select className={select} value={a.backupLevel} onChange={e=>set('backupLevel',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Não existe backup formal</option><option value="manual">Cópias manuais</option><option value="automated_local">Backup automatizado local</option><option value="cloud">Backup automatizado em nuvem</option><option value="multi_copy">Mais de uma cópia / local</option><option value="managed">Backup gerenciado, com política e acompanhamento</option></select></Field>
-          <Field label="Volume aproximado a proteger (GB)" help="Se souber, informe uma estimativa do volume de dados mais importante para a operação."><input className={input} type="number" min="0" value={a.backupVolumeGb||''} onChange={e=>set('backupVolumeGb',+e.target.value)}/></Field>
+          <Field label="A empresa possui cópias de segurança dos dados importantes?" help="Pense nos arquivos e sistemas que fariam falta se fossem perdidos ou apagados."><select className={select} value={a.backupLevel} onChange={e=>set('backupLevel',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Não existe uma rotina de cópia de segurança</option><option value="manual">Sim, mas as cópias são feitas manualmente</option><option value="automated_local">Sim, cópia automática em equipamento ou local da empresa</option><option value="cloud">Sim, cópia automática em nuvem</option><option value="multi_copy">Sim, existem cópias em mais de um local</option><option value="managed">Sim, existe uma rotina gerenciada e acompanhada</option></select></Field>
+          <Field label="Aproximadamente quanto de informação importante precisa ser protegida?" help="Se não souber, escolha “Não sei informar”."><select className={select} value={backupBucket(a.backupVolumeGb)} onChange={e=>set('backupVolumeGb',+e.target.value)}><option value="0">Não sei informar</option><option value="50">Até 100 GB</option><option value="300">100 a 500 GB</option><option value="750">500 GB a 1 TB</option><option value="3000">1 a 5 TB</option><option value="7500">Mais de 5 TB</option></select></Field>
         </QuestionPair>
         <QuestionPair>
-          <Field label="Existe uma cópia protegida para que um incidente no ambiente principal não consiga alterá-la facilmente?" help="Exemplos: cópia imutável, offline, isolada ou administrada com credenciais separadas."><select className={select} value={a.backupIsolation} onChange={e=>set('backupIsolation',e.target.value)}><option value="unknown">Não sei informar</option><option value="immutable">Sim, cópia imutável</option><option value="isolated">Sim, cópia isolada / offline</option><option value="separate_account">Sim, ambiente ou credenciais administrativas separadas</option><option value="same_environment">Existe cópia, mas no mesmo ambiente administrativo</option><option value="none">Não existe cópia isolada</option></select></Field>
+          <Field label="Existe pelo menos uma cópia que fica separada e protegida caso os dados principais sejam apagados ou atacados?" help="Por exemplo, uma cópia que não possa ser alterada facilmente pelas mesmas pessoas ou sistemas usados no dia a dia."><select className={select} value={a.backupIsolation} onChange={e=>set('backupIsolation',e.target.value)}><option value="unknown">Não sei informar</option><option value="immutable">Sim, existe uma cópia protegida contra alteração</option><option value="isolated">Sim, existe uma cópia separada ou offline</option><option value="separate_account">Sim, existe uma cópia administrada separadamente</option><option value="same_environment">Existe cópia, mas ela depende do mesmo ambiente ou das mesmas credenciais</option><option value="none">Não existe uma cópia separada</option></select></Field>
           <div className="hidden md:block"/>
         </QuestionPair>
         <QuestionPair>
-          <Field label="Vocês já testaram se conseguem restaurar essas informações?"><select className={select} value={a.restoreTests} onChange={e=>set('restoreTests',e.target.value)}><option value="unknown">Não sei informar</option><option value="regular">Sim, periodicamente</option><option value="once">Já testamos alguma vez</option><option value="never">Nunca testamos</option></select></Field>
-          <Field label="Quanto tempo a operação consegue ficar indisponível?" help="Pense no tempo máximo aceitável sem os sistemas ou dados mais importantes."><select className={select} value={a.maxDowntime} onChange={e=>set('maxDowntime',e.target.value)}><option value="unknown">Não sei informar</option><option value="4h">Até 4 horas</option><option value="8h">Até 8 horas</option><option value="1d">Até 1 dia</option><option value="2d">Até 2 dias</option><option value="more">Mais de 2 dias</option></select></Field>
+          <Field label="A empresa já testou se consegue recuperar os dados a partir dessas cópias?"><select className={select} value={a.restoreTests} onChange={e=>set('restoreTests',e.target.value)}><option value="unknown">Não sei informar</option><option value="regular">Sim, periodicamente</option><option value="once">Já testamos alguma vez</option><option value="never">Nunca testamos</option></select></Field>
+          <Field label="Por quanto tempo a empresa consegue ficar sem os sistemas ou dados mais importantes?" help="Pense no tempo máximo aceitável sem os sistemas ou dados mais importantes."><select className={select} value={a.maxDowntime} onChange={e=>set('maxDowntime',e.target.value)}><option value="unknown">Não sei informar</option><option value="4h">Até 4 horas</option><option value="8h">Até 8 horas</option><option value="1d">Até 1 dia</option><option value="2d">Até 2 dias</option><option value="more">Mais de 2 dias</option></select></Field>
         </QuestionPair>
       </div>}
 
       {step===4&&<div className="space-y-5">
         <QuestionPair>
-          <Field label="MFA é usado nas contas importantes?" help="MFA é uma confirmação adicional por aplicativo, código ou outro fator além da senha."><select className={select} value={a.mfa} onChange={e=>set('mfa',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim, de forma ampla</option><option value="partial">Apenas em algumas contas</option><option value="no">Não</option></select></Field>
-          <Field label="Existem contas compartilhadas entre colaboradores?"><select className={select} value={a.sharedAccounts} onChange={e=>set('sharedAccounts',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
+          <Field label="Nas contas mais importantes, é exigida alguma confirmação além da senha?" help="Por exemplo, um código no celular, aplicativo autenticador ou outra confirmação. Isso também é conhecido como MFA ou verificação em duas etapas."><select className={select} value={a.mfa} onChange={e=>set('mfa',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim, de forma ampla</option><option value="partial">Apenas em algumas contas</option><option value="no">Não</option></select></Field>
+          <Field label="Mais de uma pessoa utiliza a mesma conta ou senha para acessar algum sistema?"><select className={select} value={a.sharedAccounts} onChange={e=>set('sharedAccounts',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
         </QuestionPair>
         <QuestionPair>
-          <Field label="Quando alguém sai da empresa, existe processo para remover os acessos?"><select className={select} value={a.offboarding} onChange={e=>set('offboarding',e.target.value)}><option value="unknown">Não sei informar</option><option value="formal">Sim, existe processo definido</option><option value="informal">É feito caso a caso</option></select></Field>
-          <Field label="A empresa trata dados pessoais ou sensíveis?"><select className={select} value={a.sensitiveData} onChange={e=>set('sensitiveData',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
+          <Field label="Quando alguém sai da empresa, os acessos dessa pessoa são removidos?"><select className={select} value={a.offboarding} onChange={e=>set('offboarding',e.target.value)}><option value="unknown">Não sei informar</option><option value="formal">Sim, existe processo definido</option><option value="informal">É feito caso a caso</option></select></Field>
+          <Field label="A empresa armazena ou utiliza dados pessoais ou informações sensíveis?"><select className={select} value={a.sensitiveData} onChange={e=>set('sensitiveData',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="no">Não</option></select></Field>
         </QuestionPair>
         <QuestionPair>
-          <Field label="Que nível de proteção adicional existe hoje no e-mail corporativo?" help="Considere proteção contra phishing, análise de links e anexos e filtros além do antispam básico."><select className={select} value={a.emailProtection} onChange={e=>set('emailProtection',e.target.value)}><option value="unknown">Não sei informar</option><option value="advanced">Proteção avançada com análise de links/anexos e anti-phishing</option><option value="standard">Proteção corporativa adicional</option><option value="basic">Apenas proteção padrão do provedor / antispam</option><option value="none">Não existe proteção adicional</option></select></Field>
-          <Field label="Se ocorrer um incidente de segurança hoje, existe alguém definido para coordenar a resposta?" help="Pode ser uma pessoa interna ou empresa especializada, desde que o papel esteja previamente definido."><select className={select} value={a.incidentResponse} onChange={e=>set('incidentResponse',e.target.value)}><option value="unknown">Não sei informar</option><option value="formal">Sim, responsável e processo definidos</option><option value="informal">Sabemos quem chamar, mas sem processo formal</option><option value="none">Não existe responsável definido</option></select></Field>
+          <Field label="O e-mail da empresa possui alguma proteção além do filtro padrão de spam?" help="Por exemplo, bloqueio de mensagens falsas, links perigosos ou anexos suspeitos."><select className={select} value={a.emailProtection} onChange={e=>set('emailProtection',e.target.value)}><option value="unknown">Não sei informar</option><option value="advanced">Sim, com análise de links, anexos e mensagens suspeitas</option><option value="standard">Sim, existe proteção adicional administrada pela empresa</option><option value="basic">Apenas o filtro padrão de spam do e-mail</option><option value="none">Não existe proteção além do padrão</option></select></Field>
+          <Field label="Se acontecer um problema de segurança hoje, a empresa sabe quem deve coordenar a resposta?" help="Pode ser alguém da empresa ou um prestador especializado. O importante é saber previamente quem deve ser acionado."><select className={select} value={a.incidentResponse} onChange={e=>set('incidentResponse',e.target.value)}><option value="unknown">Não sei informar</option><option value="formal">Sim, responsável e processo definidos</option><option value="informal">Sabemos quem chamar, mas sem processo formal</option><option value="none">Não existe responsável definido</option></select></Field>
         </QuestionPair>
         <QuestionPair>
-          <Field label="Já houve incidente, perda de dados ou indisponibilidade relevante?"><select className={select} value={a.incidentHistory} onChange={e=>set('incidentHistory',e.target.value)}><option value="unknown">Prefiro não informar / não sei</option><option value="no">Não</option><option value="yes">Sim</option></select></Field>
-          <Field label="Qual é a principal preocupação hoje?"><input className={input} value={a.mainConcern} onChange={e=>set('mainConcern',e.target.value)} placeholder="Ex.: ransomware, LGPD, parada, acesso remoto..."/></Field>
+          <Field label="A empresa já passou por vírus, invasão, perda de dados ou uma parada importante causada por tecnologia?"><select className={select} value={a.incidentHistory} onChange={e=>set('incidentHistory',e.target.value)}><option value="unknown">Prefiro não informar / não sei</option><option value="no">Não</option><option value="yes">Sim</option></select></Field>
+          <Field label="Qual situação de segurança mais preocupa a empresa hoje?"><input className={input} value={a.mainConcern} onChange={e=>set('mainConcern',e.target.value)} placeholder="Ex.: vírus, golpe por e-mail, perda de dados, parada dos sistemas, LGPD..."/></Field>
         </QuestionPair>
-        <Field label="Algo importante que devemos considerar?"><textarea className={input} rows={4} value={a.notes} onChange={e=>set('notes',e.target.value)} placeholder="Contexto, sistemas críticos, mudanças planejadas ou qualquer informação relevante."/></Field>
+        <Field label="Existe alguma informação importante que você gostaria de acrescentar?"><textarea className={input} rows={4} value={a.notes} onChange={e=>set('notes',e.target.value)} placeholder="Pode ser um sistema importante, mudança planejada, dificuldade atual ou qualquer outro contexto que ajude a entender o ambiente."/></Field>
       </div>}
 
       <div className="mt-8 flex items-center justify-between border-t border-slate-800 pt-5">

@@ -11,6 +11,7 @@ import { clearPreviousRespondentState } from '../storage';
 import ClientHeader from '../components/ClientHeader';
 import {
   ArrowRight,
+  LoaderCircle,
   ShieldCheck,
   Wifi,
   MonitorSmartphone,
@@ -68,13 +69,19 @@ export default function LandingPage() {
     const { ref, source } = readAttribution();
 
     try {
-      const session = await startAssessment({
-        data: {
-          ref,
-          source,
-          consent: true,
-        },
-      });
+      // Mantém uma transição visual mínima para evitar a sensação de refresh
+      // quando a API responde muito rápido. A criação da sessão e o tempo
+      // mínimo acontecem em paralelo, sem atrasar chamadas mais lentas.
+      const [session] = await Promise.all([
+        startAssessment({
+          data: {
+            ref,
+            source,
+            consent: true,
+          },
+        }),
+        new Promise((resolve) => setTimeout(resolve, 450)),
+      ]);
 
       saveSession({
         ...session,
@@ -83,7 +90,11 @@ export default function LandingPage() {
         consentAt: new Date().toISOString(),
       });
 
-      navigate('/diagnostico');
+      // Mantém o mesmo overlay também no primeiro paint do formulário,
+      // evitando o flash entre a desmontagem da landing e a montagem da rota.
+      sessionStorage.setItem('concierge-assessment-route-transition', '1');
+
+      navigate('/diagnostico', { replace: true });
     } catch (error) {
       console.error('Falha ao iniciar assessment:', error);
 
@@ -220,15 +231,48 @@ export default function LandingPage() {
                 type="button"
                 onClick={start}
                 disabled={!consent || starting}
-                className="flex items-center gap-2 rounded-xl bg-teal-600 px-7 py-4 font-bold text-white shadow-lg shadow-teal-950/40 transition hover:scale-[1.02] hover:bg-teal-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                aria-busy={starting}
+                className="flex min-w-[220px] items-center justify-center gap-2 rounded-xl bg-teal-600 px-7 py-4 font-bold text-white shadow-lg shadow-teal-950/40 transition hover:scale-[1.02] hover:bg-teal-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
               >
-                {starting ? 'Preparando…' : 'Iniciar diagnóstico'}
-                <ArrowRight size={20} />
+                {starting ? (
+                  <>
+                    <LoaderCircle className="animate-spin" size={20} />
+                    Preparando diagnóstico...
+                  </>
+                ) : (
+                  <>
+                    Iniciar diagnóstico
+                    <ArrowRight size={20} />
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {starting && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/72 px-4 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-teal-500/20 bg-slate-950/95 p-7 text-center shadow-2xl shadow-black/40">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-teal-500/20 bg-teal-500/10 text-teal-400">
+              <LoaderCircle className="animate-spin" size={26} />
+            </div>
+
+            <h3 className="mt-5 text-lg font-bold text-white">
+              Preparando seu diagnóstico
+            </h3>
+
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              Estamos organizando as informações iniciais para começar sua
+              avaliação. Isso leva apenas alguns instantes.
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
