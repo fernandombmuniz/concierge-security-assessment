@@ -1,48 +1,11 @@
 import type { AssessmentData } from "@/types";
 
-/**
- * Mapeamento das cinco etapas existentes do formulário para seções
- * persistidas no banco. Nenhuma resposta é descartada: além das seções,
- * o snapshot completo é gravado na seção "completo".
- */
 export const SECTION_FIELDS = {
-  empresa: [
-    "companyName",
-    "sector",
-    "sectorOther",
-    "contactName",
-    "contactRole",
-    "contactEmail",
-    "users",
-    "devices",
-    "itTeamSize",
-    "sites",
-  ],
-  rede: [
-    "internetLinkCount",
-    "links",
-    "networkUsage",
-    "firewallLevel",
-    "firewallVendor",
-    "firewallModel",
-    "firewallLicense",
-    "vpnRemote",
-    "vpnSite",
-    "vlans",
-    "monitoring",
-  ],
-  dispositivos: ["endpointLevel", "endpointCount", "servers", "autoUpdates", "localAdmins", "byod"],
-  continuidade: ["backupLevel", "backupVolumeGb", "restoreTests", "maxDowntime"],
-  acesso: [
-    "mfa",
-    "sharedAccounts",
-    "offboarding",
-    "criticalSystems",
-    "sensitiveData",
-    "incidentHistory",
-    "mainConcern",
-    "notes",
-  ],
+  empresa: ["companyName","sector","sectorOther","contactName","contactRole","contactEmail","users","devices","itTeamSize","sites"],
+  rede: ["internetLinkCount","links","networkUsage","firewallLevel","firewallVendor","firewallModel","firewallLicense","vpnRemote","vpnSite","vlans","monitoring","firewallThreatPrevention","networkMaintenance"],
+  dispositivos: ["endpointLevel","endpointCount","servers","autoUpdates","localAdmins","byod","endpointCentralManagement","endpointResponse","assetInventory","vulnerabilityManagement", "endpointResponse"],
+  continuidade: ["dataLocation","backupLevel","backupVolumeGb","restoreTests","maxDowntime","backupIsolation", "dataLocation"],
+  acesso: ["mfa","sharedAccounts","offboarding","emailProtection","incidentResponse","criticalSystems","sensitiveData","incidentHistory","mainConcern","notes"],
 } as const satisfies Record<string, readonly (keyof AssessmentData)[]>;
 
 export type SectionKey = keyof typeof SECTION_FIELDS;
@@ -59,7 +22,6 @@ export function splitBySection(data: AssessmentData): Record<string, Record<stri
   return out;
 }
 
-/** Campos resumidos gravados diretamente na tabela assessments. */
 export function summaryFromData(data: AssessmentData) {
   const sector = data.sector === "Outros" ? data.sectorOther || "Outros" : data.sector;
   return {

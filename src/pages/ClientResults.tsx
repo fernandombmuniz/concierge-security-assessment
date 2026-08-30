@@ -7,7 +7,7 @@ import ScoreGauge from '../components/ScoreGauge';
 import DomainBars from '../components/DomainBars';
 import ImpactChart from '../components/ImpactChart';
 import ClientHeader from '../components/ClientHeader';
-import { getValidatedSourceForDomain } from '../sourceRegistry';
+import { getValidatedSource, getValidatedSourceForDomain, getValidatedSourceForFinding } from '../sourceRegistry';
 import {
   AlertTriangle,
   Database,
@@ -21,6 +21,7 @@ import {
   X,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   HelpCircle
 } from 'lucide-react';
@@ -32,39 +33,42 @@ const money = (n: number) =>
 const getOperationalImpact = (title: string) => {
   const t = title.toLowerCase();
   if (t.includes('perímetro') || t.includes('firewall')) {
-    return 'Uma ameaça pode alcançar a rede interna ou permanecer ativa por mais tempo antes de ser percebida, aumentando a possibilidade de indisponibilidade e necessidade de resposta emergencial.';
+    return 'Para a operação, isso significa contar com menos recursos de prevenção e visibilidade no ponto de entrada da rede, aumentando a dependência de outras camadas de segurança.';
   }
   if (t.includes('licenciamento')) {
-    return 'Recursos de proteção podem ficar indisponíveis ou desatualizados, reduzindo a capacidade do ambiente de bloquear ameaças conhecidas e novos indicadores de risco.';
+    return 'Alguns recursos de segurança podem deixar de receber atualizações ou inteligência recente, reduzindo a cobertura esperada da solução.';
   }
   if (t.includes('reativo') || t.includes('acompanhamento')) {
-    return 'Um evento relevante pode ser percebido apenas quando já estiver afetando usuários, sistemas ou disponibilidade da operação.';
+    return 'Quando o acompanhamento é principalmente reativo, alguns eventos podem ser percebidos somente depois de gerar sintomas para usuários, sistemas ou para a operação.';
   }
   if (t.includes('capacidade de detectar') || t.includes('computadores')) {
-    return 'Um comportamento malicioso pode permanecer ativo por mais tempo antes de ser identificado, ampliando a possibilidade de parada, comprometimento de informações ou propagação para outros equipamentos.';
+    return 'A equipe pode depender mais de sinais visíveis ou investigação manual para perceber comportamentos suspeitos nos computadores.';
   }
-  if (t.includes('atualizações') || t.includes('manual')) {
-    return 'Falhas já corrigidas pelos fabricantes podem continuar disponíveis nos equipamentos por mais tempo, mantendo uma janela de exposição desnecessária.';
+  if (t.includes('atualizações') || t.includes('vulnerabilidade')) {
+    return 'O principal efeito é ampliar o intervalo entre a disponibilidade de uma correção e sua aplicação nos ativos que realmente precisam dela.';
   }
   if (t.includes('privilégios') || t.includes('administrador')) {
-    return 'Caso uma conta ou equipamento seja comprometido, privilégios elevados podem aumentar a capacidade de alteração do sistema e o alcance do incidente.';
+    return 'Privilégios elevados ampliam o que uma conta ou aplicação consegue alterar no equipamento, por isso normalmente exigem controle mais próximo.';
   }
-  if (t.includes('recuperação') || t.includes('frágil') || t.includes('manual')) {
-    return 'Uma falha, exclusão acidental ou incidente pode aumentar o tempo necessário para retomar a operação e, em cenários mais graves, comprometer a recuperação de informações.';
+  if (t.includes('recuperação') || t.includes('backup') || t.includes('cópias')) {
+    return 'Em uma necessidade real de recuperação, a retomada pode depender mais de ações manuais ou de cópias que compartilham o mesmo contexto do ambiente principal.';
   }
-  if (t.includes('testada')) {
-    return 'A empresa pode descobrir limitações no processo de recuperação somente durante uma situação real, quando o tempo para restabelecer a operação já é crítico.';
+  if (t.includes('testada') || t.includes('restauração')) {
+    return 'Sem um teste anterior, a empresa só confirma tempo, integridade e procedimento de recuperação quando realmente precisa restaurar os dados.';
   }
   if (t.includes('senha') || t.includes('mfa')) {
-    return 'Uma senha comprometida pode ser suficiente para permitir acesso indevido a contas corporativas quando não existe uma etapa adicional de confirmação.';
+    return 'Sem uma segunda etapa de confirmação, a proteção do acesso depende mais diretamente da segurança da senha utilizada.';
   }
   if (t.includes('compartilhadas')) {
-    return 'A rastreabilidade das ações diminui e a revogação individual de acessos se torna mais difícil em desligamentos ou investigações.';
+    return 'O principal efeito é reduzir a rastreabilidade: fica mais difícil saber quem realizou uma ação e remover o acesso de uma pessoa específica.';
   }
-  if (t.includes('informal') || t.includes('remoção')) {
-    return 'Acessos antigos podem permanecer ativos além do necessário, mantendo exposição desnecessária a sistemas e informações corporativas.';
+  if (t.includes('incidente') || t.includes('resposta')) {
+    return 'Em uma ocorrência relevante, responsáveis, contatos e próximos passos podem precisar ser definidos durante o próprio incidente.';
   }
-  return 'O cenário pode reduzir a capacidade de prevenção, detecção ou recuperação diante de um incidente e aumentar o impacto operacional.';
+  if (t.includes('e-mail') || t.includes('phishing')) {
+    return 'Mensagens suspeitas podem depender mais dos filtros básicos e da percepção do usuário, especialmente em tentativas de phishing e fraude.';
+  }
+  return 'Esse ponto pode reduzir previsibilidade, visibilidade ou capacidade de resposta e merece ser validado no contexto real da operação.';
 };
 
 export default function ClientResults() {
@@ -101,6 +105,7 @@ export default function ClientResults() {
   const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
   const [isDiagnosisModalOpen, setIsDiagnosisModalOpen] = useState(false);
   const [isFaixaModalOpen, setIsFaixaModalOpen] = useState(false);
+  const [expandedFindings, setExpandedFindings] = useState<Set<string>>(() => new Set());
 
   // Re-hydrate if URL id changes
   useEffect(() => {
@@ -124,6 +129,26 @@ export default function ClientResults() {
     setAssessmentData(loadDraft());
     setIsFromSubmission(false);
   }, [urlId]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsScoreModalOpen(false);
+      setIsDiagnosisModalOpen(false);
+      setIsFaixaModalOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const toggleFinding = (key: string) => {
+    setExpandedFindings((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const draftData = assessmentData;
 
@@ -166,10 +191,10 @@ export default function ClientResults() {
   const r = scoreAssessment(draftData);
 
   const domains = [
-    { label: 'Rede e Perímetro', value: r.scores.network, icon: <Server size={17} className="text-cyan-400" /> },
-    { label: 'Endpoints', value: r.scores.endpoint, icon: <MonitorSmartphone size={17} className="text-cyan-400" /> },
-    { label: 'Backup e Continuidade', value: r.scores.backup, icon: <Database size={17} className="text-cyan-400" /> },
-    { label: 'Identidade e Acesso', value: r.scores.identity, icon: <KeyRound size={17} className="text-cyan-400" /> }
+    { label: 'Rede e Perímetro', value: r.scores.network, coverage: r.domainCoverage.network, confidence: r.domainConfidence.network, icon: <Server size={17} className="text-cyan-400" /> },
+    { label: 'Endpoints', value: r.scores.endpoint, coverage: r.domainCoverage.endpoint, confidence: r.domainConfidence.endpoint, icon: <MonitorSmartphone size={17} className="text-cyan-400" /> },
+    { label: 'Backup e Continuidade', value: r.scores.backup, coverage: r.domainCoverage.backup, confidence: r.domainConfidence.backup, icon: <Database size={17} className="text-cyan-400" /> },
+    { label: 'Identidade e Acesso', value: r.scores.identity, coverage: r.domainCoverage.identity, confidence: r.domainConfidence.identity, icon: <KeyRound size={17} className="text-cyan-400" /> }
   ];
 
   // List of distinct domain names of findings
@@ -202,14 +227,23 @@ export default function ClientResults() {
   };
 
   const priorityReasonText: Record<DomainKey, string> = {
-    network: 'A proteção de perímetro informada é básica ou ausente, limitando significativamente a capacidade de identificar e bloquear ameaças que tentam entrar ou se espalhar na rede.',
-    endpoint: 'A detecção nos computadores e servidores é predominantemente reativa ou básica, reduzindo a capacidade de identificar comportamentos suspeitos antes que causem impactos.',
-    backup: 'As cópias informadas dependem de processo manual ou não possuem automação robusta, o que aumenta a possibilidade de uma falha ser percebida somente quando os dados precisarem ser recuperados.',
-    identity: 'A autenticação corporativa depende principalmente de senhas sem múltiplos fatores (MFA) ativos em todas as contas importantes, ampliando o risco de acessos indevidos decorrentes de credenciais vazadas.'
+    network: 'As respostas indicam uma camada de perímetro com menor quantidade de recursos de prevenção ou acompanhamento. Vale validar quais controles já existem e quais eventos dependem de outras camadas para serem percebidos.',
+    endpoint: 'A proteção dos computadores informada está mais próxima de uma abordagem tradicional. Vale confirmar como alertas, atualizações e comportamentos suspeitos são acompanhados no dia a dia.',
+    backup: 'As respostas indicam oportunidade de aumentar a previsibilidade da recuperação, principalmente em automação, isolamento das cópias e validação periódica da restauração.',
+    identity: 'As respostas indicam oportunidade de reforçar a proteção de acessos, especialmente em autenticação adicional, individualização de contas e processos de concessão ou remoção de privilégios.'
+  };
+
+  const nextStepText: Record<DomainKey, string> = {
+    network: 'Revisar os controles de perímetro e como os eventos de segurança são acompanhados',
+    endpoint: 'Revisar a proteção dos endpoints e a capacidade de resposta a alertas',
+    backup: 'Validar a estratégia de backup, isolamento das cópias e recuperação',
+    identity: 'Revisar autenticação e processos de gestão de acessos'
   };
 
   const priorityFinding = r.findings.find(f => f.domain === r.priorityLabel) || r.findings[0];
   const validatedPrioritySource = priorityFinding ? getValidatedSourceForDomain(priorityFinding.domain) : null;
+  const anpdFineSource = getValidatedSource('anpd-first-fine');
+  const anpdSmallBusinessSource = getValidatedSource('anpd-small-business');
   const companyLabel = draftData.companyName?.trim() || 'sua empresa';
   const executiveNarrative = r.priority && priorityFinding
     ? `Com base nas respostas fornecidas pela ${companyLabel}, o diagnóstico identificou ${priorityExecName[r.priority].toLowerCase()} como o ponto que mais merece atenção neste momento. ${priorityFinding.situation} ${priorityFinding.consequence} Em termos práticos, ${getOperationalImpact(priorityFinding.title).charAt(0).toLowerCase() + getOperationalImpact(priorityFinding.title).slice(1)}`
@@ -285,9 +319,6 @@ export default function ClientResults() {
                 <span className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
                   {draftData.sites || 1} unidades
                 </span>
-                <span className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
-                  Cobertura do diagnóstico: {r.completeness}%
-                </span>
               </div>
             </div>
           </div>
@@ -303,7 +334,7 @@ export default function ClientResults() {
             <div className="mt-4">
               <div className="text-xl font-bold text-white">{r.level}</div>
               <p className="mt-2 text-xs text-slate-400 max-w-[240px]">
-                O resultado representa a maturidade relativa dos controles avaliados com base nas informações fornecidas.
+                O resultado representa a maturidade dos controles informados. Quando algum ponto importante ainda não pôde ser confirmado, ele é sinalizado para validação antes de uma conclusão mais detalhada.
               </p>
             </div>
             <button
@@ -349,7 +380,7 @@ export default function ClientResults() {
           <div className="mt-5 grid gap-3 border-t border-slate-800/70 pt-5 sm:grid-cols-3">
             <div><div className="text-3xs font-bold uppercase tracking-wider text-slate-500">Postura geral</div><div className="mt-1 font-bold text-slate-100">{r.overall !== null ? `${Math.round(r.overall)}/100 · ${r.level}` : 'Dados insuficientes'}</div></div>
             <div><div className="text-3xs font-bold uppercase tracking-wider text-slate-500">Maior atenção</div><div className="mt-1 font-bold text-amber-300">{r.priority ? priorityExecName[r.priority] : 'Aguardando dados'}</div></div>
-            <div><div className="text-3xs font-bold uppercase tracking-wider text-slate-500">Cobertura das respostas</div><div className="mt-1 font-bold text-slate-100">{Math.round(r.completeness)}%</div></div>
+            <div><div className="text-3xs font-bold uppercase tracking-wider text-slate-500">Próximo passo</div><div className="mt-1 font-bold text-slate-100">{r.priority ? nextStepText[r.priority] : 'Validar os pontos prioritários identificados'}</div></div>
           </div>
         </section>
 
@@ -389,74 +420,99 @@ export default function ClientResults() {
           </section>
         )}
 
-        {/* 5. Lista de Achados */}
+        {/* 5. Pontos identificados */}
         <section className="mt-8">
-          <div className="mb-4 flex items-end justify-between">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span className="section-kicker">Leitura executiva e técnica</span>
-              <h3 className="text-2xl font-bold text-white">Detalhamento dos pontos de atenção</h3>
+              <span className="section-kicker">Pontos que merecem atenção</span>
+              <h3 className="text-2xl font-bold text-white">O que vale revisar primeiro</h3>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-400">
+                Com base nas informações fornecidas, estes controles tiveram maior influência no resultado. Abra apenas os pontos que quiser aprofundar.
+              </p>
             </div>
-            <span className="text-sm text-slate-500">{r.findings.length} achado(s)</span>
+            <span className="text-sm text-slate-500">{r.findings.length} ponto(s) identificado(s)</span>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
-            {r.findings.map(f => {
-              const mkt = getValidatedSourceForDomain(f.domain);
+          <div className="grid gap-4">
+            {r.findings.map((f, index) => {
+              const findingKey = `${f.domain}-${f.title}-${index}`;
+              const isExpanded = expandedFindings.has(findingKey);
+              const source = getValidatedSourceForFinding(f.title, f.domain);
               const opImpact = getOperationalImpact(f.title);
+              const severityLabel = f.severity === 'Alta' ? 'Atenção alta' : f.severity === 'Média' ? 'Atenção moderada' : 'Acompanhamento';
 
               return (
-                <article key={`${f.domain}-${f.title}`} className="glass-card p-6 flex flex-col justify-between">
-                  <div>
+                <article key={findingKey} className="glass-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleFinding(findingKey)}
+                    aria-expanded={isExpanded}
+                    className="w-full p-5 text-left md:p-6"
+                  >
                     <div className="flex items-start justify-between gap-4">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-                        <AlertTriangle size={15} className="text-amber-400" />
-                        {f.domain}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+                            <AlertTriangle size={15} className="text-amber-400" />
+                            {f.domain}
+                          </span>
+                          <span className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold ${
+                            f.severity === 'Alta'
+                              ? 'border border-amber-700/25 bg-amber-950/25 text-amber-300'
+                              : f.severity === 'Média'
+                                ? 'border border-cyan-800/20 bg-cyan-950/20 text-cyan-300'
+                                : 'border border-slate-700/30 bg-slate-900/30 text-slate-300'
+                          }`}>
+                            {severityLabel}
+                          </span>
+                        </div>
+
+                        <h4 className="mt-3 text-lg font-bold leading-snug text-slate-100">{f.title}</h4>
+                        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">{f.situation}</p>
+                        <p className="mt-3 max-w-3xl text-xs leading-relaxed text-slate-400">
+                          <b className="text-slate-300">Para a operação:</b> {opImpact}
+                        </p>
+                      </div>
+
+                      <span className="mt-1 shrink-0 text-teal-400" aria-hidden="true">
+                        {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                       </span>
-                      <span className={`rounded-full px-2.5 py-0.5 text-2xs font-bold uppercase tracking-wider ${
-                        f.severity === 'Alta' ? 'bg-rose-950/40 text-rose-300 border border-rose-900/30' : 
-                        f.severity === 'Média' ? 'bg-amber-950/40 text-amber-300 border border-amber-900/30' : 
-                        'bg-emerald-950/40 text-emerald-300 border border-emerald-900/30'
-                      }`}>
-                        {f.severity}
-                      </span>
                     </div>
 
-                    <h4 className="mt-4 text-lg font-bold text-slate-100 leading-snug">{f.title}</h4>
-
-                    <div className="mt-5 space-y-4 text-xs leading-relaxed">
-                      <div>
-                        <div className="font-bold uppercase tracking-wider text-slate-500 text-3xs">Situação encontrada</div>
-                        <p className="mt-1 text-slate-300">{f.situation}</p>
-                      </div>
-
-                      <div>
-                        <div className="font-bold uppercase tracking-wider text-slate-500 text-3xs">Por que merece atenção</div>
-                        <p className="mt-1 text-slate-300">{f.consequence}</p>
-                      </div>
-
-                      <div>
-                        <div className="font-bold uppercase tracking-wider text-slate-500 text-3xs">Possível impacto para a empresa</div>
-                        <p className="mt-1 text-slate-300">{opImpact}</p>
-                      </div>
+                    <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-teal-400">
+                      {isExpanded ? 'Ocultar detalhes' : 'Ver detalhes'}
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="mt-6 space-y-3 pt-4 border-t border-slate-800/60">
-                    <div className="rounded-lg bg-slate-950/35 border border-slate-900 px-3 py-2 text-3xs text-slate-400">
-                      <b className="text-slate-300 block mb-0.5">Ponto técnico avaliado:</b>
-                      {f.technical}
-                    </div>
-
-                    {mkt && (
-                      <div className="rounded-lg bg-teal-950/5 border border-teal-900/10 px-3 py-2.5 text-3xs text-slate-400">
-                        <b className="text-teal-400 block font-semibold mb-0.5">Por que estamos destacando isso?</b>
-                        <p className="text-slate-300 italic mb-1">"{mkt.statement}"</p>
-                        <span className="text-slate-500">
-                          Fonte: {mkt.organization} · {mkt.reportTitle} ({mkt.year})
-                        </span>
+                  {isExpanded && (
+                    <div className="border-t border-slate-800/70 px-5 pb-6 pt-5 md:px-6">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
+                          <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">O que avaliamos</div>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-300">{f.technical}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
+                          <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">Por que esse controle importa</div>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-300">{f.consequence}</p>
+                        </div>
                       </div>
-                    )}
-                  </div>
+
+                      {source && (
+                        <div className="mt-4 rounded-xl border border-teal-900/15 bg-teal-950/5 p-4">
+                          <div className="text-xs font-semibold text-teal-400">Referência do controle</div>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-300">{source.statement}</p>
+                          <a
+                            href={source.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+                          >
+                            {source.organization} · {source.reportTitle} ({source.year})
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -468,15 +524,15 @@ export default function ClientResults() {
           <div className="glass-card p-6 flex flex-col justify-between">
             <div>
               <span className="section-kicker">Cenário operacional ilustrativo</span>
-              <h3 className="mt-1 text-xl font-bold text-white">Simulação de impacto de uma indisponibilidade</h3>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Faixa ilustrativa calculada a partir das informações fornecidas neste diagnóstico e de premissas referenciais internas para pequenas e médias empresas.
+              <h3 className="mt-1 text-xl font-bold text-white">Quanto uma parada pode representar para a operação</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                Simulação de ordem de grandeza baseada nas informações fornecidas e em premissas referenciais internas para pequenas e médias empresas.
               </p>
+              <div className="mt-5 rounded-xl border border-cyan-900/15 bg-cyan-950/5 p-3 text-xs leading-relaxed text-slate-300">
+                Esta faixa ajuda a dimensionar uma conversa de negócio. Ela não representa previsão de perda, multa ou orçamento de recuperação.
+              </div>
               <div className="mt-6 text-3xl font-extrabold text-white">
                 {money(r.impactRange[0])} <span className="text-base font-normal text-slate-500">a</span> {money(r.impactRange[1])}
-              </div>
-              <div className="mt-2 text-2xs text-slate-500">
-                Este valor representa uma ordem de grandeza para apoiar a análise e não uma previsão de perda.
               </div>
             </div>
             <button
@@ -493,7 +549,7 @@ export default function ClientResults() {
               <span className="section-kicker">Composição da faixa</span>
               <h3 className="mt-1 text-xl font-bold text-white">De onde vem a estimativa</h3>
               <p className="text-xs text-slate-400 mt-1 mb-4">
-                Origem e detalhamento dos componentes da simulação financeira.
+                Componentes usados para transformar uma indisponibilidade em uma referência operacional compreensível.
               </p>
             </div>
             <div className="flex-grow flex flex-col justify-center">
@@ -501,6 +557,43 @@ export default function ClientResults() {
             </div>
           </div>
         </section>
+
+        {draftData.sensitiveData === 'yes' && anpdFineSource && (
+          <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/25 p-5 md:p-6">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <div className="max-w-3xl">
+                <span className="section-kicker">Referência regulatória</span>
+                <h3 className="mt-1 text-lg font-bold text-white">Quando há dados pessoais, o impacto pode ir além da indisponibilidade</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                  A LGPD também pode gerar obrigações administrativas conforme o tipo de dado, a ocorrência e as circunstâncias do caso. Como referência real, em 2023 a ANPD aplicou sua primeira multa a uma empresa privada: a microempresa Telekall Infoservice recebeu duas multas simples que totalizaram <b className="text-slate-100">R$ 14.400</b>, além de advertência.
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  O caso é específico e não representa uma estimativa de eventual sanção para esta empresa. A ANPD possui regras próprias de dosimetria e tratamento diferenciado para agentes de pequeno porte.
+                </p>
+              </div>
+              <div className="shrink-0 space-y-2 text-xs">
+                <a
+                  href={anpdFineSource.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block font-semibold text-teal-400 transition hover:text-teal-300"
+                >
+                  Ver caso oficial da ANPD
+                </a>
+                {anpdSmallBusinessSource && (
+                  <a
+                    href={anpdSmallBusinessSource.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block font-semibold text-slate-400 transition hover:text-slate-300"
+                  >
+                    Regras para agentes de pequeno porte
+                  </a>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* 7. Caminho de Evolução */}
         <section className="glass-card mt-6 p-6">
@@ -576,15 +669,15 @@ export default function ClientResults() {
 
       {/* Modal: Como chegamos à leitura executiva? */}
       {isDiagnosisModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div onMouseDown={(event) => { if (event.target === event.currentTarget) setIsDiagnosisModalOpen(false); }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass-card max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 md:p-8 relative">
             <button onClick={() => setIsDiagnosisModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition"><X size={20}/></button>
             <h3 className="text-xl font-bold text-white">Como chegamos a esta leitura?</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-400">A narrativa executiva não cria um diagnóstico separado do score. Ela traduz para linguagem de negócio os mesmos controles avaliados pelo Assessment.</p>
             <div className="mt-6 space-y-4 text-sm text-slate-300">
-              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">1. Respostas fornecidas</b><p className="mt-1 text-slate-400">Consideramos apenas as informações declaradas no onboarding. Respostas “Não sei informar” reduzem a cobertura do diagnóstico e não são tratadas automaticamente como falha.</p></div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">1. Respostas fornecidas</b><p className="mt-1 text-slate-400">Consideramos apenas as informações declaradas no onboarding. Quando algum ponto importante não é conhecido, a leitura daquele domínio é marcada para validação adicional, sem transformar a ausência de informação em falha.</p></div>
               <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">2. Controles avaliados</b><p className="mt-1 text-slate-400">As respostas são relacionadas a controles de Rede e Perímetro, Endpoints, Backup e Continuidade e Identidade e Acesso. Cada domínio recebe uma maturidade relativa de acordo com os controles informados.</p></div>
-              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">3. Priorização</b><p className="mt-1 text-slate-400">O domínio com menor maturidade entre os avaliados recebe destaque inicial. Os achados explicam a situação encontrada, por que ela merece atenção e qual impacto operacional pode estar associado.</p></div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">3. Priorização</b><p className="mt-1 text-slate-400">O domínio com menor maturidade entre os avaliados recebe destaque inicial. Os pontos identificados explicam o que foi informado, por que o controle é relevante e qual efeito operacional pode merecer validação.</p></div>
               <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">4. Referências</b><p className="mt-1 text-slate-400">Frameworks como NIST CSF e CIS Controls orientam as capacidades avaliadas. Estatísticas de mercado só são exibidas quando previamente cadastradas e validadas na biblioteca de evidências do produto. Os pesos e faixas de score pertencem ao modelo interno Concierge.</p></div>
               <p className="border-t border-slate-800 pt-4 text-xs leading-relaxed text-slate-500">Este material é um diagnóstico inicial, comercial e executivo. Ele não substitui validação técnica, auditoria, teste de segurança, laudo pericial ou parecer jurídico.</p>
             </div>
@@ -594,7 +687,7 @@ export default function ClientResults() {
 
       {/* Modal: Como chegamos a este score? */}
       {isScoreModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div onMouseDown={(event) => { if (event.target === event.currentTarget) setIsScoreModalOpen(false); }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass-card max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 md:p-8 relative">
             <button
               onClick={() => setIsScoreModalOpen(false)}
@@ -613,17 +706,17 @@ export default function ClientResults() {
                 <h4 className="font-semibold text-slate-200">Cálculo e Normalização</h4>
                 <p className="mt-1 leading-relaxed">
                   O resultado consolidado considera apenas os controles que puderam ser avaliados pelas respostas fornecidas.
-                  Respostas <b>"Não sei informar"</b> não são tratadas como falha ou penalidade. Elas reduzem a cobertura total do diagnóstico daquele controle, de forma a não distorcer o resultado com falsas hipóteses.
+                  Respostas <b>"Não sei informar"</b> não são tratadas como falha ou penalidade. Elas indicam que aquele ponto precisa de confirmação adicional, evitando conclusões baseadas em hipóteses.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-semibold text-slate-200">Pesos e Controles Considerados</h4>
                 <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-slate-400">
-                  <li><b>Rede:</b> Nível do Firewall (60%), Licenciamento (15%), Monitoramento (25%)</li>
-                  <li><b>Endpoints:</b> Nível da tecnologia (70%), Atualização automática (15%), Privilégios locais (10%), Dispositivos pessoais/BYOD (5%)</li>
-                  <li><b>Continuidade:</b> Nível do backup (75%), Frequência de testes (25%)</li>
-                  <li><b>Acessos:</b> MFA em contas críticas (50%), Contas compartilhadas (25%), Processo de offboarding (25%)</li>
+                  <li><b>Rede:</b> camada de borda, prevenção ativa, manutenção, licenciamento e acompanhamento operacional.</li>
+                  <li><b>Endpoints:</b> proteção, gestão centralizada, atualização, inventário, vulnerabilidades e privilégios.</li>
+                  <li><b>Continuidade:</b> automação do backup, isolamento das cópias e validação de restauração.</li>
+                  <li><b>Identidade e resposta:</b> MFA, contas individuais, offboarding, proteção de e-mail e preparação para incidentes.</li>
                 </ul>
               </div>
 
@@ -666,7 +759,7 @@ export default function ClientResults() {
 
       {/* Modal: Como estimamos essa faixa? */}
       {isFaixaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div onMouseDown={(event) => { if (event.target === event.currentTarget) setIsFaixaModalOpen(false); }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="glass-card max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 md:p-8 relative">
             <button
               onClick={() => setIsFaixaModalOpen(false)}
