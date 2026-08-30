@@ -1,173 +1,176 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { parseAssessmentData } from "@/lib/assessment-schema";
-import { splitBySection, summaryFromData } from "@/lib/assessment-sections";
+import { scoreAssessment } from "@/scoring";
 
 export const METHODOLOGY_VERSION = "v2.4";
 export const PRIVACY_NOTICE_VERSION = "2026-01";
 
-const ALLOWED_SOURCES = [
-  "linkedin",
-  "whatsapp",
-  "email",
-  "evento",
-  "indicacao",
-  "prospeccao",
-  "outro",
-];
+interface ApiResponse {
+  success?: boolean;
+  error?: string;
+  assessmentId?: string;
+  publicToken?: string;
+  assigned?: boolean;
+  savedAt?: string;
+  completedAt?: string;
+  alreadyCompleted?: boolean;
+}
 
-const startInput = z.object({
-  ref: z.string().max(120).nullish(),
-  source: z.string().max(60).nullish(),
-  consent: z.boolean(),
-});
+function getSupabaseUrl(): string {
+  const url =
+    import.meta.env["VITE_SUPABASE_URL"] as string | undefined;
 
-const progressInput = z.object({
-  assessmentId: z.string().uuid(),
-  editToken: z.string().min(10).max(200),
-  step: z.number().int().min(0).max(10).catch(0),
-  data: z.unknown(),
-});
-
-/** Cria o assessment e devolve o identificador + token de edição do cliente. */
-export const startAssessment = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => startInput.parse(input))
-  .handler(async ({ data }) => {
-    if (!data.consent) throw new Error("Consentimento obrigatório.");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    let accountManagerId: string | null = null;
-    const ref = data.ref?.trim() || null;
-    if (ref) {
-      const { data: manager } = await supabaseAdmin
-        .from("account_managers")
-        .select("id")
-        .eq("public_ref", ref)
-        .eq("active", true)
-        .maybeSingle();
-      accountManagerId = manager?.id ?? null;
-    }
-
-    const rawSource = data.source?.trim().toLowerCase() || null;
-    const source = rawSource ? (ALLOWED_SOURCES.includes(rawSource) ? rawSource : "outro") : null;
-    const editToken = crypto.randomUUID() + crypto.randomUUID();
-
-    const { data: created, error } = await supabaseAdmin
-      .from("assessments")
-      .insert({
-        account_manager_id: accountManagerId,
-        public_ref: ref,
-        source,
-        edit_token: editToken,
-        status: "in_progress",
-        methodology_version: METHODOLOGY_VERSION,
-        privacy_notice_version: PRIVACY_NOTICE_VERSION,
-        consent_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
-
-    if (error || !created) throw new Error("Não foi possível iniciar o diagnóstico.");
-    return { assessmentId: created.id as string, editToken };
-  });
-
-/** Autosave: grava resumo + todas as respostas por etapa. */
-export const saveAssessmentProgress = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => progressInput.parse(input))
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const parsed = parseAssessmentData(data.data);
-
-    const { data: existing } = await supabaseAdmin
-      .from("assessments")
-      .select("id, edit_token, status")
-      .eq("id", data.assessmentId)
-      .maybeSingle();
-
-    if (!existing || existing.edit_token !== data.editToken) throw new Error("Acesso inválido.");
-
-    await supabaseAdmin
-      .from("assessments")
-      .update({ ...summaryFromData(parsed), current_step: data.step })
-      .eq("id", data.assessmentId);
-
-    const sections = splitBySection(parsed);
-    const rows = Object.entries(sections).map(([section, answers]) => ({
-      assessment_id: data.assessmentId,
-      section,
-      answers: answers as never,
-    }));
-    const { error } = await supabaseAdmin
-      .from("assessment_responses")
-      .upsert(rows, { onConflict: "assessment_id,section" });
-    if (error) throw new Error("Não foi possível salvar as respostas.");
-
-    return { savedAt: new Date().toISOString() };
-  });
-
-/**
- * Finalização: sincroniza dados, executa a metodologia de scoring existente,
- * grava scores/achados/cobertura e dispara (uma única vez) o relatório interno.
- */
-export const completeAssessment = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        assessmentId: z.string().uuid(),
-        editToken: z.string().min(10).max(200),
-        data: z.unknown(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { scoreAssessment, maturityLevel } = await import("@/scoring");
-    const parsed = parseAssessmentData(data.data);
-
-    const { data: existing } = await supabaseAdmin
-      .from("assessments")
-      .select("id, edit_token, status, source, account_manager_id, completed_at")
-      .eq("id", data.assessmentId)
-      .maybeSingle();
-    if (!existing || existing.edit_token !== data.editToken) throw new Error("Acesso inválido.");
-
-    const result = scoreAssessment(parsed);
-    const completedAt = existing.completed_at ?? new Date().toISOString();
-
-    const sections = splitBySection(parsed);
-    await supabaseAdmin.from("assessment_responses").upsert(
-      Object.entries(sections).map(([section, answers]) => ({
-        assessment_id: data.assessmentId,
-        section,
-        answers: answers as never,
-      })),
-      { onConflict: "assessment_id,section" },
+  if (!url) {
+    throw new Error(
+      "VITE_SUPABASE_URL não configurada."
     );
+  }
 
-    await supabaseAdmin
-      .from("assessments")
-      .update({
-        ...summaryFromData(parsed),
-        status: "completed",
-        completed_at: completedAt,
-        overall_score: result.overall,
-        network_score: result.scores.network,
-        endpoint_score: result.scores.endpoint,
-        continuity_score: result.scores.backup,
-        identity_score: result.scores.identity,
-        priority_domain: result.priority,
-        priority_domain_label: result.priorityLabel,
-        maturity_level: maturityLevel(result.overall),
-        coverage_percentage: result.completeness,
-        findings: result.findings as never,
-        scoring_snapshot: result as never,
-        methodology_version: METHODOLOGY_VERSION,
-      })
-      .eq("id", data.assessmentId);
+  return url.replace(/\/$/, "");
+}
 
-    // Notificação idempotente: uma única linha por assessment.
-    const { dispatchInternalReport } = await import("@/lib/notifications.server");
-    await dispatchInternalReport(data.assessmentId);
+function getPublishableKey(): string {
+  const key =
+    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as
+      | string
+      | undefined;
 
-    return { ok: true, completedAt };
+  if (!key) {
+    throw new Error(
+      "VITE_SUPABASE_PUBLISHABLE_KEY não configurada."
+    );
+  }
+
+  return key;
+}
+
+function getAssessmentApiUrl(): string {
+  return `${getSupabaseUrl()}/functions/v1/assessment-api`;
+}
+
+async function callAssessmentApi(
+  payload: Record<string, unknown>
+): Promise<ApiResponse> {
+  const response = await fetch(getAssessmentApiUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: getPublishableKey(),
+    },
+    body: JSON.stringify(payload),
   });
+
+  let body: ApiResponse = {};
+
+  try {
+    body = (await response.json()) as ApiResponse;
+  } catch {
+    // resposta não JSON
+  }
+
+  if (!response.ok || body.success === false) {
+    throw new Error(
+      body.error ??
+        `Falha na comunicação com o Security Assessment (${response.status}).`
+    );
+  }
+
+  return body;
+}
+
+export async function startAssessment({
+  data,
+}: {
+  data: {
+    ref?: string | null;
+    source?: string | null;
+    consent: boolean;
+  };
+}) {
+  if (!data.consent) {
+    throw new Error("Consentimento obrigatório.");
+  }
+
+  const result = await callAssessmentApi({
+    action: "create",
+    ref: data.ref ?? null,
+    source: data.source ?? null,
+    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    consentAt: new Date().toISOString(),
+  });
+
+  if (!result.assessmentId || !result.publicToken) {
+    throw new Error(
+      "A API não retornou uma sessão válida."
+    );
+  }
+
+  return {
+    assessmentId: result.assessmentId,
+    editToken: result.publicToken,
+  };
+}
+
+export async function saveAssessmentProgress({
+  data,
+}: {
+  data: {
+    assessmentId: string;
+    editToken: string;
+    step: number;
+    data: unknown;
+  };
+}) {
+  const parsed = parseAssessmentData(data.data);
+
+  const result = await callAssessmentApi({
+    action: "save",
+    assessmentId: data.assessmentId,
+    publicToken: data.editToken,
+    answers: parsed,
+    currentStep: data.step,
+  });
+
+  return {
+    savedAt:
+      result.savedAt ?? new Date().toISOString(),
+  };
+}
+
+export async function completeAssessment({
+  data,
+}: {
+  data: {
+    assessmentId: string;
+    editToken: string;
+    data: unknown;
+  };
+}) {
+  const parsed = parseAssessmentData(data.data);
+  const result = scoreAssessment(parsed);
+
+  const response = await callAssessmentApi({
+    action: "complete",
+    assessmentId: data.assessmentId,
+    publicToken: data.editToken,
+    answers: parsed,
+    result: {
+      overallScore: result.overall,
+      networkScore: result.scores.network,
+      endpointScore: result.scores.endpoint,
+      continuityScore: result.scores.backup,
+      identityScore: result.scores.identity,
+      coveragePercent: result.completeness,
+      priorityDomain: result.priority,
+      methodologyVersion: METHODOLOGY_VERSION,
+      findings: result.findings,
+      scoringSnapshot: result,
+    },
+  });
+
+  return {
+    ok: true,
+    completedAt:
+      response.completedAt ??
+      new Date().toISOString(),
+  };
+}

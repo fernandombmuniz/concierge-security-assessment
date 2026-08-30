@@ -98,16 +98,45 @@ export default function AssessmentForm(){
     return () => clearTimeout(t);
   }, [snapshot, step]);
 
-  const submit=()=>{
-    const session = loadSession();
-    if (session) {
-      void completeAssessment({
-        data: { assessmentId: session.assessmentId, editToken: session.editToken, data: a },
-      }).catch(() => {});
+const submit=async()=>{
+  const session = loadSession();
+
+  // Salva localmente antes do envio remoto.
+  // Assim as respostas continuam preservadas mesmo se houver falha de conexão.
+  saveDraft(a);
+
+  if (session) {
+    try {
+      await completeAssessment({
+        data: {
+          assessmentId: session.assessmentId,
+          editToken: session.editToken,
+          data: a
+        },
+      });
+    } catch (error) {
+      console.error('Falha ao concluir assessment:', error);
+
+      alert(
+        'Não foi possível enviar o diagnóstico neste momento. ' +
+        'Suas respostas continuam salvas neste dispositivo. ' +
+        'Verifique sua conexão e tente novamente.'
+      );
+
+      return;
     }
-    const s=saveSubmission(a);
-    nav(`/resultado?id=${s.id}&success=true`);
-  };
+  } else {
+    alert(
+      'Não encontramos a sessão deste diagnóstico. ' +
+      'Suas respostas continuam salvas neste dispositivo.'
+    );
+
+    return;
+  }
+
+  const s = saveSubmission(a);
+  nav(`/resultado?id=${s.id}&success=true`);
+};
 
   const current=steps[step];
   const firewallVendorValue=firewallVendors.includes(a.firewallVendor)?a.firewallVendor:(a.firewallVendor?'Outro':'Não sei informar');
