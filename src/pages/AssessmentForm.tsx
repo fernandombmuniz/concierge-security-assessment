@@ -49,6 +49,7 @@ export default function AssessmentForm(){
     return saved ? parseInt(saved, 10) : 0;
   });
   const [a,setA]=useState<AssessmentData>(()=>loadDraft());
+  const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const set=(k:keyof AssessmentData,v:any)=>setA(x=>({...x,[k]:v}));
 
@@ -57,14 +58,25 @@ export default function AssessmentForm(){
   }, [step]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    setIsSaving(true);
+    const t = setTimeout(() => {
       saveDraft(a);
-    }, 300);
-
-    return () => {
-      window.clearTimeout(t);
-    };
+      setIsSaving(false);
+      window.dispatchEvent(new Event('storage'));
+    }, 180);
+    return () => clearTimeout(t);
   }, [a]);
+
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setA(loadDraft());
+      const savedStep = localStorage.getItem('concierge-client-assessment-step-v2');
+      setStep(savedStep ? parseInt(savedStep, 10) : 0);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const steps=useMemo(()=>[
     {name:'Empresa',icon:Building2,desc:'Sobre a empresa e quem utiliza a tecnologia'},
@@ -171,8 +183,8 @@ const submit=async()=>{
           </div>
         </div>
         <div className="mt-1 flex shrink-0 items-center gap-1.5 self-end rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-500 sm:self-start">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-teal-500" />
-          <span>Respostas salvas automaticamente</span>
+          <span className={`inline-block h-1.5 w-1.5 rounded-full ${isSaving ? 'animate-pulse bg-amber-400' : 'bg-teal-500'}`} />
+          <span>{isSaving ? 'Salvando...' : 'Respostas salvas'}</span>
         </div>
       </div>
 
@@ -230,15 +242,15 @@ const submit=async()=>{
         >
           <QuestionPair>
             <Field label="Quantas conexões de internet a empresa possui?"><input className={input} type="number" min="1" value={a.internetLinkCount} onChange={e=>set('internetLinkCount',+e.target.value)}/></Field>
-            <Field label="Qual é a velocidade aproximada contratada? (Mbps)" help="Ex.: 500 para um link de 500 Mbps ou 1000 para 1 Gbps. Se houver mais de um link, informe a soma aproximada."><input className={input} type="number" min="0" value={a.links[0].speedMbps||''} onChange={e=>set('links',[{speedMbps:+e.target.value}])}/></Field>
+            <Field label="Qual é aproximadamente a velocidade da internet da empresa?" help="Escolha a opção mais próxima."><select className={select} value={!a.links[0]?.speedMbps?'unknown':a.links[0].speedMbps<=100?'100':a.links[0].speedMbps<=300?'300':a.links[0].speedMbps<=500?'500':a.links[0].speedMbps<=1000?'1000':'1500'} onChange={e=>set('links',[{speedMbps:e.target.value==='unknown'?0:Number(e.target.value)}])}><option value="unknown">Não sei informar</option><option value="100">Até 100 Mbps</option><option value="300">101 a 300 Mbps</option><option value="500">301 a 500 Mbps</option><option value="1000">501 Mbps a 1 Gbps</option><option value="1500">Mais de 1 Gbps</option></select></Field>
           </QuestionPair>
           <QuestionPair>
             <Field label="Como a internet é usada no dia a dia?"><select className={select} value={a.networkUsage} onChange={e=>set('networkUsage',e.target.value)}><option value="light">Leve — navegação, e-mail, sistemas simples</option><option value="medium">Médio — cloud, videoconferência e uso frequente</option><option value="high">Intenso — alto tráfego, múltiplos serviços e transferências</option></select></Field>
-            <Field label="Quantas pessoas acessam a rede da empresa de fora, por conexão segura (VPN)?" help="Se não souber, pode deixar em branco."><input className={input} type="number" min="0" value={a.vpnRemote||''} onChange={e=>set('vpnRemote',+e.target.value)}/></Field>
+            <Field label="Pessoas acessam os sistemas da empresa de fora do escritório?" help="Esse acesso pode ser feito por VPN ou outra forma de acesso remoto seguro."><select className={select} value={a.vpnRemote===0?'unknown':a.vpnRemote<=5?'few':a.vpnRemote<=20?'some':'most'} onChange={e=>set('vpnRemote',e.target.value==='few'?3:e.target.value==='some'?10:e.target.value==='most'?25:0)}><option value="unknown">Não sei informar</option><option value="none">Não</option><option value="few">Sim, poucas pessoas</option><option value="some">Sim, parte da equipe</option><option value="most">Sim, a maior parte da equipe</option></select></Field>
           </QuestionPair>
           <QuestionPair>
             <Field label="Existem conexões seguras entre matriz e filiais? Quantas?" help="Considere conexões usadas para interligar unidades. Se não souber, deixe em branco."><input className={input} type="number" min="0" value={a.vpnSite||''} onChange={e=>set('vpnSite',+e.target.value)}/></Field>
-            <Field label="A rede é separada em grupos, como Administrativo, Visitantes ou Servidores? Quantos grupos?" help="Se não souber, pode deixar em branco."><input className={input} type="number" min="0" value={a.vlans||''} onChange={e=>set('vlans',+e.target.value)}/></Field>
+            <Field label="A rede da empresa é separada para diferentes tipos de uso?" help="Por exemplo: funcionários, visitantes, servidores ou equipamentos específicos."><select className={select} value={a.vlans===0?'unknown':a.vlans===1?'no':a.vlans===2?'partial':'yes'} onChange={e=>set('vlans',e.target.value==='yes'?3:e.target.value==='partial'?2:e.target.value==='no'?1:0)}><option value="unknown">Não sei informar</option><option value="yes">Sim</option><option value="partial">Parcialmente</option><option value="no">Não</option></select></Field>
           </QuestionPair>
         </StepSection>
       </div>}
@@ -246,7 +258,7 @@ const submit=async()=>{
       {step===2&&<div className="space-y-5">
         <QuestionPair>
           <Field label="Os computadores da empresa utilizam antivírus ou outra proteção de segurança?" help="Escolha a opção que mais se aproxima do que você conhece hoje."><select className={select} value={a.endpointLevel} onChange={e=>set('endpointLevel',e.target.value)}><option value="unknown">Não sei informar</option><option value="none">Não existe uma proteção padronizada</option><option value="basic_av">Sim, antivírus instalado individualmente</option><option value="business_av">Sim, antivírus corporativo administrado pela empresa ou TI</option><option value="edr">Sim, proteção avançada que também ajuda a investigar comportamentos suspeitos</option><option value="managed_edr">Sim, proteção avançada que também ajuda a investigar comportamentos suspeitos acompanhado por equipe especializada</option></select></Field>
-          <Field label="Aproximadamente quantos computadores e notebooks a empresa utiliza?" help="Não precisa ser exato. Escolha a faixa mais próxima."><select className={select} value={deviceBucket(a.endpointCount||a.devices)} onChange={e=>{set('endpointCount',+e.target.value);set('devices',+e.target.value)}}><option value="0">Selecione uma faixa</option><option value="5">Até 10 equipamentos</option><option value="15">11 a 20 equipamentos</option><option value="35">21 a 50 equipamentos</option><option value="75">51 a 100 equipamentos</option><option value="150">101 a 200 equipamentos</option><option value="250">Mais de 200 equipamentos</option></select></Field>
+          <Field label="Aproximadamente quantos computadores e notebooks a empresa utiliza?" help="Escolha a opção mais próxima."><select className={select} value={deviceBucket(a.endpointCount||a.devices)} onChange={e=>{set('endpointCount',+e.target.value);set('devices',+e.target.value)}}><option value="0">Selecione uma faixa</option><option value="5">Até 10 equipamentos</option><option value="15">11 a 20 equipamentos</option><option value="35">21 a 50 equipamentos</option><option value="75">51 a 100 equipamentos</option><option value="150">101 a 200 equipamentos</option><option value="250">Mais de 200 equipamentos</option></select></Field>
         </QuestionPair>
         {a.endpointLevel!=='none' && a.endpointLevel!=='unknown' && <QuestionPair>
           <Field label="O responsável pela TI consegue acompanhar e administrar a proteção dos computadores em um único lugar?" help="Por exemplo, visualizar quais computadores estão protegidos, receber alertas e aplicar configurações de forma centralizada."><select className={select} value={a.endpointCentralManagement} onChange={e=>set('endpointCentralManagement',e.target.value)}><option value="unknown">Não sei informar</option><option value="yes">Sim, todos ou quase todos</option><option value="partial">Apenas parte dos equipamentos</option><option value="no">Não</option></select></Field>
