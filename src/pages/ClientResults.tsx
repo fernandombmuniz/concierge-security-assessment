@@ -36,11 +36,31 @@ const plainDomainLabel = (domain: string) => {
   return domain;
 };
 
+
+const networkSituationText = (data: AssessmentData) => {
+  switch (data.firewallLevel) {
+    case 'none':
+      return 'Você informou que a empresa não possui uma solução dedicada para proteger a conexão com a internet.';
+    case 'isp':
+      return 'Você informou que a empresa utiliza principalmente o equipamento fornecido pela operadora para proteger a conexão com a internet.';
+    case 'router':
+      return 'Você informou que a empresa utiliza MikroTik ou outro roteador corporativo para proteger a conexão com a internet.';
+    case 'utm':
+      return 'Você informou que a empresa possui um equipamento próprio para proteger a conexão com a internet.';
+    case 'ngfw':
+      return 'Você informou que a empresa possui uma solução de segurança com recursos adicionais de proteção da internet.';
+    case 'managed_ngfw':
+      return 'Você informou que a empresa possui uma solução de segurança acompanhada por equipe especializada.';
+    default:
+      return 'Pelas respostas, existe alguma proteção entre a internet e a rede da empresa, mas parte das informações ainda precisa ser confirmada.';
+  }
+};
+
 const getFindingPresentation = (title: string, data: AssessmentData, originalSituation: string, originalConsequence: string) => {
   const t = title.toLowerCase();
   if (t.includes('perímetro') || t.includes('firewall')) return {
     title: 'A proteção da internet pode ser ampliada',
-    informed: data.firewallLevel === 'router' ? 'Você informou que a empresa utiliza MikroTik ou outro roteador corporativo para proteger a conexão com a internet.' : originalSituation,
+    informed: networkSituationText(data),
     indication: 'Existe uma camada de proteção, mas vale confirmar se ela também consegue identificar e bloquear ameaças além das regras básicas de acesso.',
     practical: 'Na prática, uma proteção mais completa pode reduzir a dependência de perceber um problema somente depois que ele já afetou pessoas ou sistemas.'
   };
@@ -129,7 +149,7 @@ const money = (n: number) =>
 const getOperationalImpact = (title: string) => {
   const t = title.toLowerCase();
   if (t.includes('perímetro') || t.includes('firewall')) {
-    return 'Para a operação, isso significa contar com menos recursos de prevenção e visibilidade no ponto de entrada da rede, aumentando a dependência de outras camadas de segurança.';
+    return 'Na prática, uma proteção mais simples pode perceber menos tipos de ameaça antes que elas alcancem os computadores e sistemas da empresa.';
   }
   if (t.includes('licenciamento')) {
     return 'Alguns recursos de segurança podem deixar de receber atualizações ou inteligência recente, reduzindo a cobertura esperada da solução.';
@@ -164,7 +184,7 @@ const getOperationalImpact = (title: string) => {
   if (t.includes('e-mail') || t.includes('phishing')) {
     return 'Mensagens suspeitas podem depender mais dos filtros básicos e da percepção do usuário, especialmente em tentativas de phishing e fraude.';
   }
-  return 'Esse ponto pode reduzir previsibilidade, visibilidade ou capacidade de resposta e merece ser validado no contexto real da operação.';
+  return 'Esse ponto merece uma revisão para confirmar se a empresa consegue perceber o problema rapidamente e agir quando necessário.';
 };
 
 export default function ClientResults() {
@@ -298,10 +318,10 @@ export default function ClientResults() {
   let pointsAttentionText = "Os principais pontos identificados estão relacionados a controles essenciais de segurança.";
   if (affectedDomains.length > 0) {
     const domainLabels = affectedDomains.map(d => {
-      if (d === 'Backup e Continuidade') return 'recuperação de dados (Backup)';
-      if (d === 'Endpoints') return 'proteção de dispositivos (Endpoints)';
-      if (d === 'Rede e Perímetro') return 'proteção de perímetro';
-      if (d === 'Identidade e Acesso') return 'gestão de identidades e acesso';
+      if (d === 'Backup e Continuidade') return 'recuperação dos dados e cópias de segurança';
+      if (d === 'Endpoints') return 'proteção dos computadores';
+      if (d === 'Rede e Perímetro') return 'proteção da internet e da rede';
+      if (d === 'Identidade e Acesso') return 'proteção das contas e acessos';
       return d.toLowerCase();
     });
     if (domainLabels.length === 1) {
@@ -734,7 +754,7 @@ export default function ClientResults() {
             {mostMature && (
               <div className="rounded-xl border border-emerald-900/15 bg-emerald-950/5 p-4 flex flex-col justify-between">
                 <div>
-                  <span className="text-3xs font-bold uppercase tracking-wider text-emerald-400 block">3. Ponto mais estruturado hoje</span>
+                  <span className="text-3xs font-bold uppercase tracking-wider text-emerald-400 block">3. Área com melhor condição atual</span>
                   <h4 className="mt-2 font-bold text-slate-100 text-sm">{priorityExecName[mostMature.key]}</h4>
                   <p className="text-2xs text-slate-400 mt-1">
                     {mostMature.score < 60
@@ -774,11 +794,11 @@ export default function ClientResults() {
           <div className="glass-card max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 md:p-8 relative">
             <button onClick={() => setIsDiagnosisModalOpen(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition"><X size={20}/></button>
             <h3 className="text-xl font-bold text-white">Como chegamos a esta conclusão?</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">A narrativa executiva não cria um diagnóstico separado do score. Ela traduz para linguagem de negócio os mesmos controles avaliados pelo Assessment.</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">A leitura usa as mesmas respostas do diagnóstico e as transforma em uma explicação mais simples sobre o que está funcionando, o que merece revisão e por onde faz sentido começar.</p>
             <div className="mt-6 space-y-4 text-sm text-slate-300">
               <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">1. Respostas fornecidas</b><p className="mt-1 text-slate-400">Consideramos apenas as informações declaradas no onboarding. Quando algum ponto importante não é conhecido, a leitura daquele domínio é marcada para validação adicional, sem transformar a ausência de informação em falha.</p></div>
-              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">2. Controles avaliados</b><p className="mt-1 text-slate-400">As respostas são relacionadas a controles de Rede e Perímetro, Endpoints, Backup e Continuidade e Identidade e Acesso. Cada domínio recebe uma maturidade relativa de acordo com os controles informados.</p></div>
-              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">3. Priorização</b><p className="mt-1 text-slate-400">O domínio com menor maturidade entre os avaliados recebe destaque inicial. Os pontos identificados explicam o que foi informado, por que o controle é relevante e qual efeito operacional pode merecer validação.</p></div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">2. Áreas analisadas</b><p className="mt-1 text-slate-400">Organizamos as respostas em quatro áreas: internet e rede, computadores, dados e backup, e contas e acessos. O indicador mostra como essas áreas aparecem nas informações fornecidas.</p></div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">3. Ordem de atenção</b><p className="mt-1 text-slate-400">Damos mais destaque aos pontos que aparecem mais frágeis nas respostas e ao impacto que eles podem ter no dia a dia. A ideia é mostrar de forma clara o que vale revisar primeiro.</p></div>
               <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"><b className="text-slate-100">4. Referências</b><p className="mt-1 text-slate-400">Frameworks como NIST CSF e CIS Controls orientam as capacidades avaliadas. Estatísticas de mercado só são exibidas quando previamente cadastradas e validadas na biblioteca de evidências do produto. Os pesos e faixas de score pertencem ao modelo interno Concierge.</p></div>
               <p className="border-t border-slate-800 pt-4 text-xs leading-relaxed text-slate-500">Este material é um diagnóstico inicial, comercial e executivo. Ele não substitui validação técnica, auditoria, teste de segurança, laudo pericial ou parecer jurídico.</p>
             </div>
@@ -814,10 +834,10 @@ export default function ClientResults() {
               <div>
                 <h4 className="font-semibold text-slate-200">O que a metodologia considera</h4>
                 <ul className="mt-2 space-y-1 text-xs list-disc list-inside text-slate-400">
-                  <li><b>Rede:</b> camada de borda, prevenção ativa, manutenção, licenciamento e acompanhamento operacional.</li>
-                  <li><b>Endpoints:</b> proteção, gestão centralizada, atualização, inventário, vulnerabilidades e privilégios.</li>
-                  <li><b>Continuidade:</b> automação do backup, isolamento das cópias e validação de restauração.</li>
-                  <li><b>Identidade e resposta:</b> MFA, contas individuais, offboarding, proteção de e-mail e preparação para incidentes.</li>
+                  <li><b>Internet e rede:</b> tipo de proteção utilizada, recursos de bloqueio, atualização e acompanhamento dos alertas.</li>
+                  <li><b>Computadores:</b> antivírus, administração da proteção, atualizações, controle dos equipamentos e acompanhamento dos alertas.</li>
+                  <li><b>Dados e backup:</b> existência das cópias, proteção contra exclusão ou alteração e teste de recuperação.</li>
+                  <li><b>Contas e segurança:</b> verificação em duas etapas, contas compartilhadas, remoção de acessos, proteção de e-mail e definição de quem agir em um incidente.</li>
                 </ul>
               </div>
 

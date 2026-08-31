@@ -49,7 +49,12 @@ export default function AssessmentForm(){
     return saved ? parseInt(saved, 10) : 0;
   });
   const [a,setA]=useState<AssessmentData>(()=>loadDraft());
-  const [isSaving, setIsSaving] = useState(false);
+  const [vpnRemoteChoice, setVpnRemoteChoice] = useState<'unknown'|'none'|'few'|'some'|'most'>(() => {
+    if (a.vpnRemote > 20) return 'most';
+    if (a.vpnRemote > 5) return 'some';
+    if (a.vpnRemote > 0) return 'few';
+    return 'unknown';
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const set=(k:keyof AssessmentData,v:any)=>setA(x=>({...x,[k]:v}));
 
@@ -58,25 +63,11 @@ export default function AssessmentForm(){
   }, [step]);
 
   useEffect(() => {
-    setIsSaving(true);
-    const t = setTimeout(() => {
+    const t = window.setTimeout(() => {
       saveDraft(a);
-      setIsSaving(false);
-      window.dispatchEvent(new Event('storage'));
-    }, 180);
-    return () => clearTimeout(t);
+    }, 300);
+    return () => window.clearTimeout(t);
   }, [a]);
-
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setA(loadDraft());
-      const savedStep = localStorage.getItem('concierge-client-assessment-step-v2');
-      setStep(savedStep ? parseInt(savedStep, 10) : 0);
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
 
   const steps=useMemo(()=>[
     {name:'Empresa',icon:Building2,desc:'Sobre a empresa e quem utiliza a tecnologia'},
@@ -183,8 +174,8 @@ const submit=async()=>{
           </div>
         </div>
         <div className="mt-1 flex shrink-0 items-center gap-1.5 self-end rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-500 sm:self-start">
-          <span className={`inline-block h-1.5 w-1.5 rounded-full ${isSaving ? 'animate-pulse bg-amber-400' : 'bg-teal-500'}`} />
-          <span>{isSaving ? 'Salvando...' : 'Respostas salvas'}</span>
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-teal-500" />
+          <span>Respostas salvas automaticamente</span>
         </div>
       </div>
 
@@ -246,7 +237,7 @@ const submit=async()=>{
           </QuestionPair>
           <QuestionPair>
             <Field label="Como a internet é usada no dia a dia?"><select className={select} value={a.networkUsage} onChange={e=>set('networkUsage',e.target.value)}><option value="light">Leve — navegação, e-mail, sistemas simples</option><option value="medium">Médio — cloud, videoconferência e uso frequente</option><option value="high">Intenso — alto tráfego, múltiplos serviços e transferências</option></select></Field>
-            <Field label="Pessoas acessam os sistemas da empresa de fora do escritório?" help="Esse acesso pode ser feito por VPN ou outra forma de acesso remoto seguro."><select className={select} value={a.vpnRemote===0?'unknown':a.vpnRemote<=5?'few':a.vpnRemote<=20?'some':'most'} onChange={e=>set('vpnRemote',e.target.value==='few'?3:e.target.value==='some'?10:e.target.value==='most'?25:0)}><option value="unknown">Não sei informar</option><option value="none">Não</option><option value="few">Sim, poucas pessoas</option><option value="some">Sim, parte da equipe</option><option value="most">Sim, a maior parte da equipe</option></select></Field>
+            <Field label="Pessoas acessam os sistemas da empresa de fora do escritório?" help="Esse acesso pode ser feito por VPN ou outra forma de acesso remoto seguro."><select className={select} value={vpnRemoteChoice} onChange={e=>{const choice=e.target.value as 'unknown'|'none'|'few'|'some'|'most'; setVpnRemoteChoice(choice); set('vpnRemote',choice==='few'?3:choice==='some'?10:choice==='most'?25:0)}}><option value="unknown">Não sei informar</option><option value="none">Não</option><option value="few">Sim, poucas pessoas</option><option value="some">Sim, parte da equipe</option><option value="most">Sim, a maior parte da equipe</option></select></Field>
           </QuestionPair>
           <QuestionPair>
             <Field label="Existem conexões seguras entre matriz e filiais? Quantas?" help="Considere conexões usadas para interligar unidades. Se não souber, deixe em branco."><input className={input} type="number" min="0" value={a.vpnSite||''} onChange={e=>set('vpnSite',+e.target.value)}/></Field>
