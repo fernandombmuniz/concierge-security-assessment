@@ -8,6 +8,7 @@ import DomainBars from '../components/DomainBars';
 import ImpactChart from '../components/ImpactChart';
 import ClientHeader from '../components/ClientHeader';
 import { getValidatedSource, getValidatedSourceForDomain, getValidatedSourceForFinding } from '../sourceRegistry';
+import { generateAssessmentPdf, sanitizePdfFileName } from '../lib/report-pdf';
 import {
   AlertTriangle,
   Database,
@@ -23,7 +24,9 @@ import {
   ChevronRight,
   ChevronDown,
   TrendingUp,
-  HelpCircle
+  HelpCircle,
+  Download,
+  Loader2
 } from 'lucide-react';
 
 
@@ -222,6 +225,8 @@ export default function ClientResults() {
   const [isDiagnosisModalOpen, setIsDiagnosisModalOpen] = useState(false);
   const [isFaixaModalOpen, setIsFaixaModalOpen] = useState(false);
   const [expandedFindings, setExpandedFindings] = useState<Set<string>>(() => new Set());
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [pdfMode, setPdfMode] = useState(false);
 
   // Re-hydrate if URL id changes
   useEffect(() => {
@@ -264,6 +269,41 @@ export default function ClientResults() {
       else next.add(key);
       return next;
     });
+  };
+
+  const handleDownloadReport = async () => {
+    if (isPdfGenerating) return;
+
+    setIsPdfGenerating(true);
+    setPdfMode(true);
+
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 160));
+
+      const reportRoot = document.querySelector<HTMLElement>(
+        '[data-assessment-report="true"]',
+      );
+
+      if (!reportRoot) {
+        throw new Error('Área do relatório não encontrada.');
+      }
+
+      const companyName = assessmentData.companyName?.trim() || 'empresa';
+
+      await generateAssessmentPdf(reportRoot, {
+        companyName,
+        fileName: `concierge-security-assessment-${sanitizePdfFileName(companyName)}.pdf`,
+      });
+    } catch (error) {
+      console.error('Falha ao gerar PDF do assessment:', error);
+
+      alert(
+        'Não foi possível gerar o PDF neste momento. Tente novamente em alguns instantes.',
+      );
+    } finally {
+      setPdfMode(false);
+      setIsPdfGenerating(false);
+    }
   };
 
   const draftData = assessmentData;
@@ -377,7 +417,7 @@ export default function ClientResults() {
 
   return (
     <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-5xl" data-assessment-report="true">
         <ClientHeader />
 
         {showSuccess && (
@@ -552,7 +592,7 @@ export default function ClientResults() {
           <div className="grid gap-4">
             {r.findings.slice(0, 3).map((f, index) => {
               const findingKey = `${plainDomainLabel(f.domain)}-${f.title}-${index}`;
-              const isExpanded = expandedFindings.has(findingKey);
+              const isExpanded = pdfMode || expandedFindings.has(findingKey);
               const source = getValidatedSourceForFinding(f.title, f.domain);
               const severityLabel = f.severity === 'Alta' ? 'Vale revisar primeiro' : f.severity === 'Média' ? 'Vale revisar' : 'Acompanhar';
               const presentation = getFindingPresentation(f.title, draftData, f.situation, f.consequence);
@@ -561,7 +601,7 @@ export default function ClientResults() {
                 <article key={findingKey} className="glass-card overflow-hidden">
                   <button
                     type="button"
-                    onClick={() => toggleFinding(findingKey)}
+                    onClick={() => { if (!pdfMode) toggleFinding(findingKey); }}
                     aria-expanded={isExpanded}
                     className="w-full p-5 text-left md:p-6"
                   >
@@ -783,6 +823,31 @@ export default function ClientResults() {
               <p className="mt-1.5 text-sm leading-relaxed text-slate-300">
                 A equipe Concierge pode usar este diagnóstico como ponto de partida para confirmar as informações, tirar dúvidas e entender quais melhorias realmente fazem sentido para o seu ambiente.
               </p>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center" data-pdf-ignore="true">
+                <button
+                  type="button"
+                  onClick={handleDownloadReport}
+                  disabled={isPdfGenerating}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-950/30 transition hover:bg-teal-500 disabled:cursor-wait disabled:bg-teal-800 disabled:text-teal-200"
+                >
+                  {isPdfGenerating ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Preparando relatório...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={18} />
+                      Baixar relatório em PDF
+                    </>
+                  )}
+                </button>
+
+                <p className="text-xs leading-relaxed text-slate-500">
+                  O PDF reúne o mesmo diagnóstico exibido nesta página e inclui os detalhes técnicos dos principais pontos para facilitar o compartilhamento interno.
+                </p>
+              </div>
             </div>
           </div>
         </section>
