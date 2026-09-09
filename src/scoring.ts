@@ -78,15 +78,6 @@ export const confidenceLevel = (
       ? 'Moderada'
       : 'Baixa';
 
-/**
- * V4
- *
- * Campos novos só entram no cálculo quando realmente existem.
- * Isso mantém compatibilidade com assessments antigos.
- *
- * "Não sei" continua reduzindo cobertura sem ser tratado
- * automaticamente como falha.
- */
 function scoreControls(items: Control[]) {
   const applicable = items.filter(
     (item) => item.applicable !== false,
@@ -320,17 +311,94 @@ function impactMultiplier(
   }
 }
 
+type EffectiveEndpointLevel =
+  | 'none'
+  | 'basic_av'
+  | 'business_av'
+  | 'edr'
+  | 'managed_edr'
+  | 'unknown';
+
+/**
+ * V4.1
+ *
+ * O cliente não precisa conhecer os termos AV corporativo / EDR.
+ * A classificação efetiva é inferida principalmente pela forma
+ * como a proteção é administrada e como os alertas são tratados.
+ *
+ * Assessments antigos continuam compatíveis: se vierem com "edr"
+ * ou "managed_edr", preservamos essa informação como sinal adicional.
+ */
+function deriveEffectiveEndpointLevel(
+  a: AssessmentData,
+): EffectiveEndpointLevel {
+  if (a.endpointLevel === 'unknown') {
+    return 'unknown';
+  }
+
+  if (a.endpointLevel === 'none') {
+    return 'none';
+  }
+
+  const central =
+    a.endpointCentralManagement;
+
+  const response =
+    a.endpointResponse;
+
+  if (
+    response === 'managed_soc' &&
+    central === 'yes'
+  ) {
+    return 'managed_edr';
+  }
+
+  if (
+    response === 'defined_team' &&
+    central === 'yes'
+  ) {
+    return 'edr';
+  }
+
+  if (
+    a.endpointLevel === 'managed_edr'
+  ) {
+    return response === 'none'
+      ? 'business_av'
+      : 'managed_edr';
+  }
+
+  if (a.endpointLevel === 'edr') {
+    return response === 'none'
+      ? 'business_av'
+      : 'edr';
+  }
+
+  if (
+    central === 'yes' ||
+    central === 'partial'
+  ) {
+    return 'business_av';
+  }
+
+  if (
+    central === 'no' &&
+    (
+      response === 'none' ||
+      response === 'unknown'
+    )
+  ) {
+    return 'basic_av';
+  }
+
+  return 'business_av';
+}
+
 export function scoreAssessment(
   a: AssessmentData,
 ) {
   /**
    * NETWORK
-   *
-   * Importante:
-   * firewallVendor e firewallModel NÃO alteram score.
-   *
-   * Produto identifica contexto.
-   * Capacidade e operação definem maturidade.
    */
   const firewallBase: Record<
     AssessmentData['firewallLevel'],
@@ -430,20 +498,20 @@ export function scoreAssessment(
     {
       known:
         a.firewallLicense !== 'unknown' &&
-        !['none', 'isp'].includes(
+        !['none', 'isp', 'router'].includes(
           a.firewallLevel,
         ),
 
       score: license.score,
 
       weight: 15,
+
+      applicable:
+        !['none', 'isp', 'router'].includes(
+          a.firewallLevel,
+        ),
     },
 
-    /**
-     * V4 adaptive.
-     * Só entra no score quando o formulário
-     * efetivamente coletar esses campos.
-     */
     {
       known: knownOptional(
         a.firewallManagement,
@@ -504,14 +572,20 @@ export function scoreAssessment(
 
   /**
    * ENDPOINT
+   *
+   * O score usa a classificação efetiva inferida.
+   * O fabricante nunca altera a nota sozinho.
    */
+  const effectiveEndpointLevel =
+    deriveEffectiveEndpointLevel(a);
+
   const endpointBase: Record<
-    AssessmentData['endpointLevel'],
+    EffectiveEndpointLevel,
     number
   > = {
     none: 0,
-    basic_av: 28,
-    business_av: 52,
+    basic_av: 32,
+    business_av: 55,
     edr: 80,
     managed_edr: 94,
     unknown: 50,
@@ -564,14 +638,15 @@ export function scoreAssessment(
   const endpointControls: Control[] = [
     {
       known:
-        a.endpointLevel !== 'unknown',
+        effectiveEndpointLevel !==
+        'unknown',
 
       score:
         endpointBase[
-          a.endpointLevel
+          effectiveEndpointLevel
         ],
 
-      weight: 32,
+      weight: 34,
 
       critical: true,
     },
@@ -580,36 +655,29 @@ export function scoreAssessment(
       known:
         a.endpointCentralManagement !==
           'unknown' &&
-        a.endpointLevel !== 'none',
+        effectiveEndpointLevel !==
+          'none',
 
       score: central.score,
 
-      weight: 14,
+      weight: 18,
     },
 
     {
       known:
         a.endpointResponse !==
           'unknown' &&
-        a.endpointLevel !== 'none',
+        effectiveEndpointLevel !==
+          'none',
 
       score:
         response[
           a.endpointResponse
         ],
 
-      weight: 22,
+      weight: 24,
 
       critical: true,
-    },
-
-    {
-      known:
-        a.autoUpdates !== 'unknown',
-
-      score: updates.score,
-
-      weight: 12,
     },
 
     {
@@ -621,7 +689,7 @@ export function scoreAssessment(
           a.assetInventory
         ],
 
-      weight: 10,
+      weight: 12,
     },
 
     {
@@ -634,9 +702,25 @@ export function scoreAssessment(
           a.vulnerabilityManagement
         ],
 
-      weight: 10,
+      weight: 12,
 
       critical: true,
+    },
+
+    /**
+     * Campo legado. Continua entrando quando já existir em assessments antigos,
+     * mas não é mais necessário no formulário V4.1.
+     */
+    {
+      known:
+        a.autoUpdates !== 'unknown',
+
+      score: updates.score,
+
+      weight: 8,
+
+      applicable:
+        a.autoUpdates !== 'unknown',
     },
   ];
 
@@ -725,9 +809,6 @@ export function scoreAssessment(
       critical: true,
     },
 
-    /**
-     * V4 adaptive.
-     */
     {
       known: knownOptional(
         a.backupResponsibility,
@@ -910,11 +991,8 @@ export function scoreAssessment(
     : null;
 
   /**
-   * Mantemos labels internos compatíveis
-   * com a versão atual.
-   *
-   * No relatório V4 vamos traduzir isso
-   * visualmente para linguagem ainda mais simples.
+   * Mantemos os labels internos atuais para compatibilidade
+   * com sourceRegistry e relatórios existentes.
    */
   const labels: Record<
     DomainKey,
@@ -935,9 +1013,13 @@ export function scoreAssessment(
     .filter(Boolean)
     .join(' ');
 
-  /**
-   * NETWORK FINDINGS
-   */
+  const endpointName = [
+    cleanLabel(a.endpointVendor),
+    cleanLabel(a.endpointProduct),
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   if (
     a.firewallLevel === 'none' ||
     a.firewallLevel === 'isp'
@@ -1075,32 +1157,7 @@ export function scoreAssessment(
     });
   }
 
-  if (
-    a.networkMaintenance === 'none'
-  ) {
-    findings.push({
-      domain: labels.network,
-
-      title:
-        'A manutenção da rede não possui uma rotina definida',
-
-      situation:
-        'Não foi informada uma rotina definida de atualização e revisão das configurações dos equipamentos de rede.',
-
-      consequence:
-        'Atualizações e revisões importantes podem acabar acontecendo apenas quando aparece algum problema.',
-
-      technical:
-        'Gestão de configuração, atualização de firmware e revisão periódica de regras.',
-
-      severity: 'Média',
-    });
-  }
-
-  /**
-   * ENDPOINT FINDINGS
-   */
-  if (a.endpointLevel === 'none') {
+  if (effectiveEndpointLevel === 'none') {
     findings.push({
       domain: labels.endpoint,
 
@@ -1114,60 +1171,62 @@ export function scoreAssessment(
         'A empresa fica mais dependente da percepção dos usuários e de controles isolados para identificar ameaças nos dispositivos.',
 
       technical:
-        'Proteção corporativa de endpoint, gestão central e acompanhamento dos dispositivos.',
+        'Proteção de endpoint, gestão central e acompanhamento dos dispositivos.',
 
       severity: 'Alta',
     });
   }
 
   if (
-    a.endpointLevel === 'basic_av'
+    effectiveEndpointLevel ===
+    'basic_av'
   ) {
-    const endpointName = [
-      cleanLabel(a.endpointVendor),
-      cleanLabel(a.endpointProduct),
-    ]
-      .filter(Boolean)
-      .join(' ');
-
     findings.push({
       domain: labels.endpoint,
 
       title:
-        'Existe antivírus, mas a capacidade de investigação é limitada',
+        'Existe proteção nos computadores, mas a visibilidade parece limitada',
 
       situation: endpointName
-        ? `Você informou utilizar ${endpointName}. Pelas respostas, a proteção identificada está mais próxima de um antivírus básico do que de uma camada completa de investigação e resposta.`
-        : 'Existe uma camada de antivírus nos computadores, mas sem indicação de gestão corporativa e investigação mais profunda.',
+        ? `Você informou utilizar ${endpointName}. Pelas demais respostas, não conseguimos confirmar uma gestão central ampla ou acompanhamento estruturado dos alertas.`
+        : 'Você informou que existe proteção nos computadores, mas não conseguimos confirmar uma gestão central ampla ou acompanhamento estruturado dos alertas.',
 
       consequence:
-        'A solução pode bloquear ameaças conhecidas, mas oferecer menos contexto quando é necessário entender o que um programa suspeito fez dentro do computador.',
+        'A solução pode bloquear ameaças conhecidas, mas a equipe pode ter menos contexto para entender o que aconteceu quando um comportamento suspeito aparece.',
 
       technical:
-        'Gestão centralizada, análise comportamental, EDR, investigação e resposta.',
+        'Gestão centralizada, visibilidade dos endpoints, investigação e resposta.',
 
       severity: 'Média',
     });
   }
 
   if (
-    a.endpointLevel ===
-    'business_av'
+    effectiveEndpointLevel ===
+      'business_av' &&
+    (
+      a.endpointResponse ===
+        'none' ||
+      a.endpointResponse ===
+        'alerts_only'
+    )
   ) {
     findings.push({
       domain: labels.endpoint,
 
       title:
-        'A proteção dos computadores é válida, mas pode faltar capacidade de resposta',
+        'Existe proteção, mas os alertas podem não virar ação rapidamente',
 
       situation:
-        'O ambiente já possui antivírus corporativo, o que é uma camada importante. Pelas respostas, não identificamos capacidade equivalente a EDR para investigar comportamento e apoiar resposta.',
+        endpointName
+          ? `Você informou utilizar ${endpointName}, mas os alertas são acompanhados apenas quando necessário ou sem uma resposta claramente definida.`
+          : 'Existe uma proteção instalada, mas os alertas são acompanhados apenas quando necessário ou sem uma resposta claramente definida.',
 
       consequence:
-        'Se uma ameaça ultrapassar a prevenção inicial, entender o que aconteceu e conter o problema pode depender mais de investigação manual.',
+        'Um alerta pode existir sem se transformar rapidamente em investigação, contenção ou correção.',
 
       technical:
-        'EDR, análise comportamental, investigação, contenção e resposta sobre endpoints.',
+        'Triagem de alertas, investigação, contenção e processo de resposta.',
 
       severity: 'Média',
     });
@@ -1175,8 +1234,8 @@ export function scoreAssessment(
 
   if (
     (
-      a.endpointLevel === 'edr' ||
-      a.endpointLevel ===
+      effectiveEndpointLevel === 'edr' ||
+      effectiveEndpointLevel ===
         'managed_edr'
     ) &&
     (
@@ -1253,9 +1312,6 @@ export function scoreAssessment(
     });
   }
 
-  /**
-   * BACKUP FINDINGS
-   */
   if (
     a.backupLevel === 'none' ||
     a.backupLevel === 'manual'
@@ -1319,15 +1375,12 @@ export function scoreAssessment(
         'Problemas de senha, integridade, tempo de recuperação ou arquivos ausentes podem aparecer apenas quando a empresa já estiver no meio de um incidente.',
 
       technical:
-        'Testes periódicos de restauração, validação de RTO/RPO e evidência de recuperação.',
+        'Testes periódicos de restauração, validação de recuperação e evidência do processo.',
 
       severity: 'Média',
     });
   }
 
-  /**
-   * IDENTITY FINDINGS
-   */
   if (a.mfa === 'no') {
     findings.push({
       domain: labels.identity,
@@ -1413,9 +1466,6 @@ export function scoreAssessment(
     });
   }
 
-  /**
-   * COMPLETENESS
-   */
   const allControls = [
     ...networkControls,
     ...endpointControls,
@@ -1450,9 +1500,6 @@ export function scoreAssessment(
         )
       : 0;
 
-  /**
-   * CONTEXT
-   */
   const contextSignals =
     (
       a.sensitiveData === 'yes'
@@ -1499,7 +1546,27 @@ export function scoreAssessment(
       'personal_cloud';
 
   /**
-   * PRIORITY ENGINE
+   * PRIORIDADE PÚBLICA
+   *
+   * Para o cliente, a regra precisa ser intuitiva:
+   * o primeiro ponto a revisar é o domínio avaliado com menor indicador.
+   *
+   * Isso evita contradições visuais como:
+   * Rede 59 / Backup 70, mas Backup aparecendo como primeira prioridade.
+   */
+  const priority =
+    evaluated.length
+      ? [...evaluated].sort(
+          (a, b) =>
+            a[1] - b[1],
+        )[0][0]
+      : null;
+
+  /**
+   * PRIORIDADE CONTEXTUAL INTERNA
+   *
+   * Mantemos uma leitura de contexto para uso interno,
+   * sem alterar o que o cliente vê.
    */
   const priorityFactors: Record<
     DomainKey,
@@ -1549,12 +1616,12 @@ export function scoreAssessment(
         ['4h', '8h'].includes(
           a.maxDowntime,
         )
-          ? 12
+          ? 8
           : 0
       ) +
       (
         dataDecentralized
-          ? 6
+          ? 4
           : 0
       ) +
       (
@@ -1562,7 +1629,7 @@ export function scoreAssessment(
           'major' ||
         a.operationalImpact ===
           'halt'
-          ? 10
+          ? 6
           : 0
       ),
 
@@ -1584,7 +1651,7 @@ export function scoreAssessment(
       ),
   };
 
-  const priority =
+  const contextualPriority =
     evaluated.length
       ? [...evaluated].sort(
           (x, y) =>
@@ -1609,9 +1676,6 @@ export function scoreAssessment(
             ? 'Moderada'
             : 'Baixa';
 
-  /**
-   * DEPENDENCIES
-   */
   const dependencies: {
     area: string;
     status:
@@ -1627,7 +1691,7 @@ export function scoreAssessment(
       status: 'Antes',
 
       message:
-        'Organizar e centralizar os dados corporativos prioritários antes de definir a estratégia final de backup. Isso reduz pontos dispersos e melhora a cobertura da proteção.',
+        'Organizar e centralizar os dados corporativos prioritários antes de definir a estratégia final de backup.',
     });
   }
 
@@ -1637,11 +1701,10 @@ export function scoreAssessment(
       a.assetInventory ===
         'informal'
     ) &&
-    [
-      'none',
-      'basic_av',
-      'business_av',
-    ].includes(a.endpointLevel)
+    effectiveEndpointLevel !==
+      'none' &&
+    effectiveEndpointLevel !==
+      'unknown'
   ) {
     dependencies.push({
       area: 'Endpoints',
@@ -1649,7 +1712,7 @@ export function scoreAssessment(
       status: 'Em paralelo',
 
       message:
-        'Consolidar o inventário de equipamentos durante a evolução da proteção de endpoint, para confirmar cobertura e responsáveis.',
+        'Consolidar o inventário de equipamentos durante a evolução da proteção de endpoint.',
     });
   }
 
@@ -1675,12 +1738,6 @@ export function scoreAssessment(
     });
   }
 
-  /**
-   * CRITICAL RULES ENGINE
-   *
-   * Essas regras não mudam artificialmente o score.
-   * Elas identificam combinações que merecem atenção.
-   */
   const criticalRules: CriticalRule[] =
     [];
 
@@ -1691,15 +1748,11 @@ export function scoreAssessment(
   ) {
     criticalRules.push({
       id: 'backup-without-restore-test',
-
       domain: 'backup',
-
       title:
         'Backup existente sem prova de recuperação',
-
       reason:
-        'Há cópias, mas a restauração nunca foi testada. A existência do backup não garante que a operação consiga voltar no tempo esperado.',
-
+        'Há cópias, mas a restauração nunca foi testada.',
       severity: 'Alta',
     });
   }
@@ -1720,15 +1773,11 @@ export function scoreAssessment(
   ) {
     criticalRules.push({
       id: 'backup-shared-risk',
-
       domain: 'backup',
-
       title:
         'Produção e backup podem compartilhar o mesmo risco',
-
       reason:
-        'Não foi confirmada separação suficiente entre o ambiente principal e as cópias usadas para recuperação.',
-
+        'Não foi confirmada separação suficiente entre produção e cópias.',
       severity: 'Alta',
     });
   }
@@ -1745,23 +1794,19 @@ export function scoreAssessment(
   ) {
     criticalRules.push({
       id: 'identity-single-factor',
-
       domain: 'identity',
-
       title:
         'Uma senha comprometida pode ter impacto elevado',
-
       reason:
         'A empresa combina ausência de MFA com dados sensíveis ou proteção limitada de e-mail.',
-
       severity: 'Alta',
     });
   }
 
   if (
     (
-      a.endpointLevel === 'edr' ||
-      a.endpointLevel ===
+      effectiveEndpointLevel === 'edr' ||
+      effectiveEndpointLevel ===
         'managed_edr'
     ) &&
     (
@@ -1773,15 +1818,11 @@ export function scoreAssessment(
   ) {
     criticalRules.push({
       id: 'edr-without-response',
-
       domain: 'endpoint',
-
       title:
         'Detecção sem resposta estruturada',
-
       reason:
-        'Existe capacidade de detectar comportamentos avançados, mas não foi confirmada uma operação capaz de transformar alertas em investigação e contenção.',
-
+        'Existe capacidade de detecção, mas não foi confirmada uma operação capaz de transformar alertas em investigação e contenção.',
       severity: 'Média',
     });
   }
@@ -1795,40 +1836,20 @@ export function scoreAssessment(
       a.monitoring === 'none' ||
       a.monitoring ===
         'reactive_it'
-    ) &&
-    (
-      a.firewallMonitoring24x7 ===
-        'no' ||
-      a.firewallMonitoring24x7 ===
-        'unknown' ||
-      a.firewallMonitoring24x7 ===
-        undefined
     )
   ) {
     criticalRules.push({
       id:
         'outsourced-firewall-low-visibility',
-
       domain: 'network',
-
       title:
         'Firewall terceirizado com pouca visibilidade',
-
       reason:
         'A gestão é terceirizada, mas não há relatório periódico nem acompanhamento contínuo confirmado.',
-
       severity: 'Alta',
     });
   }
 
-  /**
-   * CURRENT PROFILE x TARGET PROFILE
-   *
-   * Isto NÃO é "nota oficial NIST".
-   *
-   * É um alvo contextual interno,
-   * inspirado na lógica Current/Target Profile.
-   */
   const targetScores: Record<
     DomainKey,
     number
@@ -1924,19 +1945,13 @@ export function scoreAssessment(
           ),
   };
 
-  /**
-   * OPPORTUNITY ENGINE
-   *
-   * Continua exclusivamente interno.
-   *
-   * Não aparece no relatório do cliente.
-   * Não altera o score técnico.
-   */
-  const endpointGap = [
-    'none',
-    'basic_av',
-    'business_av',
-  ].includes(a.endpointLevel);
+  const endpointGap =
+    effectiveEndpointLevel ===
+      'none' ||
+    effectiveEndpointLevel ===
+      'basic_av' ||
+    effectiveEndpointLevel ===
+      'business_av';
 
   const backupReady =
     !dataDecentralized;
@@ -2081,15 +2096,6 @@ export function scoreAssessment(
         : 'Validar controles de identidade já existentes.',
   };
 
-  /**
-   * COMMERCIAL READINESS
-   *
-   * Não gera proposta.
-   * Não gera preço.
-   *
-   * Apenas diz internamente o que você
-   * já tem para começar o pré-dimensionamento manual.
-   */
   const linkKnown = a.links.some(
     (link) =>
       safeNumber(
@@ -2110,38 +2116,27 @@ export function scoreAssessment(
         safeNumber(a.users) > 0,
         'quantidade de usuários',
       ],
-
       [
         linkKnown,
         'velocidade de pelo menos um link',
       ],
-
       [
         safeNumber(a.sites) > 0,
         'quantidade de unidades',
       ],
-
       [
         Number.isFinite(a.vpnRemote),
         'uso de VPN remota',
       ],
-
-      [
-        Number.isFinite(a.vpnSite),
-        'VPN entre unidades',
-      ],
-
       [
         Number.isFinite(a.vlans),
-        'quantidade de VLANs',
+        'segmentação de rede',
       ],
-
       [
         a.firewallLevel !==
           'unknown',
         'tipo de firewall atual',
       ],
-
       [
         a.monitoring !== 'unknown',
         'forma de acompanhamento',
@@ -2153,13 +2148,11 @@ export function scoreAssessment(
         endpointQuantity > 0,
         'quantidade de dispositivos',
       ],
-
       [
         a.endpointLevel !==
           'unknown',
-        'tipo de proteção atual',
+        'existência de proteção',
       ],
-
       [
         a.endpointResponse !==
           'unknown',
@@ -2174,25 +2167,21 @@ export function scoreAssessment(
         ),
         'quantidade de servidores',
       ],
-
       [
         safeNumber(
           a.backupVolumeGb,
         ) > 0,
         'volume aproximado de dados',
       ],
-
       [
         a.backupLevel !== 'unknown',
         'tipo de backup atual',
       ],
-
       [
         a.restoreTests !==
           'unknown',
         'situação dos testes de restauração',
       ],
-
       [
         a.dataLocation !== 'unknown',
         'onde os dados ficam',
@@ -2200,19 +2189,13 @@ export function scoreAssessment(
     ]),
   };
 
-  /**
-   * SNAPSHOT PARA O BRIEFING INTERNO
-   */
   const dimensioningSnapshot = {
     firewall: {
       users: safeNumber(a.users),
-
       devices:
         safeNumber(a.devices),
-
       sites:
         safeNumber(a.sites, 1),
-
       linksMbps: a.links
         .map((link) =>
           safeNumber(
@@ -2222,31 +2205,24 @@ export function scoreAssessment(
         .filter(
           (value) => value > 0,
         ),
-
       vpnRemote:
         safeNumber(a.vpnRemote),
-
       vpnSite:
         safeNumber(a.vpnSite),
-
       vlans:
         safeNumber(a.vlans),
-
       currentTechnology: [
         cleanLabel(a.firewallVendor),
         cleanLabel(a.firewallModel),
       ]
         .filter(Boolean)
         .join(' '),
-
       management:
         a.firewallManagement ??
         'unknown',
-
       reporting:
         a.firewallReporting ??
         'unknown',
-
       monitoring24x7:
         a.firewallMonitoring24x7 ??
         'unknown',
@@ -2255,20 +2231,16 @@ export function scoreAssessment(
     endpoint: {
       quantity:
         endpointQuantity,
-
       vendor:
         cleanLabel(
           a.endpointVendor,
         ),
-
       product:
         cleanLabel(
           a.endpointProduct,
         ),
-
       protectionLevel:
-        a.endpointLevel,
-
+        effectiveEndpointLevel,
       response:
         a.endpointResponse,
     },
@@ -2276,43 +2248,28 @@ export function scoreAssessment(
     backup: {
       servers:
         safeNumber(a.servers),
-
       volumeGb:
         safeNumber(
           a.backupVolumeGb,
         ),
-
       vendor:
         cleanLabel(
           a.backupVendor,
         ),
-
       product:
         cleanLabel(
           a.backupProduct,
         ),
-
       responsibility:
         a.backupResponsibility ??
         'unknown',
-
       restoreTests:
         a.restoreTests,
-
       isolation:
         a.backupIsolation,
     },
   };
 
-  /**
-   * IMPACTO FINANCEIRO
-   *
-   * Se operationalImpact ainda não existir
-   * (assessment antigo), preservamos a lógica V3.
-   *
-   * Quando o Bloco 2 começar a coletar
-   * operationalImpact, a simulação fica mais contextual.
-   */
   const people = Math.max(
     1,
     safeNumber(a.users) ||
@@ -2349,10 +2306,6 @@ export function scoreAssessment(
   let disruptionLow: number;
   let disruptionHigh: number;
 
-  /**
-   * Assessment V3.
-   * Mantém cálculo anterior.
-   */
   if (
     a.operationalImpact === undefined ||
     a.operationalImpact === 'unknown'
@@ -2364,7 +2317,6 @@ export function scoreAssessment(
       people * hours * 65;
 
     technicalLow = 2000;
-
     technicalHigh = 6000;
 
     disruptionLow =
@@ -2379,9 +2331,6 @@ export function scoreAssessment(
         ? 7000
         : 4000;
   } else {
-    /**
-     * Assessment V4.
-     */
     affectedPeople = Math.max(
       1,
       Math.round(
@@ -2490,93 +2439,78 @@ export function scoreAssessment(
 
   return {
     scores,
-
     domainCoverage,
-
     domainConfidence,
-
     overall,
-
     level:
       maturityLevel(overall),
 
+    /**
+     * Público: menor indicador.
+     */
     priority,
-
-    priorityFactors,
-
-    priorityLevel,
 
     priorityLabel: priority
       ? labels[priority]
       : 'Dados insuficientes',
 
+    /**
+     * Interno: risco + contexto.
+     */
+    contextualPriority,
+
+    contextualPriorityLabel:
+      contextualPriority
+        ? labels[
+            contextualPriority
+          ]
+        : 'Dados insuficientes',
+
+    priorityFactors,
+    priorityLevel,
     labels,
-
     findings,
-
     completeness,
 
-    /**
-     * Internal / commercial.
-     */
     opportunityFit,
-
     opportunityNotes,
-
     commercialReadiness,
-
     dimensioningSnapshot,
 
-    /**
-     * Diagnostic intelligence.
-     */
     dependencies,
-
     criticalRules,
-
     contextSignals,
-
     targetScores,
-
     targetGaps,
-
     technicalDepth:
       deriveTechnicalDepth(a),
 
-    /**
-     * Financial simulation.
-     */
     impactRange,
-
     impactComponents,
 
     impactAssumptions: {
       people,
-
       affectedPeople,
-
       hours,
-
       operationalImpact:
         a.operationalImpact ??
         'unknown',
-
       productivityHourlyRange: [
         35,
         65,
       ] as [number, number],
-
       technicalRange:
         impactComponents.technical,
-
       disclaimer:
         'Simulação de ordem de grandeza baseada nas informações fornecidas. Não representa previsão de prejuízo, multa ou dano real.',
     },
+
+    effectiveEndpointLevel,
 
     evaluatedDomains:
       evaluated.length,
 
     methodologyVersion:
-      'v4.0-adaptive-foundation',
+      'v4.1-adaptive-refined',
   };
 }

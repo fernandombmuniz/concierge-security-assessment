@@ -245,6 +245,18 @@ const backupBucket = (n: number) =>
             ? 3000
             : 7500;
 
+type VpnRemoteChoice =
+  | 'unknown'
+  | 'none'
+  | 'few'
+  | 'some'
+  | 'most';
+
+type EndpointProtectionChoice =
+  | 'unknown'
+  | 'yes'
+  | 'no';
+
 export default function AssessmentForm() {
   const nav = useNavigate();
 
@@ -258,59 +270,130 @@ export default function AssessmentForm() {
       : 0;
   });
 
-  const [a, setA] = useState<AssessmentData>(
-    () => loadDraft(),
-  );
+  const [a, setA] =
+    useState<AssessmentData>(
+      () => loadDraft(),
+    );
 
-  const [vpnRemoteChoice, setVpnRemoteChoice] =
-    useState<
-      | 'unknown'
-      | 'none'
-      | 'few'
-      | 'some'
-      | 'most'
-    >(() => {
-      const savedChoice =
-        sessionStorage.getItem(
-          'concierge-vpn-remote-choice-v4',
-        );
+  const [
+    vpnRemoteChoice,
+    setVpnRemoteChoice,
+  ] = useState<VpnRemoteChoice>(() => {
+    const savedChoice =
+      sessionStorage.getItem(
+        'concierge-vpn-remote-choice-v4',
+      );
 
-      if (
-        savedChoice === 'unknown' ||
-        savedChoice === 'none' ||
-        savedChoice === 'few' ||
-        savedChoice === 'some' ||
-        savedChoice === 'most'
-      ) {
-        return savedChoice;
-      }
+    if (
+      savedChoice === 'unknown' ||
+      savedChoice === 'none' ||
+      savedChoice === 'few' ||
+      savedChoice === 'some' ||
+      savedChoice === 'most'
+    ) {
+      return savedChoice;
+    }
 
-      if (a.vpnRemote > 20) {
-        return 'most';
-      }
+    if (a.vpnRemote > 20) {
+      return 'most';
+    }
 
-      if (a.vpnRemote > 5) {
-        return 'some';
-      }
+    if (a.vpnRemote > 5) {
+      return 'some';
+    }
 
-      if (a.vpnRemote > 0) {
-        return 'few';
-      }
+    if (a.vpnRemote > 0) {
+      return 'few';
+    }
 
-      return 'unknown';
-    });
+    return 'unknown';
+  });
 
-  const [isSubmitting, setIsSubmitting] =
-    useState(false);
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
 
   const set = (
     key: keyof AssessmentData,
     value: any,
-  ) =>
+  ) => {
     setA((current) => ({
       ...current,
       [key]: value,
     }));
+  };
+
+  const setLinkSpeed = (
+    index: number,
+    value: number,
+  ) => {
+    setA((current) => {
+      const links = [
+        ...current.links,
+      ];
+
+      while (
+        links.length <= index
+      ) {
+        links.push({
+          speedMbps: 0,
+        });
+      }
+
+      links[index] = {
+        speedMbps:
+          Number.isFinite(value)
+            ? Math.max(
+                0,
+                value,
+              )
+            : 0,
+      };
+
+      return {
+        ...current,
+        links,
+      };
+    });
+  };
+
+  const setLinkCount = (
+    value: number,
+  ) => {
+    const count = Math.max(
+      1,
+      Math.min(
+        5,
+        Number.isFinite(value)
+          ? value
+          : 1,
+      ),
+    );
+
+    setA((current) => {
+      const links = [
+        ...current.links,
+      ];
+
+      while (
+        links.length < count
+      ) {
+        links.push({
+          speedMbps: 0,
+        });
+      }
+
+      return {
+        ...current,
+        internetLinkCount: count,
+        links: links.slice(
+          0,
+          count,
+        ),
+      };
+    });
+  };
 
   useEffect(() => {
     localStorage.setItem(
@@ -327,12 +410,10 @@ export default function AssessmentForm() {
   }, [vpnRemoteChoice]);
 
   useEffect(() => {
-    const timer = window.setTimeout(
-      () => {
+    const timer =
+      window.setTimeout(() => {
         saveDraft(a);
-      },
-      300,
-    );
+      }, 300);
 
     return () =>
       window.clearTimeout(timer);
@@ -346,28 +427,24 @@ export default function AssessmentForm() {
         desc:
           'Primeiro, vamos entender o tamanho e a operação da empresa',
       },
-
       {
         name: 'Internet e rede',
         icon: Wifi,
         desc:
           'Agora vamos ver como a internet é protegida e acompanhada',
       },
-
       {
         name: 'Computadores',
         icon: MonitorSmartphone,
         desc:
           'Depois, como os computadores são protegidos quando algo acontece',
       },
-
       {
         name: 'Dados e backup',
         icon: Database,
         desc:
           'Se algo der errado, queremos entender como a empresa consegue voltar',
       },
-
       {
         name: 'Contas e segurança',
         icon: KeyRound,
@@ -378,31 +455,36 @@ export default function AssessmentForm() {
     [],
   );
 
-  const snapshot = JSON.stringify(a);
+  const snapshot =
+    JSON.stringify(a);
 
   useEffect(() => {
-    const session = loadSession();
+    const session =
+      loadSession();
 
     if (!session) {
       return;
     }
 
-    const timer = setTimeout(() => {
-      void saveAssessmentProgress({
-        data: {
-          assessmentId:
-            session.assessmentId,
+    const timer =
+      setTimeout(() => {
+        void saveAssessmentProgress({
+          data: {
+            assessmentId:
+              session.assessmentId,
 
-          editToken:
-            session.editToken,
+            editToken:
+              session.editToken,
 
-          step,
+            step,
 
-          data:
-            JSON.parse(snapshot),
-        },
-      }).catch(() => {});
-    }, 900);
+            data:
+              JSON.parse(
+                snapshot,
+              ),
+          },
+        }).catch(() => {});
+      }, 900);
 
     return () =>
       clearTimeout(timer);
@@ -416,8 +498,6 @@ export default function AssessmentForm() {
     const startedAt =
       performance.now();
 
-    const minimumTransitionMs = 950;
-
     setIsSubmitting(true);
 
     const session =
@@ -427,12 +507,10 @@ export default function AssessmentForm() {
 
     if (!session) {
       alert(
-        'Não encontramos a sessão deste diagnóstico. ' +
-          'Suas respostas continuam salvas neste dispositivo.',
+        'Não encontramos a sessão deste diagnóstico. Suas respostas continuam salvas neste dispositivo.',
       );
 
       setIsSubmitting(false);
-
       return;
     }
 
@@ -453,11 +531,11 @@ export default function AssessmentForm() {
         performance.now() -
         startedAt;
 
-      const remaining = Math.max(
-        0,
-        minimumTransitionMs -
-          elapsed,
-      );
+      const remaining =
+        Math.max(
+          0,
+          950 - elapsed,
+        );
 
       if (remaining > 0) {
         await new Promise(
@@ -482,9 +560,7 @@ export default function AssessmentForm() {
       );
 
       alert(
-        'Não foi possível enviar o diagnóstico neste momento. ' +
-          'Suas respostas continuam salvas neste dispositivo. ' +
-          'Verifique sua conexão e tente novamente.',
+        'Não foi possível enviar o diagnóstico neste momento. Suas respostas continuam salvas neste dispositivo.',
       );
 
       setIsSubmitting(false);
@@ -493,6 +569,13 @@ export default function AssessmentForm() {
 
   const current =
     steps[step];
+
+  const sectorValue =
+    sectors.includes(a.sector)
+      ? a.sector
+      : a.sector
+        ? 'Outros'
+        : '';
 
   const firewallVendorValue =
     firewallVendors.includes(
@@ -523,20 +606,6 @@ export default function AssessmentForm() {
         ? 'Outro'
         : 'Não sei informar';
 
-  const sectorValue =
-    sectors.includes(a.sector)
-      ? a.sector
-      : a.sector
-        ? 'Outros'
-        : '';
-
-  const sectorOtherValue =
-    a.sector === 'Outros'
-      ? a.sectorOther
-      : !sectors.includes(a.sector)
-        ? a.sector
-        : a.sectorOther;
-
   const hasFirewall =
     ![
       'none',
@@ -547,7 +616,7 @@ export default function AssessmentForm() {
     );
 
   const firewallManaged =
-    a.firewallManagement &&
+    !!a.firewallManagement &&
     ![
       'unknown',
       'unmanaged',
@@ -555,13 +624,19 @@ export default function AssessmentForm() {
       a.firewallManagement,
     );
 
+  const endpointProtectionChoice:
+    EndpointProtectionChoice =
+      a.endpointLevel ===
+      'unknown'
+        ? 'unknown'
+        : a.endpointLevel ===
+            'none'
+          ? 'no'
+          : 'yes';
+
   const hasEndpointProtection =
-    ![
-      'none',
-      'unknown',
-    ].includes(
-      a.endpointLevel,
-    );
+    endpointProtectionChoice ===
+    'yes';
 
   const hasBackup =
     ![
@@ -591,7 +666,7 @@ export default function AssessmentForm() {
             (item, index) => (
               <div key={item.name}>
                 <div
-                  className={`h-1.5 rounded-full transition ${
+                  className={`h-1.5 rounded-full ${
                     index <= step
                       ? 'bg-gradient-to-r from-cyan-500 to-teal-400'
                       : 'bg-slate-800'
@@ -630,357 +705,286 @@ export default function AssessmentForm() {
                 </h2>
 
                 <p className="mt-1 text-sm leading-relaxed text-slate-400">
-                  {current.desc}. Responda
-                  apenas o que souber.
-                  “Não sei informar” é
-                  uma resposta válida.
+                  {current.desc}. Responda apenas o que souber. “Não sei informar” é uma resposta válida.
                 </p>
               </div>
             </div>
 
-            <div className="mt-1 flex shrink-0 items-center gap-1.5 self-end rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-500 sm:self-start">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-teal-500" />
-
-              <span>
-                Respostas salvas automaticamente
-              </span>
+            <div className="mt-1 flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+              Respostas salvas automaticamente
             </div>
           </div>
 
           {step === 0 && (
-            <div className="space-y-6">
-              <StepSection
-                eyebrow="Começando pela operação"
-                title="Antes da tecnologia, queremos entender a empresa"
-                description="Essas informações ajudam a comparar os controles de segurança com o tamanho e a realidade da operação."
-              >
-                <QuestionPair>
-                  <Field label="Nome da empresa">
-                    <input
-                      className={input}
-                      value={a.companyName}
-                      onChange={(event) =>
-                        set(
-                          'companyName',
-                          event.target.value,
-                        )
-                      }
-                      placeholder="Ex.: Empresa ABC"
-                    />
-                  </Field>
+            <StepSection
+              eyebrow="Começando pela operação"
+              title="Antes da tecnologia, queremos entender a empresa"
+              description="Essas informações ajudam a comparar a segurança com o tamanho e a realidade da operação."
+            >
+              <QuestionPair>
+                <Field label="Nome da empresa">
+                  <input
+                    className={input}
+                    value={
+                      a.companyName
+                    }
+                    onChange={(e) =>
+                      set(
+                        'companyName',
+                        e.target.value,
+                      )
+                    }
+                  />
+                </Field>
 
-                  <Field label="Setor de atuação">
-                    <div className="space-y-2">
-                      <select
-                        className={select}
-                        value={
-                          sectorValue
-                        }
-                        onChange={(
-                          event,
-                        ) => {
-                          set(
-                            'sector',
-                            event.target
-                              .value,
-                          );
+                <Field label="Setor de atuação">
+                  <select
+                    className={select}
+                    value={
+                      sectorValue
+                    }
+                    onChange={(e) =>
+                      set(
+                        'sector',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="">
+                      Selecione
+                    </option>
 
-                          if (
-                            event.target
-                              .value !==
-                            'Outros'
-                          ) {
-                            set(
-                              'sectorOther',
-                              '',
-                            );
-                          }
-                        }}
-                      >
-                        <option value="">
-                          Selecione o setor
+                    {sectors.map(
+                      (sector) => (
+                        <option
+                          key={sector}
+                          value={sector}
+                        >
+                          {sector}
                         </option>
+                      ),
+                    )}
+                  </select>
+                </Field>
+              </QuestionPair>
 
-                        {sectors.map(
-                          (sector) => (
-                            <option
-                              key={sector}
-                              value={sector}
-                            >
-                              {sector}
-                            </option>
-                          ),
-                        )}
-                      </select>
+              {sectorValue ===
+                'Outros' && (
+                <Field label="Qual é o setor?">
+                  <input
+                    className={input}
+                    value={
+                      a.sectorOther
+                    }
+                    onChange={(e) =>
+                      set(
+                        'sectorOther',
+                        e.target.value,
+                      )
+                    }
+                  />
+                </Field>
+              )}
 
-                      {sectorValue ===
-                        'Outros' && (
-                        <input
-                          className={
-                            input
-                          }
-                          value={
-                            sectorOtherValue
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'sectorOther',
-                              event.target
-                                .value,
-                            )
-                          }
-                          placeholder="Informe o setor"
-                          aria-label="Qual é o setor de atuação?"
-                        />
-                      )}
-                    </div>
-                  </Field>
-                </QuestionPair>
+              <QuestionPair>
+                <Field label="Seu nome">
+                  <input
+                    className={input}
+                    value={
+                      a.contactName
+                    }
+                    onChange={(e) =>
+                      set(
+                        'contactName',
+                        e.target.value,
+                      )
+                    }
+                  />
+                </Field>
 
-                <QuestionPair>
-                  <Field label="Seu nome">
-                    <input
-                      className={input}
-                      value={a.contactName}
-                      onChange={(event) =>
-                        set(
-                          'contactName',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </Field>
+                <Field label="Cargo">
+                  <input
+                    className={input}
+                    value={
+                      a.contactRole
+                    }
+                    onChange={(e) =>
+                      set(
+                        'contactRole',
+                        e.target.value,
+                      )
+                    }
+                  />
+                </Field>
+              </QuestionPair>
 
-                  <Field label="Cargo">
-                    <input
-                      className={input}
-                      value={a.contactRole}
-                      onChange={(event) =>
-                        set(
-                          'contactRole',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </Field>
-                </QuestionPair>
+              <QuestionPair>
+                <Field label="E-mail">
+                  <input
+                    className={input}
+                    type="email"
+                    value={
+                      a.contactEmail
+                    }
+                    onChange={(e) =>
+                      set(
+                        'contactEmail',
+                        e.target.value,
+                      )
+                    }
+                  />
+                </Field>
 
-                <QuestionPair>
-                  <Field label="E-mail">
-                    <input
-                      className={input}
-                      type="email"
-                      value={
-                        a.contactEmail
-                      }
-                      onChange={(event) =>
-                        set(
-                          'contactEmail',
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </Field>
-
-                  <Field
-                    label="Quantas pessoas utilizam computadores, sistemas ou a rede da empresa?"
-                    help="Considere funcionários e colaboradores que utilizam os recursos de TI regularmente."
+                <Field label="Quantas pessoas utilizam computadores, sistemas ou a rede da empresa?">
+                  <select
+                    className={select}
+                    value={peopleBucket(
+                      a.users,
+                    )}
+                    onChange={(e) =>
+                      set(
+                        'users',
+                        Number(
+                          e.target.value,
+                        ),
+                      )
+                    }
                   >
-                    <select
-                      className={select}
-                      value={peopleBucket(
-                        a.users,
-                      )}
-                      onChange={(event) =>
-                        set(
-                          'users',
-                          +event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="0">
-                        Selecione uma faixa
-                      </option>
+                    <option value="0">
+                      Selecione
+                    </option>
+                    <option value="5">
+                      Até 10
+                    </option>
+                    <option value="15">
+                      11 a 20
+                    </option>
+                    <option value="35">
+                      21 a 50
+                    </option>
+                    <option value="75">
+                      51 a 100
+                    </option>
+                    <option value="150">
+                      101 a 200
+                    </option>
+                    <option value="250">
+                      Mais de 200
+                    </option>
+                  </select>
+                </Field>
+              </QuestionPair>
 
-                      <option value="5">
-                        Até 10 pessoas
-                      </option>
+              <QuestionPair>
+                <Field label="Quantas unidades ou filiais existem?">
+                  <input
+                    className={input}
+                    type="number"
+                    min="1"
+                    value={
+                      a.sites
+                    }
+                    onChange={(e) =>
+                      set(
+                        'sites',
+                        Number(
+                          e.target.value,
+                        ),
+                      )
+                    }
+                  />
+                </Field>
 
-                      <option value="15">
-                        11 a 20 pessoas
-                      </option>
-
-                      <option value="35">
-                        21 a 50 pessoas
-                      </option>
-
-                      <option value="75">
-                        51 a 100 pessoas
-                      </option>
-
-                      <option value="150">
-                        101 a 200 pessoas
-                      </option>
-
-                      <option value="250">
-                        Mais de 200 pessoas
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-
-                <QuestionPair>
-                  <Field
-                    label="Quantas unidades ou filiais a empresa possui?"
-                    help="Considere matriz, filiais ou unidades que façam parte deste diagnóstico."
+                <Field label="Quem cuida da TI no dia a dia?">
+                  <select
+                    className={select}
+                    value={teamBucket(
+                      a.itTeamSize,
+                    )}
+                    onChange={(e) =>
+                      set(
+                        'itTeamSize',
+                        Number(
+                          e.target.value,
+                        ),
+                      )
+                    }
                   >
-                    <input
-                      className={input}
-                      type="number"
-                      min="1"
-                      value={a.sites}
-                      onChange={(event) =>
-                        set(
-                          'sites',
-                          +event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </Field>
-
-                  <Field
-                    label="Quem cuida da TI no dia a dia?"
-                    help="Isso ajuda a entender quem normalmente administra equipamentos, sistemas e acessos."
-                  >
-                    <select
-                      className={select}
-                      value={teamBucket(
-                        a.itTeamSize,
-                      )}
-                      onChange={(event) =>
-                        set(
-                          'itTeamSize',
-                          +event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="0">
-                        Não há equipe interna / não sei informar
-                      </option>
-
-                      <option value="1">
-                        1 pessoa interna
-                      </option>
-
-                      <option value="3">
-                        2 a 5 pessoas internas
-                      </option>
-
-                      <option value="6">
-                        Mais de 5 pessoas internas
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-              </StepSection>
-            </div>
+                    <option value="0">
+                      Sem equipe interna / não sei
+                    </option>
+                    <option value="1">
+                      1 pessoa interna
+                    </option>
+                    <option value="3">
+                      2 a 5 pessoas
+                    </option>
+                    <option value="6">
+                      Mais de 5 pessoas
+                    </option>
+                  </select>
+                </Field>
+              </QuestionPair>
+            </StepSection>
           )}
 
           {step === 1 && (
             <div className="space-y-6">
               <StepSection
-                eyebrow="Primeiro, a porta de entrada"
+                eyebrow="Primeiro, a proteção"
                 title="Como a internet da empresa é protegida?"
-                description="Queremos entender o que existe hoje e, principalmente, quem acompanha essa proteção quando algo acontece."
+                description="Queremos entender o que existe hoje e quem acompanha essa proteção."
               >
                 <QuestionPair>
-                  <Field
-                    label="Como a empresa protege hoje a conexão com a internet?"
-                    help="Escolha a opção mais próxima. O nome do equipamento, sozinho, não define se a proteção é boa ou ruim."
-                  >
+                  <Field label="Como a empresa protege hoje a conexão com a internet?">
                     <select
                       className={select}
                       value={
                         a.firewallLevel
                       }
-                      onChange={(event) => {
+                      onChange={(e) =>
                         set(
                           'firewallLevel',
-                          event.target
-                            .value,
-                        );
-
-                        if (
-                          [
-                            'none',
-                            'isp',
-                            'unknown',
-                          ].includes(
-                            event.target
-                              .value,
-                          )
-                        ) {
-                          set(
-                            'firewallVendor',
-                            '',
-                          );
-
-                          set(
-                            'firewallModel',
-                            '',
-                          );
-                        }
-                      }}
+                          e.target.value,
+                        )
+                      }
                     >
                       <option value="unknown">
                         Não sei informar
                       </option>
-
                       <option value="none">
-                        Não existe uma proteção dedicada além do roteador comum
+                        Roteador comum / sem proteção dedicada
                       </option>
-
                       <option value="isp">
-                        Usa apenas o equipamento fornecido pela operadora
+                        Equipamento da operadora
                       </option>
-
                       <option value="router">
-                        Usa MikroTik ou outro roteador corporativo
+                        MikroTik ou roteador corporativo
                       </option>
-
                       <option value="utm">
-                        Usa um equipamento próprio para proteger a rede
+                        Equipamento próprio de segurança
                       </option>
-
                       <option value="ngfw">
-                        Usa uma solução com recursos avançados de segurança
+                        Solução com recursos avançados
                       </option>
-
                       <option value="managed_ngfw">
-                        Usa uma solução de segurança acompanhada por equipe especializada
+                        Solução acompanhada por equipe especializada
                       </option>
                     </select>
                   </Field>
 
-                  <Field
-                    label="Quem administra esse equipamento no dia a dia?"
-                    help="Queremos entender quem altera regras, acompanha funcionamento e responde quando algo precisa ser ajustado."
-                  >
+                  <Field label="Quem administra esse equipamento?">
                     <select
                       className={select}
                       value={
                         a.firewallManagement ??
                         'unknown'
                       }
-                      onChange={(event) =>
+                      onChange={(e) =>
                         set(
                           'firewallManagement',
-                          event.target
+                          e.target
                             .value as FirewallManagementLevel,
                         )
                       }
@@ -988,25 +992,20 @@ export default function AssessmentForm() {
                       <option value="unknown">
                         Não sei informar
                       </option>
-
                       <option value="internal">
-                        Nossa própria equipe de TI
+                        Equipe interna
                       </option>
-
                       <option value="outsourced">
-                        Uma empresa terceirizada
+                        Empresa terceirizada
                       </option>
-
                       <option value="shared">
-                        Nossa equipe e uma empresa terceirizada
+                        Equipe interna + terceirizada
                       </option>
-
                       <option value="isp">
-                        A operadora de internet
+                        Operadora
                       </option>
-
                       <option value="unmanaged">
-                        Não existe alguém claramente responsável
+                        Ninguém claramente responsável
                       </option>
                     </select>
                   </Field>
@@ -1014,20 +1013,19 @@ export default function AssessmentForm() {
 
                 {hasFirewall && (
                   <QuestionPair>
-                    <Field label="Você sabe qual equipamento ou fabricante é utilizado?">
+                    <Field label="Você sabe qual fabricante é utilizado?">
                       <select
                         className={select}
                         value={
                           firewallVendorValue
                         }
-                        onChange={(event) =>
+                        onChange={(e) =>
                           set(
                             'firewallVendor',
-                            event.target
-                              .value ===
+                            e.target.value ===
                               'Não sei informar'
                               ? ''
-                              : event.target
+                              : e.target
                                   .value,
                           )
                         }
@@ -1047,309 +1045,160 @@ export default function AssessmentForm() {
 
                     <Field
                       label="Modelo, se souber"
-                      help="É opcional. Ex.: 40F, TZ80, RB4011."
+                      help="Ex.: TZ80, 40F, RB4011."
                     >
                       <input
                         className={input}
                         value={
                           a.firewallModel
                         }
-                        onChange={(
-                          event,
-                        ) =>
+                        onChange={(e) =>
                           set(
                             'firewallModel',
-                            event.target
-                              .value,
+                            e.target.value,
                           )
                         }
-                        placeholder="Pode deixar em branco"
                       />
                     </Field>
                   </QuestionPair>
                 )}
 
-                {firewallVendorValue ===
-                  'Outro' &&
-                  hasFirewall && (
-                    <Field label="Qual é o fabricante?">
-                      <input
-                        className={input}
-                        value={
-                          a.firewallVendor ===
-                          'Outro'
-                            ? ''
-                            : a.firewallVendor
-                        }
-                        onChange={(
-                          event,
-                        ) =>
-                          set(
-                            'firewallVendor',
-                            event.target
-                              .value,
-                          )
-                        }
-                        placeholder="Informe o fabricante"
-                      />
-                    </Field>
-                  )}
-
                 {firewallManaged && (
-                  <>
-                    <AdaptiveHint>
-                      Como existe alguém
-                      responsável por essa
-                      proteção, vamos entender
-                      rapidamente o quanto a
-                      empresa consegue enxergar
-                      o que está acontecendo.
-                    </AdaptiveHint>
-
-                    <QuestionPair>
-                      <Field
-                        label="A empresa recebe algum acompanhamento do que acontece nesse firewall?"
-                        help="Pode ser relatório, reunião periódica ou resumo dos eventos identificados."
-                      >
-                        <select
-                          className={
-                            select
-                          }
-                          value={
-                            a.firewallReporting ??
-                            'unknown'
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'firewallReporting',
-                              event.target
-                                .value as SecurityReportingLevel,
-                            )
-                          }
-                        >
-                          <option value="unknown">
-                            Não sei informar
-                          </option>
-
-                          <option value="periodic">
-                            Sim, recebemos relatórios ou acompanhamento periódico
-                          </option>
-
-                          <option value="on_demand">
-                            Recebemos quando solicitamos
-                          </option>
-
-                          <option value="incident_only">
-                            Normalmente só quando acontece algum problema
-                          </option>
-
-                          <option value="none">
-                            Não recebemos acompanhamento
-                          </option>
-                        </select>
-                      </Field>
-
-                      <Field
-                        label="Existe alguém acompanhando eventos de segurança continuamente, inclusive fora do horário comercial?"
-                        help="Não precisa saber o nome técnico. Queremos apenas entender se existe acompanhamento 24x7."
-                      >
-                        <select
-                          className={
-                            select
-                          }
-                          value={
-                            a.firewallMonitoring24x7 ??
-                            'unknown'
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'firewallMonitoring24x7',
-                              event.target
-                                .value as CapabilityLevel,
-                            )
-                          }
-                        >
-                          <option value="unknown">
-                            Não sei informar
-                          </option>
-
-                          <option value="yes">
-                            Sim
-                          </option>
-
-                          <option value="partial">
-                            Apenas em alguns horários ou situações
-                          </option>
-
-                          <option value="no">
-                            Não
-                          </option>
-                        </select>
-                      </Field>
-                    </QuestionPair>
-                  </>
-                )}
-
-                <QuestionPair>
-                  <Field
-                    label="Quando algo suspeito acontece na rede, quem costuma receber ou verificar os alertas?"
-                    help="Aqui queremos saber quem efetivamente olha o que aconteceu."
-                  >
-                    <select
-                      className={select}
-                      value={a.monitoring}
-                      onChange={(event) =>
-                        set(
-                          'monitoring',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="none">
-                        Ninguém acompanha regularmente
-                      </option>
-
-                      <option value="reactive_it">
-                        A TI verifica quando surge algum problema
-                      </option>
-
-                      <option value="outsourced_it">
-                        Uma empresa terceirizada acompanha
-                      </option>
-
-                      <option value="security_team">
-                        Uma equipe especializada de segurança acompanha
-                      </option>
-
-                      <option value="soc">
-                        Existe acompanhamento contínuo por equipe especializada
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field
-                    label="A proteção da internet consegue bloquear ameaças além de simplesmente permitir ou negar acessos?"
-                    help="Por exemplo: tentativas de ataque, sites maliciosos ou aplicações indevidas."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        a.firewallThreatPrevention
-                      }
-                      onChange={(event) =>
-                        set(
-                          'firewallThreatPrevention',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="yes">
-                        Sim, existem várias proteções adicionais
-                      </option>
-
-                      <option value="partial">
-                        Existem algumas proteções adicionais
-                      </option>
-
-                      <option value="no">
-                        Atua principalmente controlando acessos
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-
-                <QuestionPair>
-                  <Field label="Alguém revisa e atualiza regularmente os equipamentos que protegem a rede?">
-                    <select
-                      className={select}
-                      value={
-                        a.networkMaintenance
-                      }
-                      onChange={(event) =>
-                        set(
-                          'networkMaintenance',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="formal">
-                        Sim, existe uma rotina definida
-                      </option>
-
-                      <option value="informal">
-                        É feito quando necessário
-                      </option>
-
-                      <option value="none">
-                        Não existe rotina definida
-                      </option>
-                    </select>
-                  </Field>
-
-                  {hasFirewall ? (
-                    <Field
-                      label="Os recursos contratados dessa solução estão ativos e atualizados?"
-                      help="Alguns equipamentos oferecem recursos adicionais que dependem de licenciamento."
-                    >
+                  <QuestionPair>
+                    <Field label="A empresa recebe relatórios ou acompanhamento do que acontece nesse firewall?">
                       <select
-                        className={
-                          select
-                        }
+                        className={select}
                         value={
-                          a.firewallLicense
+                          a.firewallReporting ??
+                          'unknown'
                         }
-                        onChange={(
-                          event,
-                        ) =>
+                        onChange={(e) =>
                           set(
-                            'firewallLicense',
-                            event.target
-                              .value,
+                            'firewallReporting',
+                            e.target
+                              .value as SecurityReportingLevel,
                           )
                         }
                       >
                         <option value="unknown">
                           Não sei informar
                         </option>
+                        <option value="periodic">
+                          Sim, periodicamente
+                        </option>
+                        <option value="on_demand">
+                          Apenas quando solicitamos
+                        </option>
+                        <option value="incident_only">
+                          Normalmente só quando ocorre problema
+                        </option>
+                        <option value="none">
+                          Não recebemos
+                        </option>
+                      </select>
+                    </Field>
 
+                    <Field label="Existe alguém acompanhando eventos de segurança 24 horas por dia?">
+                      <select
+                        className={select}
+                        value={
+                          a.firewallMonitoring24x7 ??
+                          'unknown'
+                        }
+                        onChange={(e) =>
+                          set(
+                            'firewallMonitoring24x7',
+                            e.target
+                              .value as CapabilityLevel,
+                          )
+                        }
+                      >
+                        <option value="unknown">
+                          Não sei informar
+                        </option>
                         <option value="yes">
                           Sim
                         </option>
-
+                        <option value="partial">
+                          Apenas em alguns horários
+                        </option>
                         <option value="no">
                           Não
                         </option>
                       </select>
                     </Field>
-                  ) : (
-                    <div className="hidden md:block" />
-                  )}
+                  </QuestionPair>
+                )}
+
+                <QuestionPair>
+                  <Field label="Quando algo suspeito acontece na rede, quem costuma verificar?">
+                    <select
+                      className={select}
+                      value={
+                        a.monitoring
+                      }
+                      onChange={(e) =>
+                        set(
+                          'monitoring',
+                          e.target.value,
+                        )
+                      }
+                    >
+                      <option value="unknown">
+                        Não sei informar
+                      </option>
+                      <option value="none">
+                        Ninguém acompanha regularmente
+                      </option>
+                      <option value="reactive_it">
+                        A TI verifica quando aparece um problema
+                      </option>
+                      <option value="outsourced_it">
+                        Uma empresa terceirizada acompanha
+                      </option>
+                      <option value="security_team">
+                        Equipe especializada
+                      </option>
+                      <option value="soc">
+                        Acompanhamento contínuo
+                      </option>
+                    </select>
+                  </Field>
+
+                  <Field label="A proteção da internet consegue bloquear ameaças além de apenas controlar acessos?">
+                    <select
+                      className={select}
+                      value={
+                        a.firewallThreatPrevention
+                      }
+                      onChange={(e) =>
+                        set(
+                          'firewallThreatPrevention',
+                          e.target.value,
+                        )
+                      }
+                    >
+                      <option value="unknown">
+                        Não sei informar
+                      </option>
+                      <option value="yes">
+                        Sim
+                      </option>
+                      <option value="partial">
+                        Algumas proteções
+                      </option>
+                      <option value="no">
+                        Principalmente controle de acessos
+                      </option>
+                    </select>
+                  </Field>
                 </QuestionPair>
               </StepSection>
 
               <StepSection
                 eyebrow="Agora, a conexão"
                 title="Como a empresa usa a internet?"
-                description="Esses dados também ajudam a entender a complexidade do ambiente sem precisar entrar em detalhes técnicos."
+                description="Aqui entram alguns dados simples que também ajudam a entender o tamanho real do ambiente."
               >
                 <QuestionPair>
                   <Field label="Quantas conexões de internet a empresa possui?">
@@ -1357,261 +1206,331 @@ export default function AssessmentForm() {
                       className={input}
                       type="number"
                       min="1"
+                      max="5"
                       value={
                         a.internetLinkCount
                       }
-                      onChange={(event) =>
-                        set(
-                          'internetLinkCount',
-                          +event.target
-                            .value,
+                      onChange={(e) =>
+                        setLinkCount(
+                          Number(
+                            e.target.value,
+                          ),
                         )
                       }
                     />
                   </Field>
 
                   <Field
-                    label="Qual é aproximadamente a velocidade da internet?"
-                    help="Escolha a opção mais próxima."
+                    label="Qual a velocidade do principal link?"
+                    help="Informe em Mbps. Ex.: 300, 500 ou 1000."
                   >
-                    <select
-                      className={select}
-                      value={
-                        !a.links[0]
-                          ?.speedMbps
-                          ? 'unknown'
-                          : a.links[0]
-                                .speedMbps <=
-                              100
-                            ? '100'
-                            : a.links[0]
-                                  .speedMbps <=
-                                300
-                              ? '300'
-                              : a.links[0]
-                                    .speedMbps <=
-                                  500
-                                ? '500'
-                                : a.links[0]
-                                      .speedMbps <=
-                                    1000
-                                  ? '1000'
-                                  : '1500'
-                      }
-                      onChange={(event) =>
-                        set(
-                          'links',
-                          [
-                            {
-                              speedMbps:
-                                event
-                                  .target
-                                  .value ===
-                                'unknown'
-                                  ? 0
-                                  : Number(
-                                      event
-                                        .target
-                                        .value,
-                                    ),
-                            },
-                          ],
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
+                    <div className="relative">
+                      <input
+                        className={`${input} pr-16`}
+                        type="number"
+                        min="0"
+                        value={
+                          a.links?.[0]
+                            ?.speedMbps ||
+                          ''
+                        }
+                        onChange={(e) =>
+                          setLinkSpeed(
+                            0,
+                            Number(
+                              e.target.value,
+                            ),
+                          )
+                        }
+                        placeholder="500"
+                      />
 
-                      <option value="100">
-                        Até 100 Mbps
-                      </option>
-
-                      <option value="300">
-                        101 a 300 Mbps
-                      </option>
-
-                      <option value="500">
-                        301 a 500 Mbps
-                      </option>
-
-                      <option value="1000">
-                        501 Mbps a 1 Gbps
-                      </option>
-
-                      <option value="1500">
-                        Mais de 1 Gbps
-                      </option>
-                    </select>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                        Mbps
+                      </span>
+                    </div>
                   </Field>
                 </QuestionPair>
 
-                <QuestionPair>
-                  <Field label="Como a internet é usada no dia a dia?">
-                    <select
-                      className={select}
-                      value={
-                        a.networkUsage
-                      }
-                      onChange={(event) =>
-                        set(
-                          'networkUsage',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="light">
-                        Leve — navegação, e-mail e sistemas simples
-                      </option>
+                {a.internetLinkCount >
+                  1 ? (
+                  <>
+                    <QuestionPair>
+                      <Field
+                        label="Qual a velocidade do segundo link?"
+                        help="Se houver mais de dois links, os demais podem ser confirmados depois."
+                      >
+                        <div className="relative">
+                          <input
+                            className={`${input} pr-16`}
+                            type="number"
+                            min="0"
+                            value={
+                              a.links?.[1]
+                                ?.speedMbps ||
+                              ''
+                            }
+                            onChange={(e) =>
+                              setLinkSpeed(
+                                1,
+                                Number(
+                                  e.target.value,
+                                ),
+                              )
+                            }
+                            placeholder="300"
+                          />
 
-                      <option value="medium">
-                        Médio — cloud, videoconferência e uso frequente
-                      </option>
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                            Mbps
+                          </span>
+                        </div>
+                      </Field>
 
-                      <option value="high">
-                        Intenso — alto tráfego, múltiplos serviços e transferências
-                      </option>
-                    </select>
-                  </Field>
+                      <Field label="Como a internet é usada no dia a dia?">
+                        <select
+                          className={select}
+                          value={
+                            a.networkUsage
+                          }
+                          onChange={(e) =>
+                            set(
+                              'networkUsage',
+                              e.target.value,
+                            )
+                          }
+                        >
+                          <option value="light">
+                            Leve — navegação, e-mail e sistemas simples
+                          </option>
+                          <option value="medium">
+                            Médio — cloud e videoconferência
+                          </option>
+                          <option value="high">
+                            Intenso — alto tráfego e múltiplos serviços
+                          </option>
+                        </select>
+                      </Field>
+                    </QuestionPair>
 
-                  <Field
-                    label="Pessoas acessam sistemas da empresa de fora do escritório?"
-                    help="Pode ser por VPN ou outra forma de acesso remoto."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        vpnRemoteChoice
-                      }
-                      onChange={(event) => {
-                        const choice =
-                          event.target
-                            .value as
-                            | 'unknown'
-                            | 'none'
-                            | 'few'
-                            | 'some'
-                            | 'most';
+                    <QuestionPair>
+                      <Field label="Pessoas acessam sistemas da empresa de fora do escritório?">
+                        <select
+                          className={select}
+                          value={
+                            vpnRemoteChoice
+                          }
+                          onChange={(e) => {
+                            const value =
+                              e.target
+                                .value as VpnRemoteChoice;
 
-                        setVpnRemoteChoice(
-                          choice,
-                        );
+                            setVpnRemoteChoice(
+                              value,
+                            );
 
-                        set(
-                          'vpnRemote',
-                          choice === 'few'
-                            ? 3
-                            : choice ===
-                                'some'
-                              ? 10
-                              : choice ===
-                                  'most'
-                                ? 25
-                                : 0,
-                        );
-                      }}
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
+                            set(
+                              'vpnRemote',
+                              value === 'few'
+                                ? 3
+                                : value ===
+                                    'some'
+                                  ? 10
+                                  : value ===
+                                      'most'
+                                    ? 25
+                                    : 0,
+                            );
+                          }}
+                        >
+                          <option value="unknown">
+                            Não sei informar
+                          </option>
+                          <option value="none">
+                            Não
+                          </option>
+                          <option value="few">
+                            Sim, poucas pessoas
+                          </option>
+                          <option value="some">
+                            Sim, parte da equipe
+                          </option>
+                          <option value="most">
+                            Sim, a maior parte da equipe
+                          </option>
+                        </select>
+                      </Field>
 
-                      <option value="none">
-                        Não
-                      </option>
+                      <Field label="A rede é separada para diferentes tipos de uso?">
+                        <select
+                          className={select}
+                          value={
+                            a.vlans === 0
+                              ? 'unknown'
+                              : a.vlans === 1
+                                ? 'no'
+                                : a.vlans ===
+                                    2
+                                  ? 'partial'
+                                  : 'yes'
+                          }
+                          onChange={(e) =>
+                            set(
+                              'vlans',
+                              e.target.value ===
+                                'yes'
+                                ? 3
+                                : e.target
+                                      .value ===
+                                    'partial'
+                                  ? 2
+                                  : e.target
+                                        .value ===
+                                      'no'
+                                    ? 1
+                                    : 0,
+                            )
+                          }
+                        >
+                          <option value="unknown">
+                            Não sei informar
+                          </option>
+                          <option value="yes">
+                            Sim
+                          </option>
+                          <option value="partial">
+                            Parcialmente
+                          </option>
+                          <option value="no">
+                            Não
+                          </option>
+                        </select>
+                      </Field>
+                    </QuestionPair>
+                  </>
+                ) : (
+                  <>
+                    <QuestionPair>
+                      <Field label="Como a internet é usada no dia a dia?">
+                        <select
+                          className={select}
+                          value={
+                            a.networkUsage
+                          }
+                          onChange={(e) =>
+                            set(
+                              'networkUsage',
+                              e.target.value,
+                            )
+                          }
+                        >
+                          <option value="light">
+                            Leve — navegação, e-mail e sistemas simples
+                          </option>
+                          <option value="medium">
+                            Médio — cloud e videoconferência
+                          </option>
+                          <option value="high">
+                            Intenso — alto tráfego e múltiplos serviços
+                          </option>
+                        </select>
+                      </Field>
 
-                      <option value="few">
-                        Sim, poucas pessoas
-                      </option>
+                      <Field label="Pessoas acessam sistemas da empresa de fora do escritório?">
+                        <select
+                          className={select}
+                          value={
+                            vpnRemoteChoice
+                          }
+                          onChange={(e) => {
+                            const value =
+                              e.target
+                                .value as VpnRemoteChoice;
 
-                      <option value="some">
-                        Sim, parte da equipe
-                      </option>
+                            setVpnRemoteChoice(
+                              value,
+                            );
 
-                      <option value="most">
-                        Sim, a maior parte da equipe
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
+                            set(
+                              'vpnRemote',
+                              value === 'few'
+                                ? 3
+                                : value ===
+                                    'some'
+                                  ? 10
+                                  : value ===
+                                      'most'
+                                    ? 25
+                                    : 0,
+                            );
+                          }}
+                        >
+                          <option value="unknown">
+                            Não sei informar
+                          </option>
+                          <option value="none">
+                            Não
+                          </option>
+                          <option value="few">
+                            Sim, poucas pessoas
+                          </option>
+                          <option value="some">
+                            Sim, parte da equipe
+                          </option>
+                          <option value="most">
+                            Sim, a maior parte da equipe
+                          </option>
+                        </select>
+                      </Field>
+                    </QuestionPair>
 
-                <QuestionPair>
-                  <Field
-                    label="Existem conexões seguras entre matriz e filiais? Quantas?"
-                    help="Se não souber, pode deixar em branco."
-                  >
-                    <input
-                      className={input}
-                      type="number"
-                      min="0"
-                      value={
-                        a.vpnSite || ''
-                      }
-                      onChange={(event) =>
-                        set(
-                          'vpnSite',
-                          +event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </Field>
-
-                  <Field
-                    label="A rede é separada para diferentes tipos de uso?"
-                    help="Por exemplo: funcionários, visitantes, servidores ou equipamentos específicos."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        a.vlans === 0
-                          ? 'unknown'
-                          : a.vlans === 1
-                            ? 'no'
-                            : a.vlans ===
-                                2
-                              ? 'partial'
-                              : 'yes'
-                      }
-                      onChange={(event) =>
-                        set(
-                          'vlans',
-                          event.target
-                            .value ===
-                            'yes'
-                            ? 3
-                            : event
-                                  .target
-                                  .value ===
-                                'partial'
-                              ? 2
-                              : event
-                                    .target
+                    <Field label="A rede é separada para diferentes tipos de uso?">
+                      <select
+                        className={select}
+                        value={
+                          a.vlans === 0
+                            ? 'unknown'
+                            : a.vlans === 1
+                              ? 'no'
+                              : a.vlans ===
+                                  2
+                                ? 'partial'
+                                : 'yes'
+                        }
+                        onChange={(e) =>
+                          set(
+                            'vlans',
+                            e.target.value ===
+                              'yes'
+                              ? 3
+                              : e.target
                                     .value ===
-                                  'no'
-                                ? 1
-                                : 0,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="yes">
-                        Sim
-                      </option>
-
-                      <option value="partial">
-                        Parcialmente
-                      </option>
-
-                      <option value="no">
-                        Não
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
+                                  'partial'
+                                ? 2
+                                : e.target
+                                      .value ===
+                                    'no'
+                                  ? 1
+                                  : 0,
+                          )
+                        }
+                      >
+                        <option value="unknown">
+                          Não sei informar
+                        </option>
+                        <option value="yes">
+                          Sim
+                        </option>
+                        <option value="partial">
+                          Parcialmente
+                        </option>
+                        <option value="no">
+                          Não
+                        </option>
+                      </select>
+                    </Field>
+                  </>
+                )}
               </StepSection>
             </div>
           )}
@@ -1620,123 +1539,104 @@ export default function AssessmentForm() {
             <div className="space-y-6">
               <StepSection
                 eyebrow="Agora, os computadores"
-                title="O que acontece quando uma ameaça chega a um dispositivo?"
-                description="Ter uma ferramenta instalada é importante. Também queremos entender se alguém consegue enxergar e reagir quando ela identifica algo."
+                title="Como os computadores são protegidos?"
+                description="Você não precisa saber se a solução é antivírus corporativo, EDR ou outro nome técnico."
               >
                 <QuestionPair>
-                  <Field
-                    label="Os computadores utilizam antivírus ou outra proteção de segurança?"
-                    help="Escolha a opção mais próxima do que existe hoje."
-                  >
+                  <Field label="Os computadores possuem antivírus ou alguma solução de segurança?">
                     <select
                       className={select}
                       value={
-                        a.endpointLevel
+                        endpointProtectionChoice
                       }
-                      onChange={(event) => {
-                        set(
-                          'endpointLevel',
-                          event.target
-                            .value,
-                        );
+                      onChange={(e) => {
+                        const value =
+                          e.target
+                            .value as EndpointProtectionChoice;
 
                         if (
-                          [
-                            'none',
-                            'unknown',
-                          ].includes(
-                            event.target
-                              .value,
-                          )
+                          value ===
+                          'unknown'
                         ) {
                           set(
-                            'endpointVendor',
-                            '',
+                            'endpointLevel',
+                            'unknown',
                           );
-
-                          set(
-                            'endpointProduct',
-                            '',
-                          );
+                          return;
                         }
+
+                        if (
+                          value === 'no'
+                        ) {
+                          set(
+                            'endpointLevel',
+                            'none',
+                          );
+                          return;
+                        }
+
+                        set(
+                          'endpointLevel',
+                          'business_av',
+                        );
                       }}
                     >
                       <option value="unknown">
                         Não sei informar
                       </option>
-
-                      <option value="none">
-                        Não existe uma proteção padronizada
+                      <option value="yes">
+                        Sim
                       </option>
-
-                      <option value="basic_av">
-                        Sim, antivírus instalado individualmente
-                      </option>
-
-                      <option value="business_av">
-                        Sim, antivírus corporativo administrado pela empresa ou TI
-                      </option>
-
-                      <option value="edr">
-                        Sim, existe proteção que também ajuda a investigar comportamentos suspeitos
-                      </option>
-
-                      <option value="managed_edr">
-                        Sim, existe proteção avançada acompanhada por equipe especializada
+                      <option value="no">
+                        Não
                       </option>
                     </select>
                   </Field>
 
-                  <Field
-                    label="Aproximadamente quantos computadores e notebooks a empresa utiliza?"
-                    help="Escolha a opção mais próxima."
-                  >
+                  <Field label="Aproximadamente quantos computadores e notebooks existem?">
                     <select
                       className={select}
                       value={deviceBucket(
                         a.endpointCount ||
                           a.devices,
                       )}
-                      onChange={(event) => {
+                      onChange={(e) => {
+                        const value =
+                          Number(
+                            e.target.value,
+                          );
+
                         set(
                           'endpointCount',
-                          +event.target
-                            .value,
+                          value,
                         );
 
                         set(
                           'devices',
-                          +event.target
-                            .value,
+                          value,
                         );
                       }}
                     >
                       <option value="0">
-                        Selecione uma faixa
+                        Selecione
                       </option>
-
                       <option value="5">
-                        Até 10 equipamentos
+                        Até 10
                       </option>
-
                       <option value="15">
-                        11 a 20 equipamentos
+                        11 a 20
                       </option>
-
                       <option value="35">
-                        21 a 50 equipamentos
+                        21 a 50
                       </option>
-
                       <option value="75">
-                        51 a 100 equipamentos
+                        51 a 100
                       </option>
-
                       <option value="150">
-                        101 a 200 equipamentos
+                        101 a 200
                       </option>
-
                       <option value="250">
-                        Mais de 200 equipamentos
+                        Mais de 200
                       </option>
                     </select>
                   </Field>
@@ -1745,49 +1645,32 @@ export default function AssessmentForm() {
                 {hasEndpointProtection && (
                   <>
                     <AdaptiveHint>
-                      Como você informou que
-                      já existe uma proteção,
-                      vamos usar só duas
-                      informações para
-                      entender melhor o que
-                      essa camada realmente
-                      entrega.
+                      Como já existe uma proteção, vamos usar poucas respostas para entender como ela funciona na prática.
                     </AdaptiveHint>
 
                     <QuestionPair>
-                      <Field label="Você sabe qual solução ou fabricante é utilizado?">
+                      <Field label="Você sabe qual solução é utilizada?">
                         <select
-                          className={
-                            select
-                          }
+                          className={select}
                           value={
                             endpointVendorValue
                           }
-                          onChange={(
-                            event,
-                          ) =>
+                          onChange={(e) =>
                             set(
                               'endpointVendor',
-                              event.target
-                                .value ===
+                              e.target.value ===
                                 'Não sei informar'
                                 ? ''
-                                : event.target
+                                : e.target
                                     .value,
                             )
                           }
                         >
                           {endpointVendors.map(
-                            (
-                              vendor,
-                            ) => (
+                            (vendor) => (
                               <option
-                                key={
-                                  vendor
-                                }
-                                value={
-                                  vendor
-                                }
+                                key={vendor}
+                                value={vendor}
                               >
                                 {vendor}
                               </option>
@@ -1797,750 +1680,187 @@ export default function AssessmentForm() {
                       </Field>
 
                       <Field
-                        label="Você sabe qual produto ou licença é utilizada?"
-                        help="Ex.: Kaspersky Next EDR Foundations, Defender for Business, Trend Vision One. É opcional."
+                        label="Produto ou licença, se souber"
+                        help="É opcional."
                       >
                         <input
-                          className={
-                            input
-                          }
+                          className={input}
                           value={
                             a.endpointProduct ??
                             ''
                           }
-                          onChange={(
-                            event,
-                          ) =>
+                          onChange={(e) =>
                             set(
                               'endpointProduct',
-                              event.target
-                                .value,
+                              e.target.value,
                             )
                           }
-                          placeholder="Pode deixar em branco"
                         />
                       </Field>
                     </QuestionPair>
 
-                    {endpointVendorValue ===
-                      'Outro' && (
-                      <Field label="Qual é o fabricante?">
-                        <input
-                          className={
-                            input
-                          }
+                    <QuestionPair>
+                      <Field label="A TI consegue acompanhar os computadores e alertas em um único painel?">
+                        <select
+                          className={select}
                           value={
-                            a.endpointVendor ===
-                            'Outro'
-                              ? ''
-                              : a.endpointVendor ??
-                                ''
+                            a.endpointCentralManagement
                           }
-                          onChange={(
-                            event,
-                          ) =>
+                          onChange={(e) =>
                             set(
-                              'endpointVendor',
-                              event.target
-                                .value,
+                              'endpointCentralManagement',
+                              e.target.value,
                             )
                           }
-                          placeholder="Informe o fabricante"
-                        />
+                        >
+                          <option value="unknown">
+                            Não sei informar
+                          </option>
+                          <option value="yes">
+                            Sim
+                          </option>
+                          <option value="partial">
+                            Apenas parte dos equipamentos
+                          </option>
+                          <option value="no">
+                            Não
+                          </option>
+                        </select>
                       </Field>
-                    )}
+
+                      <Field label="Quando aparece um alerta importante, alguém verifica o que aconteceu?">
+                        <select
+                          className={select}
+                          value={
+                            a.endpointResponse
+                          }
+                          onChange={(e) =>
+                            set(
+                              'endpointResponse',
+                              e.target.value,
+                            )
+                          }
+                        >
+                          <option value="unknown">
+                            Não sei informar
+                          </option>
+                          <option value="managed_soc">
+                            Equipe especializada acompanha e responde
+                          </option>
+                          <option value="defined_team">
+                            Existe uma pessoa ou equipe definida
+                          </option>
+                          <option value="alerts_only">
+                            Alertas são vistos quando necessário
+                          </option>
+                          <option value="none">
+                            Ninguém acompanha
+                          </option>
+                        </select>
+                      </Field>
+                    </QuestionPair>
                   </>
-                )}
-
-                {hasEndpointProtection && (
-                  <QuestionPair>
-                    <Field
-                      label="A TI consegue acompanhar e administrar a proteção dos computadores em um único lugar?"
-                      help="Por exemplo, saber quais máquinas estão protegidas, receber alertas e aplicar configurações."
-                    >
-                      <select
-                        className={select}
-                        value={
-                          a.endpointCentralManagement
-                        }
-                        onChange={(event) =>
-                          set(
-                            'endpointCentralManagement',
-                            event.target
-                              .value,
-                          )
-                        }
-                      >
-                        <option value="unknown">
-                          Não sei informar
-                        </option>
-
-                        <option value="yes">
-                          Sim, todos ou quase todos
-                        </option>
-
-                        <option value="partial">
-                          Apenas parte dos equipamentos
-                        </option>
-
-                        <option value="no">
-                          Não
-                        </option>
-                      </select>
-                    </Field>
-
-                    <Field
-                      label="Quando uma ameaça é detectada, alguém acompanha o que aconteceu?"
-                      help="Queremos saber se o alerta vira investigação e ação."
-                    >
-                      <select
-                        className={select}
-                        value={
-                          a.endpointResponse
-                        }
-                        onChange={(event) =>
-                          set(
-                            'endpointResponse',
-                            event.target
-                              .value,
-                          )
-                        }
-                      >
-                        <option value="unknown">
-                          Não sei informar
-                        </option>
-
-                        <option value="managed_soc">
-                          Uma equipe especializada acompanha e responde
-                        </option>
-
-                        <option value="defined_team">
-                          Existe uma pessoa ou equipe definida para verificar
-                        </option>
-
-                        <option value="alerts_only">
-                          Existem alertas, mas são vistos quando necessário
-                        </option>
-
-                        <option value="none">
-                          Não existe acompanhamento dos alertas
-                        </option>
-                      </select>
-                    </Field>
-                  </QuestionPair>
                 )}
               </StepSection>
 
               <StepSection
                 eyebrow="Visibilidade"
                 title="A empresa sabe quais equipamentos precisa proteger?"
-                description="Poucas perguntas aqui ajudam a identificar máquinas esquecidas, versões antigas e falhas conhecidas."
+                description="Duas respostas ajudam a identificar máquinas esquecidas ou falhas que podem ficar abertas."
               >
                 <QuestionPair>
-                  <Field
-                    label="A empresa possui uma lista atualizada dos computadores, servidores e outros equipamentos?"
-                    help="Pode ser ferramenta, planilha ou qualquer controle que permita saber quais equipamentos existem."
-                  >
+                  <Field label="Existe uma lista atualizada dos computadores e servidores?">
                     <select
                       className={select}
                       value={
                         a.assetInventory
                       }
-                      onChange={(event) =>
+                      onChange={(e) =>
                         set(
                           'assetInventory',
-                          event.target
-                            .value,
+                          e.target.value,
                         )
                       }
                     >
                       <option value="unknown">
                         Não sei informar
                       </option>
-
                       <option value="managed">
-                        Sim, inventário atualizado e gerenciado
+                        Sim, atualizada e gerenciada
                       </option>
-
                       <option value="partial">
-                        Existe, mas pode estar incompleto
+                        Existe, mas pode estar incompleta
                       </option>
-
                       <option value="informal">
-                        Controle informal ou planilha sem revisão regular
+                        Controle informal
                       </option>
-
                       <option value="none">
-                        Não existe inventário
+                        Não existe
                       </option>
                     </select>
                   </Field>
 
-                  <Field
-                    label="A empresa verifica periodicamente se computadores e sistemas precisam de correções de segurança?"
-                    help="Pense em atualizações pendentes, versões antigas ou falhas conhecidas."
-                  >
+                  <Field label="A empresa verifica periodicamente se existem atualizações ou falhas de segurança?">
                     <select
                       className={select}
                       value={
                         a.vulnerabilityManagement
                       }
-                      onChange={(event) =>
+                      onChange={(e) =>
                         set(
                           'vulnerabilityManagement',
-                          event.target
-                            .value,
+                          e.target.value,
                         )
                       }
                     >
                       <option value="unknown">
                         Não sei informar
                       </option>
-
                       <option value="continuous">
-                        Existe acompanhamento contínuo
+                        Acompanhamento contínuo
                       </option>
-
                       <option value="regular">
-                        Existe uma verificação periódica definida
+                        Verificação periódica
                       </option>
-
                       <option value="occasional">
-                        São feitas verificações ocasionais
+                        Ocasionalmente
                       </option>
-
                       <option value="reactive">
-                        Normalmente só quando aparece algum problema
+                        Só quando aparece problema
                       </option>
-
                       <option value="none">
-                        Não existe um processo
+                        Não existe processo
                       </option>
                     </select>
                   </Field>
                 </QuestionPair>
 
-                <QuestionPair>
-                  <Field
-                    label="A empresa possui servidores próprios?"
-                    help="Considere servidores físicos ou virtuais administrados pela empresa."
-                  >
-                    <select
-                      className={select}
-                      value={serverBucket(
-                        a.servers,
-                      )}
-                      onChange={(event) =>
-                        set(
-                          'servers',
-                          +event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="0">
-                        Não possui / não sei informar
-                      </option>
-
-                      <option value="1">
-                        1 servidor
-                      </option>
-
-                      <option value="3">
-                        2 a 5 servidores
-                      </option>
-
-                      <option value="6">
-                        Mais de 5 servidores
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="Os computadores recebem atualizações de segurança automaticamente?">
-                    <select
-                      className={select}
-                      value={
-                        a.autoUpdates
-                      }
-                      onChange={(event) =>
-                        set(
-                          'autoUpdates',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="yes">
-                        Sim
-                      </option>
-
-                      <option value="no">
-                        Não
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-              </StepSection>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-6">
-              <StepSection
-                eyebrow="Agora imagine uma perda"
-                title="Se os dados sumissem hoje, o que a empresa conseguiria recuperar?"
-                description="O objetivo aqui não é saber apenas se existe backup, mas se essas cópias realmente ajudariam quando fossem necessárias."
-              >
-                <QuestionPair>
-                  <Field
-                    label="Onde ficam os arquivos e informações mais importantes?"
-                    help="Pense onde as pessoas salvam documentos e informações usadas no dia a dia."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        a.dataLocation
-                      }
-                      onChange={(event) =>
-                        set(
-                          'dataLocation',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="corporate_central">
-                        Em um local corporativo centralizado
-                      </option>
-
-                      <option value="saas_only">
-                        Principalmente dentro de sistemas em nuvem
-                      </option>
-
-                      <option value="mixed">
-                        Espalhados entre nuvem, servidores e computadores
-                      </option>
-
-                      <option value="endpoints">
-                        Principalmente nos computadores e notebooks
-                      </option>
-
-                      <option value="personal_cloud">
-                        Em contas pessoais ou locais não administrados pela empresa
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field
-                    label="A empresa possui cópias de segurança dos dados importantes?"
-                    help="Pense nos arquivos e sistemas que fariam falta se fossem perdidos ou apagados."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        a.backupLevel
-                      }
-                      onChange={(event) => {
-                        set(
-                          'backupLevel',
-                          event.target
-                            .value,
-                        );
-
-                        if (
-                          [
-                            'none',
-                            'unknown',
-                          ].includes(
-                            event.target
-                              .value,
-                          )
-                        ) {
-                          set(
-                            'backupVendor',
-                            '',
-                          );
-
-                          set(
-                            'backupProduct',
-                            '',
-                          );
-                        }
-                      }}
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="none">
-                        Não existe uma rotina de cópia de segurança
-                      </option>
-
-                      <option value="manual">
-                        Sim, mas as cópias são feitas manualmente
-                      </option>
-
-                      <option value="automated_local">
-                        Sim, existe cópia automática dentro da empresa
-                      </option>
-
-                      <option value="cloud">
-                        Sim, existe cópia automática em nuvem
-                      </option>
-
-                      <option value="multi_copy">
-                        Sim, existem cópias em mais de um local
-                      </option>
-
-                      <option value="managed">
-                        Sim, existe uma rotina gerenciada e acompanhada
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-
-                <QuestionPair>
-                  <Field
-                    label="Aproximadamente quanto de informação importante precisa ser protegida?"
-                    help="Esse dado ajuda a entender o tamanho do ambiente. Se não souber, tudo bem."
-                  >
-                    <select
-                      className={select}
-                      value={backupBucket(
-                        a.backupVolumeGb,
-                      )}
-                      onChange={(event) =>
-                        set(
-                          'backupVolumeGb',
-                          +event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="0">
-                        Não sei informar
-                      </option>
-
-                      <option value="50">
-                        Até 100 GB
-                      </option>
-
-                      <option value="300">
-                        100 a 500 GB
-                      </option>
-
-                      <option value="750">
-                        500 GB a 1 TB
-                      </option>
-
-                      <option value="3000">
-                        1 a 5 TB
-                      </option>
-
-                      <option value="7500">
-                        Mais de 5 TB
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field
-                    label="Se os sistemas principais parassem hoje, o que aconteceria com a operação?"
-                    help="Não precisa calcular dinheiro. Escolha apenas a situação mais próxima."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        a.operationalImpact ??
-                        'unknown'
-                      }
-                      onChange={(event) =>
-                        set(
-                          'operationalImpact',
-                          event.target
-                            .value as OperationalImpactLevel,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="low">
-                        Conseguiríamos continuar quase normalmente
-                      </option>
-
-                      <option value="partial">
-                        Parte da empresa ficaria parada
-                      </option>
-
-                      <option value="major">
-                        A maior parte da empresa ficaria parada
-                      </option>
-
-                      <option value="halt">
-                        A operação praticamente pararia
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-
-                {hasBackup && (
-                  <>
-                    <AdaptiveHint>
-                      Como existe uma cópia,
-                      precisamos entender apenas
-                      duas coisas: quem cuida
-                      dela e se ela está
-                      realmente separada do
-                      risco da produção.
-                    </AdaptiveHint>
-
-                    <QuestionPair>
-                      <Field label="Quem é responsável pelo backup hoje?">
-                        <select
-                          className={
-                            select
-                          }
-                          value={
-                            a.backupResponsibility ??
-                            'unknown'
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'backupResponsibility',
-                              event.target
-                                .value as BackupResponsibilityLevel,
-                            )
-                          }
-                        >
-                          <option value="unknown">
-                            Não sei informar
-                          </option>
-
-                          <option value="internal">
-                            Nossa própria equipe
-                          </option>
-
-                          <option value="outsourced">
-                            Uma empresa terceirizada
-                          </option>
-
-                          <option value="shared">
-                            Nossa equipe e uma empresa terceirizada
-                          </option>
-
-                          <option value="nobody">
-                            Não existe alguém claramente responsável
-                          </option>
-                        </select>
-                      </Field>
-
-                      <Field label="Você sabe qual solução é utilizada?">
-                        <select
-                          className={
-                            select
-                          }
-                          value={
-                            backupVendorValue
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'backupVendor',
-                              event.target
-                                .value ===
-                                'Não sei informar'
-                                ? ''
-                                : event.target
-                                    .value,
-                            )
-                          }
-                        >
-                          {backupVendors.map(
-                            (
-                              vendor,
-                            ) => (
-                              <option
-                                key={
-                                  vendor
-                                }
-                                value={
-                                  vendor
-                                }
-                              >
-                                {vendor}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      </Field>
-                    </QuestionPair>
-
-                    {backupVendorValue ===
-                      'Outro' && (
-                      <Field label="Qual é a solução ou fabricante?">
-                        <input
-                          className={
-                            input
-                          }
-                          value={
-                            a.backupVendor ===
-                            'Outro'
-                              ? ''
-                              : a.backupVendor ??
-                                ''
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'backupVendor',
-                              event.target
-                                .value,
-                            )
-                          }
-                          placeholder="Informe se souber"
-                        />
-                      </Field>
-                    )}
-
-                    <QuestionPair>
-                      <Field
-                        label="Existe pelo menos uma cópia protegida caso o ambiente principal seja atacado?"
-                        help="Por exemplo, cópia imutável, offline ou administrada separadamente."
-                      >
-                        <select
-                          className={
-                            select
-                          }
-                          value={
-                            a.backupIsolation
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'backupIsolation',
-                              event.target
-                                .value,
-                            )
-                          }
-                        >
-                          <option value="unknown">
-                            Não sei informar
-                          </option>
-
-                          <option value="immutable">
-                            Sim, existe cópia protegida contra alteração
-                          </option>
-
-                          <option value="isolated">
-                            Sim, existe cópia separada ou offline
-                          </option>
-
-                          <option value="separate_account">
-                            Sim, existe cópia administrada separadamente
-                          </option>
-
-                          <option value="same_environment">
-                            Existe cópia, mas depende do mesmo ambiente ou credenciais
-                          </option>
-
-                          <option value="none">
-                            Não existe uma cópia separada
-                          </option>
-                        </select>
-                      </Field>
-
-                      <Field label="A empresa já testou se consegue recuperar os dados dessas cópias?">
-                        <select
-                          className={
-                            select
-                          }
-                          value={
-                            a.restoreTests
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            set(
-                              'restoreTests',
-                              event.target
-                                .value,
-                            )
-                          }
-                        >
-                          <option value="unknown">
-                            Não sei informar
-                          </option>
-
-                          <option value="regular">
-                            Sim, periodicamente
-                          </option>
-
-                          <option value="once">
-                            Já testamos alguma vez
-                          </option>
-
-                          <option value="never">
-                            Nunca testamos
-                          </option>
-                        </select>
-                      </Field>
-                    </QuestionPair>
-                  </>
-                )}
-
-                <Field
-                  label="Por quanto tempo a empresa consegue ficar sem os sistemas ou dados mais importantes?"
-                  help="Pense no tempo máximo aceitável antes que a parada comece a causar um problema sério."
-                >
+                <Field label="A empresa possui servidores próprios?">
                   <select
                     className={select}
-                    value={
-                      a.maxDowntime
-                    }
-                    onChange={(event) =>
+                    value={serverBucket(
+                      a.servers,
+                    )}
+                    onChange={(e) =>
                       set(
-                        'maxDowntime',
-                        event.target
-                          .value,
+                        'servers',
+                        Number(
+                          e.target.value,
+                        ),
                       )
                     }
                   >
-                    <option value="unknown">
-                      Não sei informar
+                    <option value="0">
+                      Não possui / não sei
                     </option>
-
-                    <option value="4h">
-                      Até 4 horas
+                    <option value="1">
+                      1 servidor
                     </option>
-
-                    <option value="8h">
-                      Até 8 horas
+                    <option value="3">
+                      2 a 5 servidores
                     </option>
-
-                    <option value="1d">
-                      Até 1 dia
-                    </option>
-
-                    <option value="2d">
-                      Até 2 dias
-                    </option>
-
-                    <option value="more">
-                      Mais de 2 dias
+                    <option value="6">
+                      Mais de 5 servidores
                     </option>
                   </select>
                 </Field>
@@ -2548,283 +1868,563 @@ export default function AssessmentForm() {
             </div>
           )}
 
-          {step === 4 && (
-            <div className="space-y-6">
-              <StepSection
-                eyebrow="Última etapa"
-                title="Quem consegue entrar e o que acontece se algo der errado?"
-                description="Essas perguntas fecham a visão do ambiente com contas, e-mail e capacidade de reação."
-              >
-                <QuestionPair>
-                  <Field
-                    label="Nas contas mais importantes, é exigida alguma confirmação além da senha?"
-                    help="Por exemplo, código no celular ou aplicativo autenticador."
-                  >
-                    <select
-                      className={select}
-                      value={a.mfa}
-                      onChange={(event) =>
-                        set(
-                          'mfa',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="yes">
-                        Sim, de forma ampla
-                      </option>
-
-                      <option value="partial">
-                        Apenas em algumas contas
-                      </option>
-
-                      <option value="no">
-                        Não
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="Mais de uma pessoa utiliza a mesma conta ou senha para acessar algum sistema?">
-                    <select
-                      className={select}
-                      value={
-                        a.sharedAccounts
-                      }
-                      onChange={(event) =>
-                        set(
-                          'sharedAccounts',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="yes">
-                        Sim
-                      </option>
-
-                      <option value="no">
-                        Não
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-
-                <QuestionPair>
-                  <Field label="Quando alguém sai da empresa, os acessos dessa pessoa são removidos?">
-                    <select
-                      className={select}
-                      value={
-                        a.offboarding
-                      }
-                      onChange={(event) =>
-                        set(
-                          'offboarding',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="formal">
-                        Sim, existe um processo definido
-                      </option>
-
-                      <option value="informal">
-                        É feito caso a caso
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="A empresa armazena ou utiliza dados pessoais ou informações sensíveis?">
-                    <select
-                      className={select}
-                      value={
-                        a.sensitiveData
-                      }
-                      onChange={(event) =>
-                        set(
-                          'sensitiveData',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="yes">
-                        Sim
-                      </option>
-
-                      <option value="no">
-                        Não
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-
-                <QuestionPair>
-                  <Field
-                    label="O e-mail possui alguma proteção além do filtro padrão de spam?"
-                    help="Por exemplo, bloqueio de mensagens falsas, links perigosos ou anexos suspeitos."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        a.emailProtection
-                      }
-                      onChange={(event) =>
-                        set(
-                          'emailProtection',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="advanced">
-                        Sim, com análise de links, anexos e mensagens suspeitas
-                      </option>
-
-                      <option value="standard">
-                        Sim, existe proteção adicional administrada
-                      </option>
-
-                      <option value="basic">
-                        Apenas o filtro padrão de spam
-                      </option>
-
-                      <option value="none">
-                        Não existe proteção além do padrão
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field
-                    label="Se acontecer um problema de segurança hoje, a empresa sabe quem deve coordenar a resposta?"
-                    help="Pode ser alguém da empresa ou um prestador. O importante é saber previamente quem acionar."
-                  >
-                    <select
-                      className={select}
-                      value={
-                        a.incidentResponse
-                      }
-                      onChange={(event) =>
-                        set(
-                          'incidentResponse',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Não sei informar
-                      </option>
-
-                      <option value="formal">
-                        Sim, responsável e processo definidos
-                      </option>
-
-                      <option value="informal">
-                        Sabemos quem chamar, mas sem processo formal
-                      </option>
-
-                      <option value="none">
-                        Não existe responsável definido
-                      </option>
-                    </select>
-                  </Field>
-                </QuestionPair>
-
-                <QuestionPair>
-                  <Field label="A empresa já passou por vírus, invasão, perda de dados ou uma parada importante causada por tecnologia?">
-                    <select
-                      className={select}
-                      value={
-                        a.incidentHistory
-                      }
-                      onChange={(event) =>
-                        set(
-                          'incidentHistory',
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      <option value="unknown">
-                        Prefiro não informar / não sei
-                      </option>
-
-                      <option value="no">
-                        Não
-                      </option>
-
-                      <option value="yes">
-                        Sim
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="Qual situação de segurança mais preocupa a empresa hoje?">
-                    <input
-                      className={input}
-                      value={
-                        a.mainConcern
-                      }
-                      onChange={(event) =>
-                        set(
-                          'mainConcern',
-                          event.target
-                            .value,
-                        )
-                      }
-                      placeholder="Ex.: vírus, golpe por e-mail, perda de dados, parada dos sistemas..."
-                    />
-                  </Field>
-                </QuestionPair>
-
-                <Field
-                  label="Existe alguma informação importante que você gostaria de acrescentar?"
-                  help="Não informe senhas, credenciais, dados de pacientes, documentos pessoais ou outras informações confidenciais desnecessárias."
-                >
-                  <textarea
-                    className={input}
-                    rows={4}
-                    maxLength={1000}
-                    value={a.notes}
-                    onChange={(event) =>
+          {step === 3 && (
+            <StepSection
+              eyebrow="Agora imagine uma perda"
+              title="Se os dados sumissem hoje, o que a empresa conseguiria recuperar?"
+              description="Queremos entender se existe backup e se essas cópias realmente ajudariam quando fossem necessárias."
+            >
+              <QuestionPair>
+                <Field label="Onde ficam os arquivos e informações mais importantes?">
+                  <select
+                    className={select}
+                    value={
+                      a.dataLocation
+                    }
+                    onChange={(e) =>
                       set(
-                        'notes',
-                        event.target
-                          .value,
+                        'dataLocation',
+                        e.target.value,
                       )
                     }
-                    placeholder="Pode ser um sistema importante, mudança planejada ou dificuldade atual."
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="corporate_central">
+                      Local corporativo centralizado
+                    </option>
+                    <option value="saas_only">
+                      Principalmente em sistemas na nuvem
+                    </option>
+                    <option value="mixed">
+                      Espalhados entre vários locais
+                    </option>
+                    <option value="endpoints">
+                      Principalmente nos computadores
+                    </option>
+                    <option value="personal_cloud">
+                      Contas pessoais ou locais não gerenciados
+                    </option>
+                  </select>
+                </Field>
+
+                <Field label="A empresa possui cópias de segurança dos dados importantes?">
+                  <select
+                    className={select}
+                    value={
+                      a.backupLevel
+                    }
+                    onChange={(e) =>
+                      set(
+                        'backupLevel',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="none">
+                      Não
+                    </option>
+                    <option value="manual">
+                      Sim, cópias manuais
+                    </option>
+                    <option value="automated_local">
+                      Sim, automáticas dentro da empresa
+                    </option>
+                    <option value="cloud">
+                      Sim, automáticas em nuvem
+                    </option>
+                    <option value="multi_copy">
+                      Sim, em mais de um local
+                    </option>
+                    <option value="managed">
+                      Sim, rotina gerenciada
+                    </option>
+                  </select>
+                </Field>
+              </QuestionPair>
+
+              <QuestionPair>
+                <Field label="Aproximadamente quanto de informação precisa ser protegida?">
+                  <select
+                    className={select}
+                    value={backupBucket(
+                      a.backupVolumeGb,
+                    )}
+                    onChange={(e) =>
+                      set(
+                        'backupVolumeGb',
+                        Number(
+                          e.target.value,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="0">
+                      Não sei informar
+                    </option>
+                    <option value="50">
+                      Até 100 GB
+                    </option>
+                    <option value="300">
+                      100 a 500 GB
+                    </option>
+                    <option value="750">
+                      500 GB a 1 TB
+                    </option>
+                    <option value="3000">
+                      1 a 5 TB
+                    </option>
+                    <option value="7500">
+                      Mais de 5 TB
+                    </option>
+                  </select>
+                </Field>
+
+                <Field label="Se os sistemas principais parassem hoje, o que aconteceria?">
+                  <select
+                    className={select}
+                    value={
+                      a.operationalImpact ??
+                      'unknown'
+                    }
+                    onChange={(e) =>
+                      set(
+                        'operationalImpact',
+                        e.target
+                          .value as OperationalImpactLevel,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="low">
+                      Continuaríamos quase normalmente
+                    </option>
+                    <option value="partial">
+                      Parte da empresa ficaria parada
+                    </option>
+                    <option value="major">
+                      A maior parte ficaria parada
+                    </option>
+                    <option value="halt">
+                      A operação praticamente pararia
+                    </option>
+                  </select>
+                </Field>
+              </QuestionPair>
+
+              {hasBackup && (
+                <>
+                  <QuestionPair>
+                    <Field label="Quem é responsável pelo backup?">
+                      <select
+                        className={select}
+                        value={
+                          a.backupResponsibility ??
+                          'unknown'
+                        }
+                        onChange={(e) =>
+                          set(
+                            'backupResponsibility',
+                            e.target
+                              .value as BackupResponsibilityLevel,
+                          )
+                        }
+                      >
+                        <option value="unknown">
+                          Não sei informar
+                        </option>
+                        <option value="internal">
+                          Equipe interna
+                        </option>
+                        <option value="outsourced">
+                          Empresa terceirizada
+                        </option>
+                        <option value="shared">
+                          Interna + terceirizada
+                        </option>
+                        <option value="nobody">
+                          Ninguém claramente responsável
+                        </option>
+                      </select>
+                    </Field>
+
+                    <Field label="Você sabe qual solução é utilizada?">
+                      <select
+                        className={select}
+                        value={
+                          backupVendorValue
+                        }
+                        onChange={(e) =>
+                          set(
+                            'backupVendor',
+                            e.target.value ===
+                              'Não sei informar'
+                              ? ''
+                              : e.target
+                                  .value,
+                          )
+                        }
+                      >
+                        {backupVendors.map(
+                          (vendor) => (
+                            <option
+                              key={vendor}
+                              value={vendor}
+                            >
+                              {vendor}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </Field>
+                  </QuestionPair>
+
+                  <QuestionPair>
+                    <Field label="Existe uma cópia protegida caso o ambiente principal seja atacado?">
+                      <select
+                        className={select}
+                        value={
+                          a.backupIsolation
+                        }
+                        onChange={(e) =>
+                          set(
+                            'backupIsolation',
+                            e.target.value,
+                          )
+                        }
+                      >
+                        <option value="unknown">
+                          Não sei informar
+                        </option>
+                        <option value="immutable">
+                          Sim, protegida contra alteração
+                        </option>
+                        <option value="isolated">
+                          Sim, separada ou offline
+                        </option>
+                        <option value="separate_account">
+                          Sim, administrada separadamente
+                        </option>
+                        <option value="same_environment">
+                          Depende do mesmo ambiente ou credenciais
+                        </option>
+                        <option value="none">
+                          Não
+                        </option>
+                      </select>
+                    </Field>
+
+                    <Field label="A empresa já testou se consegue recuperar os dados?">
+                      <select
+                        className={select}
+                        value={
+                          a.restoreTests
+                        }
+                        onChange={(e) =>
+                          set(
+                            'restoreTests',
+                            e.target.value,
+                          )
+                        }
+                      >
+                        <option value="unknown">
+                          Não sei informar
+                        </option>
+                        <option value="regular">
+                          Sim, periodicamente
+                        </option>
+                        <option value="once">
+                          Já testamos alguma vez
+                        </option>
+                        <option value="never">
+                          Nunca testamos
+                        </option>
+                      </select>
+                    </Field>
+                  </QuestionPair>
+                </>
+              )}
+
+              <Field label="Por quanto tempo a empresa consegue ficar sem os sistemas ou dados mais importantes?">
+                <select
+                  className={select}
+                  value={
+                    a.maxDowntime
+                  }
+                  onChange={(e) =>
+                    set(
+                      'maxDowntime',
+                      e.target.value,
+                    )
+                  }
+                >
+                  <option value="unknown">
+                    Não sei informar
+                  </option>
+                  <option value="4h">
+                    Até 4 horas
+                  </option>
+                  <option value="8h">
+                    Até 8 horas
+                  </option>
+                  <option value="1d">
+                    Até 1 dia
+                  </option>
+                  <option value="2d">
+                    Até 2 dias
+                  </option>
+                  <option value="more">
+                    Mais de 2 dias
+                  </option>
+                </select>
+              </Field>
+            </StepSection>
+          )}
+
+          {step === 4 && (
+            <StepSection
+              eyebrow="Última etapa"
+              title="Quem consegue entrar e o que acontece se algo der errado?"
+              description="Essas respostas fecham a visão com contas, e-mail e capacidade de reação."
+            >
+              <QuestionPair>
+                <Field label="Nas contas mais importantes, existe alguma confirmação além da senha?">
+                  <select
+                    className={select}
+                    value={a.mfa}
+                    onChange={(e) =>
+                      set(
+                        'mfa',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="yes">
+                      Sim, de forma ampla
+                    </option>
+                    <option value="partial">
+                      Apenas em algumas contas
+                    </option>
+                    <option value="no">
+                      Não
+                    </option>
+                  </select>
+                </Field>
+
+                <Field label="Mais de uma pessoa utiliza a mesma conta ou senha?">
+                  <select
+                    className={select}
+                    value={
+                      a.sharedAccounts
+                    }
+                    onChange={(e) =>
+                      set(
+                        'sharedAccounts',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="yes">
+                      Sim
+                    </option>
+                    <option value="no">
+                      Não
+                    </option>
+                  </select>
+                </Field>
+              </QuestionPair>
+
+              <QuestionPair>
+                <Field label="Quando alguém sai da empresa, os acessos são removidos?">
+                  <select
+                    className={select}
+                    value={
+                      a.offboarding
+                    }
+                    onChange={(e) =>
+                      set(
+                        'offboarding',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="formal">
+                      Sim, existe processo definido
+                    </option>
+                    <option value="informal">
+                      É feito caso a caso
+                    </option>
+                  </select>
+                </Field>
+
+                <Field label="A empresa utiliza dados pessoais ou informações sensíveis?">
+                  <select
+                    className={select}
+                    value={
+                      a.sensitiveData
+                    }
+                    onChange={(e) =>
+                      set(
+                        'sensitiveData',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="yes">
+                      Sim
+                    </option>
+                    <option value="no">
+                      Não
+                    </option>
+                  </select>
+                </Field>
+              </QuestionPair>
+
+              <QuestionPair>
+                <Field label="O e-mail possui alguma proteção além do filtro padrão de spam?">
+                  <select
+                    className={select}
+                    value={
+                      a.emailProtection
+                    }
+                    onChange={(e) =>
+                      set(
+                        'emailProtection',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="advanced">
+                      Sim, proteção avançada
+                    </option>
+                    <option value="standard">
+                      Sim, proteção adicional
+                    </option>
+                    <option value="basic">
+                      Apenas filtro padrão
+                    </option>
+                    <option value="none">
+                      Não
+                    </option>
+                  </select>
+                </Field>
+
+                <Field label="Se acontecer um problema de segurança hoje, a empresa sabe quem deve coordenar a resposta?">
+                  <select
+                    className={select}
+                    value={
+                      a.incidentResponse
+                    }
+                    onChange={(e) =>
+                      set(
+                        'incidentResponse',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei informar
+                    </option>
+                    <option value="formal">
+                      Sim, responsável e processo definidos
+                    </option>
+                    <option value="informal">
+                      Sabemos quem chamar
+                    </option>
+                    <option value="none">
+                      Não
+                    </option>
+                  </select>
+                </Field>
+              </QuestionPair>
+
+              <QuestionPair>
+                <Field label="A empresa já passou por vírus, invasão, perda de dados ou uma parada importante?">
+                  <select
+                    className={select}
+                    value={
+                      a.incidentHistory
+                    }
+                    onChange={(e) =>
+                      set(
+                        'incidentHistory',
+                        e.target.value,
+                      )
+                    }
+                  >
+                    <option value="unknown">
+                      Não sei / prefiro não informar
+                    </option>
+                    <option value="no">
+                      Não
+                    </option>
+                    <option value="yes">
+                      Sim
+                    </option>
+                  </select>
+                </Field>
+
+                <Field label="Qual situação mais preocupa a empresa hoje?">
+                  <input
+                    className={input}
+                    value={
+                      a.mainConcern
+                    }
+                    onChange={(e) =>
+                      set(
+                        'mainConcern',
+                        e.target.value,
+                      )
+                    }
+                    placeholder="Ex.: perda de dados, golpe por e-mail..."
                   />
                 </Field>
-              </StepSection>
-            </div>
+              </QuestionPair>
+
+              <Field
+                label="Existe alguma informação importante que gostaria de acrescentar?"
+                help="Não informe senhas, credenciais ou outros dados confidenciais desnecessários."
+              >
+                <textarea
+                  className={input}
+                  rows={4}
+                  maxLength={1000}
+                  value={a.notes}
+                  onChange={(e) =>
+                    set(
+                      'notes',
+                      e.target.value,
+                    )
+                  }
+                />
+              </Field>
+            </StepSection>
           )}
 
           <div className="mt-8 flex items-center justify-between border-t border-slate-800 pt-5">
             <button
-              className="flex items-center gap-2 rounded-xl px-4 py-3 text-slate-300 transition hover:bg-slate-800/60 disabled:cursor-not-allowed disabled:opacity-30"
+              className="flex items-center gap-2 rounded-xl px-4 py-3 text-slate-300 transition hover:bg-slate-800/60 disabled:opacity-30"
               disabled={
                 step === 0 ||
                 isSubmitting
@@ -2843,10 +2443,7 @@ export default function AssessmentForm() {
             {step <
             steps.length - 1 ? (
               <button
-                className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold shadow-lg shadow-teal-950/30 transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={
-                  isSubmitting
-                }
+                className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold hover:bg-teal-500"
                 onClick={() => {
                   setStep(
                     (currentStep) =>
@@ -2867,12 +2464,9 @@ export default function AssessmentForm() {
               </button>
             ) : (
               <button
-                className="flex min-w-[190px] items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold shadow-lg shadow-teal-950/30 transition hover:bg-teal-500 disabled:cursor-wait disabled:bg-teal-700 disabled:text-teal-100"
+                className="flex min-w-[190px] items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold hover:bg-teal-500 disabled:cursor-wait disabled:bg-teal-700"
                 onClick={submit}
                 disabled={
-                  isSubmitting
-                }
-                aria-busy={
                   isSubmitting
                 }
               >
@@ -2882,7 +2476,6 @@ export default function AssessmentForm() {
                       size={18}
                       className="animate-spin"
                     />
-
                     Processando diagnóstico...
                   </>
                 ) : (
@@ -2890,7 +2483,6 @@ export default function AssessmentForm() {
                     <CheckCircle2
                       size={18}
                     />
-
                     Ver meu diagnóstico
                   </>
                 )}
@@ -2906,42 +2498,25 @@ export default function AssessmentForm() {
           />
 
           <span>
-            O resultado é um
-            diagnóstico inicial baseado
-            nas informações fornecidas.
-            Quando algum ponto não puder
-            ser confirmado, ele será
-            tratado como informação a
-            validar e não como falha
-            automática.
+            O resultado é um diagnóstico inicial baseado nas informações fornecidas. Quando algo não puder ser confirmado, será tratado como ponto a validar.
           </span>
         </div>
       </div>
 
       {isSubmitting && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/72 px-4 backdrop-blur-[2px]"
-          role="status"
-          aria-live="polite"
-          aria-label="Preparando seu diagnóstico"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-teal-500/20 bg-slate-900/95 p-7 text-center shadow-2xl shadow-slate-950/60">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-teal-500/20 bg-teal-500/10">
-              <Loader2
-                className="animate-spin text-teal-300"
-                size={24}
-              />
-            </div>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/72 px-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-2xl border border-teal-500/20 bg-slate-900/95 p-7 text-center">
+            <Loader2
+              className="mx-auto animate-spin text-teal-300"
+              size={28}
+            />
 
             <h3 className="mt-4 text-lg font-bold text-white">
               Preparando seu diagnóstico
             </h3>
 
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              Estamos relacionando suas
-              respostas para identificar
-              quais pontos merecem mais
-              atenção no seu ambiente.
+            <p className="mt-2 text-sm text-slate-400">
+              Estamos relacionando suas respostas para identificar quais pontos merecem mais atenção.
             </p>
           </div>
         </div>

@@ -97,6 +97,7 @@ interface SavePayload {
   publicToken: string;
   answers: Record<string, unknown>;
   currentStep?: number;
+  methodologyVersion?: string | null;
 }
 
 interface CompletePayload {
@@ -284,7 +285,7 @@ function displayNumber(
    TRADUÇÕES
 ========================================================= */
 
-const labels: Record<
+const genericLabels: Record<
   string,
   string
 > = {
@@ -295,7 +296,7 @@ const labels: Record<
   none: "Nenhum",
   isp: "Equipamento da operadora",
   router:
-    "Roteador / firewall básico",
+    "Roteador / firewall tradicional",
   utm: "UTM",
   ngfw: "NGFW",
   managed_ngfw:
@@ -309,16 +310,16 @@ const labels: Record<
   partial: "Parcialmente",
 
   reactive_it:
-    "Equipe de TI verifica quando necessário",
+    "A TI verifica quando aparece um problema",
 
   outsourced_it:
-    "TI terceirizada",
+    "Empresa terceirizada acompanha",
 
   security_team:
-    "Equipe dedicada de segurança",
+    "Equipe especializada de segurança",
 
   soc:
-    "SOC / monitoramento contínuo",
+    "Acompanhamento contínuo / SOC",
 
   basic_av:
     "Antivírus básico",
@@ -330,7 +331,7 @@ const labels: Record<
     "EDR / XDR",
 
   managed_edr:
-    "EDR gerenciado",
+    "EDR / XDR gerenciado",
 
   manual:
     "Backup manual",
@@ -345,16 +346,91 @@ const labels: Record<
     "Múltiplas cópias",
 
   managed:
-    "Backup gerenciado",
+    "Gerenciado",
 
-  regular:
-    "Testes regulares",
+  internal:
+    "Equipe interna",
 
-  once:
-    "Já foi testado",
+  outsourced:
+    "Empresa terceirizada",
 
-  never:
-    "Nunca testado",
+  shared:
+    "Equipe interna + terceirizada",
+
+  unmanaged:
+    "Sem responsável definido",
+
+  nobody:
+    "Ninguém claramente responsável",
+
+  periodic:
+    "Relatórios / acompanhamento periódico",
+
+  on_demand:
+    "Apenas quando solicitado",
+
+  incident_only:
+    "Principalmente quando ocorre problema",
+
+  managed_soc:
+    "Equipe especializada acompanha e responde",
+
+  defined_team:
+    "Responsável ou equipe definida",
+
+  alerts_only:
+    "Alertas vistos quando necessário",
+
+  immutable:
+    "Cópia protegida contra alteração",
+
+  isolated:
+    "Cópia separada ou offline",
+
+  separate_account:
+    "Administração separada",
+
+  same_environment:
+    "Mesmo ambiente ou credenciais",
+
+  corporate_central:
+    "Dados corporativos centralizados",
+
+  mixed:
+    "Dados distribuídos entre vários locais",
+
+  endpoints:
+    "Principalmente nos computadores",
+
+  personal_cloud:
+    "Contas pessoais ou locais não gerenciados",
+
+  saas_only:
+    "Principalmente em sistemas na nuvem",
+
+  advanced:
+    "Proteção avançada",
+
+  standard:
+    "Proteção adicional",
+
+  basic:
+    "Proteção básica",
+
+  continuous:
+    "Acompanhamento contínuo",
+
+  occasional:
+    "Verificação ocasional",
+
+  reactive:
+    "Somente quando aparece problema",
+
+  formal:
+    "Processo definido",
+
+  informal:
+    "Processo informal",
 
   "4h":
     "Até 4 horas",
@@ -370,12 +446,6 @@ const labels: Record<
 
   more:
     "Mais de 2 dias",
-
-  formal:
-    "Sim, existe processo definido",
-
-  informal:
-    "Processo informal",
 };
 
 function translate(
@@ -393,13 +463,394 @@ function translate(
     String(value);
 
   return (
-    labels[key] ||
+    genericLabels[key] ||
     key
   );
 }
 
+function translateFirewallManagement(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    internal:
+      "Equipe interna",
+
+    outsourced:
+      "Empresa terceirizada",
+
+    shared:
+      "Equipe interna + terceirizada",
+
+    isp:
+      "Operadora",
+
+    unmanaged:
+      "Sem responsável definido",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateFirewallReporting(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    periodic:
+      "Relatórios ou acompanhamento periódico",
+
+    on_demand:
+      "Apenas quando solicitado",
+
+    incident_only:
+      "Normalmente só quando ocorre problema",
+
+    none:
+      "Não recebe acompanhamento",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateMonitoring24x7(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    yes:
+      "Sim",
+
+    partial:
+      "Apenas em alguns horários",
+
+    no:
+      "Não",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateEndpointResponse(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    managed_soc:
+      "Equipe especializada acompanha e responde",
+
+    defined_team:
+      "Responsável ou equipe definida",
+
+    alerts_only:
+      "Alertas vistos quando necessário",
+
+    none:
+      "Sem acompanhamento dos alertas",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateInventory(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    managed:
+      "Atualizado e gerenciado",
+
+    partial:
+      "Existe, mas pode estar incompleto",
+
+    informal:
+      "Controle informal",
+
+    none:
+      "Não existe inventário",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateVulnerability(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    continuous:
+      "Acompanhamento contínuo",
+
+    regular:
+      "Verificação periódica",
+
+    occasional:
+      "Verificação ocasional",
+
+    reactive:
+      "Somente quando aparece problema",
+
+    none:
+      "Não existe processo",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateBackupResponsibility(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    internal:
+      "Equipe interna",
+
+    outsourced:
+      "Empresa terceirizada",
+
+    shared:
+      "Equipe interna + terceirizada",
+
+    nobody:
+      "Ninguém claramente responsável",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateDataLocation(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    corporate_central:
+      "Dados corporativos centralizados",
+
+    mixed:
+      "Dados distribuídos entre vários locais",
+
+    endpoints:
+      "Principalmente nos computadores",
+
+    personal_cloud:
+      "Contas pessoais ou locais não gerenciados",
+
+    saas_only:
+      "Principalmente em sistemas na nuvem",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateBackupIsolation(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    immutable:
+      "Cópia protegida contra alteração",
+
+    isolated:
+      "Cópia separada ou offline",
+
+    separate_account:
+      "Administração separada",
+
+    same_environment:
+      "Mesmo ambiente ou credenciais",
+
+    none:
+      "Sem cópia separada",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateRestoreTests(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    regular:
+      "Testes periódicos",
+
+    once:
+      "Já foi testado alguma vez",
+
+    never:
+      "Nunca foi testado",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateOperationalImpact(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    low:
+      "Operação continua quase normalmente",
+
+    partial:
+      "Parte da empresa ficaria parada",
+
+    major:
+      "A maior parte da empresa ficaria parada",
+
+    halt:
+      "A operação praticamente pararia",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
+function translateEndpointLevel(
+  value: unknown,
+): string {
+  const labels: Record<
+    string,
+    string
+  > = {
+    none:
+      "Sem proteção padronizada",
+
+    basic_av:
+      "Antivírus básico",
+
+    business_av:
+      "Antivírus corporativo",
+
+    edr:
+      "EDR / XDR",
+
+    managed_edr:
+      "EDR / XDR gerenciado",
+
+    unknown:
+      "Não sei informar",
+  };
+
+  return (
+    labels[
+      String(value ?? "")
+    ] ||
+    translate(value)
+  );
+}
+
 /* =========================================================
-   DOMÍNIOS
+   DOMÍNIOS E BRIEFING INTERNO V4.1
 ========================================================= */
 
 function domainLabel(
@@ -439,143 +890,415 @@ function domainLabel(
   );
 }
 
-interface DomainScore {
-  key: string;
-  label: string;
-  score: number;
+function publicDomainLabel(
+  domain: unknown,
+): string {
+  const value =
+    String(domain || "")
+      .trim()
+      .toLowerCase();
+
+  const domains: Record<
+    string,
+    string
+  > = {
+    network:
+      "Internet e rede",
+
+    endpoint:
+      "Computadores",
+
+    endpoints:
+      "Computadores",
+
+    backup:
+      "Dados e backup",
+
+    continuity:
+      "Dados e backup",
+
+    identity:
+      "Contas e acessos",
+  };
+
+  return (
+    domains[value] ||
+    displayValue(domain)
+  );
 }
 
 function normalizeScore(
   value: unknown,
-): number {
+): number | null {
   const score =
     Number(value);
 
   if (
     !Number.isFinite(score)
   ) {
-    return 0;
+    return null;
   }
 
   return Math.max(
     0,
-    Math.min(100, score),
+    Math.min(100, Math.round(score)),
   );
 }
 
-function getDomainScores(
-  assessment: Record<
-    string,
-    unknown
-  >,
-): DomainScore[] {
-  return [
-    {
-      key: "network",
-      label:
-        "Rede e Perímetro",
-      score:
-        normalizeScore(
-          assessment.network_score,
-        ),
-    },
+function scoreLabel(
+  value: unknown,
+): string {
+  const score =
+    normalizeScore(value);
 
-    {
-      key: "endpoint",
-      label:
-        "Endpoints",
-      score:
-        normalizeScore(
-          assessment.endpoint_score,
-        ),
-    },
-
-    {
-      key: "backup",
-      label:
-        "Backup e Continuidade",
-      score:
-        normalizeScore(
-          assessment.continuity_score,
-        ),
-    },
-
-    {
-      key: "identity",
-      label:
-        "Identidade e Acesso",
-      score:
-        normalizeScore(
-          assessment.identity_score,
-        ),
-    },
-  ];
+  return score === null
+    ? "Não avaliado"
+    : `${score}/100`;
 }
 
 function maturityLabel(
-  score: number,
+  score: number | null,
 ): string {
-  if (score <= 25) {
-    return "maturidade muito baixa";
+  if (score === null) {
+    return "Não avaliado";
   }
 
-  if (score <= 50) {
-    return "maturidade básica";
+  if (score >= 80) {
+    return "Avançada";
   }
 
-  if (score <= 75) {
-    return "maturidade intermediária";
+  if (score >= 65) {
+    return "Adequada";
   }
 
-  return "maior maturidade relativa";
+  if (score >= 45) {
+    return "Intermediária";
+  }
+
+  if (score >= 25) {
+    return "Básica";
+  }
+
+  return "Muito baixa";
 }
 
-function buildExecutiveReading(
-  assessment: Record<
-    string,
-    unknown
-  >,
+function money(
+  value: unknown,
+): string {
+  const number =
+    Number(value);
+
+  if (!Number.isFinite(number)) {
+    return "Não informado";
+  }
+
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
+      maximumFractionDigits: 0,
+    },
+  ).format(number);
+}
+
+function getCalculatedResult(
+  responseData: {
+    calculated_result?: unknown;
+  } | null | undefined,
+): Record<string, unknown> {
+  return getObject(
+    responseData?.calculated_result,
+  );
+}
+
+function getArray(
+  value: unknown,
+): unknown[] {
+  return Array.isArray(value)
+    ? value
+    : [];
+}
+
+function readNestedObject(
+  object: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
+  return getObject(
+    object[key],
+  );
+}
+
+function readinessText(
+  value: unknown,
 ): {
-  priority: DomainScore;
-  second: DomainScore;
-  strongest: DomainScore;
-  text: string;
+  answered: number;
+  total: number;
+  percentage: number;
+  missing: string[];
 } {
-  const domains =
-    getDomainScores(
-      assessment,
-    );
+  const object =
+    getObject(value);
 
-  const ordered =
-    [...domains].sort(
-      (a, b) =>
-        a.score - b.score,
-    );
+  const answered =
+    getNumber(
+      object,
+      ["answered"],
+    ) ?? 0;
 
-  const priority =
-    ordered[0];
+  const total =
+    getNumber(
+      object,
+      ["total"],
+    ) ?? 0;
 
-  const second =
-    ordered[1];
+  const percentage =
+    getNumber(
+      object,
+      ["percentage"],
+    ) ?? 0;
 
-  const strongest =
-    ordered[
-      ordered.length - 1
-    ];
-
-  const text =
-    `O diagnóstico indica que ` +
-    `${priority.label} é o domínio que mais merece atenção neste momento, com ${priority.score}/100 e ${maturityLabel(priority.score)}. ` +
-    `Na sequência aparece ${second.label}, com ${second.score}/100. ` +
-    `${strongest.label} apresentou a maior maturidade relativa entre os controles avaliados, com ${strongest.score}/100. ` +
-    `Esses resultados devem ser utilizados como ponto de partida para validar o contexto do cliente e definir quais riscos merecem aprofundamento primeiro.`;
+  const missing =
+    Array.isArray(
+      object.missing,
+    )
+      ? object.missing
+          .filter(
+            (item) =>
+              typeof item ===
+              "string",
+          )
+          .map(String)
+      : [];
 
   return {
-    priority,
-    second,
-    strongest,
-    text,
+    answered,
+    total,
+    percentage,
+    missing,
   };
+}
+
+function readinessBadge(
+  label: string,
+  readiness: {
+    answered: number;
+    total: number;
+    percentage: number;
+    missing: string[];
+  },
+): string {
+  const status =
+    readiness.percentage >= 85
+      ? "Pronto para pré-dimensionamento"
+      : readiness.percentage >= 60
+        ? "Pré-dimensionável com confirmações"
+        : "Ainda faltam dados importantes";
+
+  const color =
+    readiness.percentage >= 85
+      ? "#047857"
+      : readiness.percentage >= 60
+        ? "#0e7490"
+        : "#b45309";
+
+  const bg =
+    readiness.percentage >= 85
+      ? "#ecfdf5"
+      : readiness.percentage >= 60
+        ? "#ecfeff"
+        : "#fffbeb";
+
+  return `
+    <div style="
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      padding:15px;
+      margin-bottom:12px;
+    ">
+      <div style="
+        font-size:15px;
+        font-weight:700;
+        color:#0f172a;
+      ">
+        ${escapeHtml(label)}
+      </div>
+
+      <div style="
+        display:inline-block;
+        margin-top:8px;
+        padding:4px 9px;
+        border-radius:999px;
+        font-size:11px;
+        font-weight:700;
+        color:${color};
+        background:${bg};
+        border:1px solid #e2e8f0;
+      ">
+        ${readiness.answered}/${readiness.total} dados · ${Math.round(readiness.percentage)}%
+      </div>
+
+      <div style="
+        margin-top:8px;
+        font-size:12px;
+        color:#475569;
+      ">
+        ${escapeHtml(status)}
+      </div>
+
+      <div style="
+        margin-top:8px;
+        font-size:12px;
+        line-height:1.55;
+        color:#64748b;
+      ">
+        <strong>Confirmar:</strong>
+        ${
+          readiness.missing.length
+            ? escapeHtml(
+                readiness.missing.join(", "),
+              )
+            : "Nenhuma pendência essencial identificada."
+        }
+      </div>
+    </div>
+  `;
+}
+
+function findingCard(
+  finding: unknown,
+  index: number,
+): string {
+  const item =
+    getObject(finding);
+
+  return `
+    <div style="
+      border:1px solid #e2e8f0;
+      border-radius:10px;
+      padding:14px;
+      margin-bottom:12px;
+    ">
+      <div style="
+        font-size:11px;
+        color:#0f766e;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:.08em;
+      ">
+        #${index + 1}
+        ·
+        ${escapeHtml(
+          displayValue(
+            item.domain,
+          ),
+        )}
+        ·
+        ${escapeHtml(
+          displayValue(
+            item.severity,
+          ),
+        )}
+      </div>
+
+      <div style="
+        margin-top:5px;
+        font-size:15px;
+        font-weight:700;
+        color:#0f172a;
+      ">
+        ${escapeHtml(
+          displayValue(
+            item.title,
+          ),
+        )}
+      </div>
+
+      <p style="
+        margin:8px 0 0;
+        font-size:13px;
+        line-height:1.55;
+        color:#334155;
+      ">
+        <strong>Situação:</strong>
+        ${escapeHtml(
+          displayValue(
+            item.situation,
+          ),
+        )}
+      </p>
+
+      <p style="
+        margin:6px 0 0;
+        font-size:13px;
+        line-height:1.55;
+        color:#334155;
+      ">
+        <strong>Impacto:</strong>
+        ${escapeHtml(
+          displayValue(
+            item.consequence,
+          ),
+        )}
+      </p>
+
+      <p style="
+        margin:6px 0 0;
+        font-size:12px;
+        line-height:1.55;
+        color:#64748b;
+      ">
+        <strong>Ponto técnico:</strong>
+        ${escapeHtml(
+          displayValue(
+            item.technical,
+          ),
+        )}
+      </p>
+    </div>
+  `;
+}
+
+function criticalRuleCard(
+  rule: unknown,
+): string {
+  const item =
+    getObject(rule);
+
+  return `
+    <div style="
+      border-left:4px solid #f59e0b;
+      background:#fffbeb;
+      padding:11px 13px;
+      margin-bottom:9px;
+      border-radius:7px;
+    ">
+      <div style="
+        font-size:13px;
+        font-weight:700;
+        color:#92400e;
+      ">
+        ${escapeHtml(
+          displayValue(
+            item.title,
+          ),
+        )}
+      </div>
+
+      <div style="
+        margin-top:3px;
+        font-size:12px;
+        line-height:1.5;
+        color:#78350f;
+      ">
+        ${escapeHtml(
+          displayValue(
+            item.reason,
+          ),
+        )}
+      </div>
+    </div>
+  `;
 }
 
 /* =========================================================
@@ -724,10 +1447,6 @@ async function sendAssessmentNotification(
     ) ||
     "Concierge Security Assessment <onboarding@resend.dev>";
 
-  /* =======================================================
-     ASSESSMENT
-  ======================================================= */
-
   const {
     data: assessment,
     error: assessmentError,
@@ -776,10 +1495,6 @@ async function sendAssessmentNotification(
     };
   }
 
-  /* =======================================================
-     RESPOSTAS COMPLETAS
-  ======================================================= */
-
   const {
     data: responseData,
     error: responseError,
@@ -808,9 +1523,15 @@ async function sendAssessmentNotification(
       responseData?.answers,
     );
 
-  /* =======================================================
-     AM
-  ======================================================= */
+  const calculated =
+    getCalculatedResult(
+      responseData,
+    );
+
+  const scoringSnapshot =
+    getObject(
+      calculated.scoringSnapshot,
+    );
 
   if (
     !assessment
@@ -854,10 +1575,6 @@ async function sendAssessmentNotification(
         "manager_not_found",
     };
   }
-
-  /* =======================================================
-     IDEMPOTÊNCIA
-  ======================================================= */
 
   const {
     data: existingNotification,
@@ -963,10 +1680,6 @@ async function sendAssessmentNotification(
         ?.attempts || 0
     ) + 1;
 
-  /* =======================================================
-     DADOS PRINCIPAIS
-  ======================================================= */
-
   const companyName =
     assessment.company_name ||
     getString(
@@ -1011,16 +1724,24 @@ async function sendAssessmentNotification(
     ) ??
     assessment.users_count;
 
+  const devices =
+    getNumber(
+      answers,
+      ["endpointCount", "devices"],
+    );
+
+  const servers =
+    getNumber(
+      answers,
+      ["servers"],
+    );
+
   const sites =
     getNumber(
       answers,
       ["sites"],
     ) ??
     assessment.units_count;
-
-  /* =======================================================
-     LINKS
-  ======================================================= */
 
   const links =
     Array.isArray(
@@ -1053,10 +1774,6 @@ async function sendAssessmentNotification(
       .filter(Boolean)
       .join(" + ");
 
-  /* =======================================================
-     SISTEMAS CRÍTICOS
-  ======================================================= */
-
   const criticalSystems =
     Array.isArray(
       answers.criticalSystems,
@@ -1072,27 +1789,192 @@ async function sendAssessmentNotification(
           .join(", ")
       : "";
 
-  /* =======================================================
-     LEITURA EXECUTIVA
-  ======================================================= */
+  const priorityDomain =
+    getString(
+      calculated,
+      ["priorityDomain"],
+    ) ||
+    getString(
+      calculated,
+      ["priority"],
+    ) ||
+    assessment.priority_domain ||
+    null;
 
-  const executive =
-    buildExecutiveReading(
-      assessment as Record<
-        string,
-        unknown
-      >,
-    );
+  const contextualPriority =
+    getString(
+      calculated,
+      ["contextualPriority"],
+    ) ||
+    getString(
+      scoringSnapshot,
+      ["contextualPriority"],
+    ) ||
+    priorityDomain;
 
-  const translatedPriority =
+  const contextualPriorityLabel =
+    getString(
+      calculated,
+      ["contextualPriorityLabel"],
+    ) ||
+    getString(
+      scoringSnapshot,
+      ["contextualPriorityLabel"],
+    ) ||
     domainLabel(
-      assessment
-        .priority_domain,
+      contextualPriority,
     );
 
-  /* =======================================================
-     TESTE
-  ======================================================= */
+  const priorityLevel =
+    getString(
+      calculated,
+      ["priorityLevel"],
+    ) ||
+    getString(
+      scoringSnapshot,
+      ["priorityLevel"],
+    ) ||
+    "Não informado";
+
+  const findings =
+    getArray(
+      calculated.findings,
+    ).length
+      ? getArray(
+          calculated.findings,
+        )
+      : getArray(
+          scoringSnapshot.findings,
+        );
+
+  const topFindings =
+    findings.slice(0, 3);
+
+  const criticalRules =
+    getArray(
+      calculated.criticalRules,
+    ).length
+      ? getArray(
+          calculated.criticalRules,
+        )
+      : getArray(
+          scoringSnapshot.criticalRules,
+        );
+
+  const commercialReadiness =
+    readNestedObject(
+      calculated,
+      "commercialReadiness",
+    );
+
+  const readinessSource =
+    Object.keys(
+      commercialReadiness,
+    ).length
+      ? commercialReadiness
+      : readNestedObject(
+          scoringSnapshot,
+          "commercialReadiness",
+        );
+
+  const firewallReadiness =
+    readinessText(
+      readinessSource.firewall,
+    );
+
+  const endpointReadiness =
+    readinessText(
+      readinessSource.endpoint,
+    );
+
+  const backupReadiness =
+    readinessText(
+      readinessSource.backup,
+    );
+
+  const opportunityFit =
+    readNestedObject(
+      calculated,
+      "opportunityFit",
+    );
+
+  const opportunitySource =
+    Object.keys(
+      opportunityFit,
+    ).length
+      ? opportunityFit
+      : readNestedObject(
+          scoringSnapshot,
+          "opportunityFit",
+        );
+
+  const opportunityNotes =
+    readNestedObject(
+      calculated,
+      "opportunityNotes",
+    );
+
+  const opportunityNotesSource =
+    Object.keys(
+      opportunityNotes,
+    ).length
+      ? opportunityNotes
+      : readNestedObject(
+          scoringSnapshot,
+          "opportunityNotes",
+        );
+
+  const dimensioningSnapshot =
+    readNestedObject(
+      calculated,
+      "dimensioningSnapshot",
+    );
+
+  const dimensioningSource =
+    Object.keys(
+      dimensioningSnapshot,
+    ).length
+      ? dimensioningSnapshot
+      : readNestedObject(
+          scoringSnapshot,
+          "dimensioningSnapshot",
+        );
+
+  const firewallSnapshot =
+    getObject(
+      dimensioningSource.firewall,
+    );
+
+  const endpointSnapshot =
+    getObject(
+      dimensioningSource.endpoint,
+    );
+
+  const backupSnapshot =
+    getObject(
+      dimensioningSource.backup,
+    );
+
+  const impactRangeRaw =
+    Array.isArray(
+      calculated.impactRange,
+    )
+      ? calculated.impactRange
+      : Array.isArray(
+          scoringSnapshot.impactRange,
+        )
+        ? scoringSnapshot.impactRange
+        : [];
+
+  const impactLow =
+    Number(
+      impactRangeRaw[0],
+    );
+
+  const impactHigh =
+    Number(
+      impactRangeRaw[1],
+    );
 
   const intendedRecipientNotice =
     testEmailOverride
@@ -1118,41 +2000,70 @@ async function sendAssessmentNotification(
       `
       : "";
 
-  /* =======================================================
-     HTML
-  ======================================================= */
+  const firewallFit =
+    getNumber(
+      opportunitySource,
+      ["firewall"],
+    );
+
+  const endpointFit =
+    getNumber(
+      opportunitySource,
+      ["endpoint"],
+    );
+
+  const backupFit =
+    getNumber(
+      opportunitySource,
+      ["backup"],
+    );
+
+  const strongestCommercial =
+    [
+      {
+        label:
+          "Firewall / Rede",
+        value:
+          firewallFit ?? 0,
+      },
+      {
+        label:
+          "Endpoint",
+        value:
+          endpointFit ?? 0,
+      },
+      {
+        label:
+          "Backup",
+        value:
+          backupFit ?? 0,
+      },
+    ].sort(
+      (a, b) =>
+        b.value - a.value,
+    )[0];
 
   const html = `
     <!doctype html>
-
     <html lang="pt-BR">
-
       <body style="
         margin:0;
         padding:0;
         background:#f1f5f9;
-        font-family:
-          Arial,
-          Helvetica,
-          sans-serif;
+        font-family:Arial,Helvetica,sans-serif;
         color:#0f172a;
       ">
-
         <div style="
           max-width:760px;
           margin:0 auto;
           padding:32px 16px;
         ">
-
-          <!-- CABEÇALHO -->
-
           <div style="
             background:#0f172a;
             border-radius:14px 14px 0 0;
             padding:30px 34px;
             color:#ffffff;
           ">
-
             <div style="
               font-size:11px;
               letter-spacing:1.6px;
@@ -1177,14 +2088,9 @@ async function sendAssessmentNotification(
               font-size:14px;
               line-height:1.6;
             ">
-              Um novo diagnóstico foi
-              concluído e está disponível
-              para análise comercial.
+              Briefing interno para preparar a próxima conversa.
             </p>
-
           </div>
-
-          <!-- CORPO -->
 
           <div style="
             background:#ffffff;
@@ -1193,17 +2099,12 @@ async function sendAssessmentNotification(
             border:1px solid #e2e8f0;
             border-top:0;
           ">
-
-            <!-- EMPRESA -->
-
             <h2 style="
               margin:0;
               font-size:22px;
               line-height:1.3;
             ">
-              ${escapeHtml(
-                companyName,
-              )}
+              ${escapeHtml(companyName)}
             </h2>
 
             <p style="
@@ -1211,100 +2112,70 @@ async function sendAssessmentNotification(
               color:#64748b;
               font-size:13px;
             ">
-              ${escapeHtml(
-                sector,
-              )}
+              ${escapeHtml(sector)}
             </p>
 
-            <!-- SCORE PRINCIPAL -->
-
             <div style="
-              background:#f8fafc;
-              border:1px solid #e2e8f0;
+              border:1px solid #ccfbf1;
+              background:#f0fdfa;
               border-radius:12px;
-              padding:22px;
+              padding:18px;
             ">
-
               <div style="
                 font-size:11px;
-                color:#64748b;
                 text-transform:uppercase;
-                letter-spacing:1.2px;
+                letter-spacing:.09em;
+                color:#0f766e;
                 font-weight:700;
               ">
-                Resumo executivo
+                Leitura interna
               </div>
 
               <div style="
-                margin-top:14px;
-                font-size:15px;
-                line-height:1.9;
+                margin-top:8px;
+                font-size:18px;
+                font-weight:700;
+                color:#0f172a;
               ">
-
-                <strong>
-                  Score geral:
-                </strong>
-
+                Prioridade técnica contextual:
                 ${escapeHtml(
-                  displayValue(
-                    assessment
-                      .overall_score,
-                  ),
-                )}/100
-
-                <br/>
-
-                <strong>
-                  Principal ponto de atenção:
-                </strong>
-
-                ${escapeHtml(
-                  translatedPriority,
+                  contextualPriorityLabel,
                 )}
-
-                <br/>
-
-                <strong>
-                  Cobertura da avaliação:
-                </strong>
-
-                ${escapeHtml(
-                  displayValue(
-                    assessment
-                      .coverage_percent,
-                  ),
-                )}%
-
               </div>
 
+              <div style="
+                margin-top:7px;
+                font-size:13px;
+                line-height:1.6;
+                color:#475569;
+              ">
+                Prioridade pública do relatório:
+                <strong>
+                  ${escapeHtml(
+                    publicDomainLabel(
+                      priorityDomain,
+                    ),
+                  )}
+                </strong>
+                ·
+                Nível interno:
+                <strong>
+                  ${escapeHtml(priorityLevel)}
+                </strong>
+              </div>
+
+              <div style="
+                margin-top:9px;
+                font-size:12px;
+                line-height:1.6;
+                color:#64748b;
+              ">
+                A prioridade técnica contextual considera risco e contexto. A aderência comercial indica onde a abordagem pode ser mais prática. Nenhuma delas altera o score mostrado ao cliente.
+              </div>
             </div>
 
-            <!-- LEITURA EXECUTIVA -->
-
             ${sectionTitle(
-              "Leitura do diagnóstico",
-            )}
-
-            <div style="
-              background:#f0fdfa;
-              border:1px solid #99f6e4;
-              border-radius:12px;
-              padding:20px;
-              font-size:14px;
-              line-height:1.8;
-              color:#134e4a;
-            ">
-
-              ${escapeHtml(
-                executive.text,
-              )}
-
-            </div>
-
-            <!-- ORDEM DE ATENÇÃO -->
-
-            ${sectionTitle(
-              "Ordem de atenção",
+              "Empresa e contato",
             )}
 
             <table
@@ -1316,90 +2187,6 @@ async function sendAssessmentNotification(
                 font-size:14px;
               "
             >
-
-              ${emailRow(
-                "1. Prioridade de atenção",
-                `${executive.priority.label} · ${executive.priority.score}/100`,
-              )}
-
-              ${emailRow(
-                "2. Segundo ponto de atenção",
-                `${executive.second.label} · ${executive.second.score}/100`,
-              )}
-
-              ${emailRow(
-                "Controle com maior maturidade",
-                `${executive.strongest.label} · ${executive.strongest.score}/100`,
-              )}
-
-            </table>
-
-            <!-- MATURIDADE -->
-
-            ${sectionTitle(
-              "Maturidade por domínio",
-            )}
-
-            <table
-              width="100%"
-              cellpadding="0"
-              cellspacing="0"
-              style="
-                border-collapse:collapse;
-                font-size:14px;
-              "
-            >
-
-              ${emailRow(
-                "Rede e Perímetro",
-                `${displayValue(
-                  assessment
-                    .network_score,
-                )}/100`,
-              )}
-
-              ${emailRow(
-                "Endpoints",
-                `${displayValue(
-                  assessment
-                    .endpoint_score,
-                )}/100`,
-              )}
-
-              ${emailRow(
-                "Backup e Continuidade",
-                `${displayValue(
-                  assessment
-                    .continuity_score,
-                )}/100`,
-              )}
-
-              ${emailRow(
-                "Identidade e Acesso",
-                `${displayValue(
-                  assessment
-                    .identity_score,
-                )}/100`,
-              )}
-
-            </table>
-
-            <!-- CONTATO -->
-
-            ${sectionTitle(
-              "Contato e contexto da empresa",
-            )}
-
-            <table
-              width="100%"
-              cellpadding="0"
-              cellspacing="0"
-              style="
-                border-collapse:collapse;
-                font-size:14px;
-              "
-            >
-
               ${emailRow(
                 "Contato",
                 contactName,
@@ -1416,61 +2203,28 @@ async function sendAssessmentNotification(
               )}
 
               ${emailRow(
-                "Usuários do ambiente",
+                "Usuários",
                 users,
               )}
 
               ${emailRow(
-                "Dispositivos",
-                answers.devices,
+                "Computadores / notebooks",
+                devices,
               )}
 
               ${emailRow(
-                "Equipe interna de TI",
-                answers.itTeamSize,
+                "Servidores",
+                servers,
               )}
 
               ${emailRow(
-                "Unidades / filiais",
+                "Unidades",
                 sites,
               )}
-
             </table>
 
-            <!-- DIVISOR -->
-
-            <div style="
-              margin:32px 0;
-              border-top:2px solid #e2e8f0;
-            "></div>
-
-            <div style="
-              font-size:11px;
-              letter-spacing:1.5px;
-              text-transform:uppercase;
-              font-weight:700;
-              color:#475569;
-              margin-bottom:4px;
-            ">
-              Informações para aprofundamento
-            </div>
-
-            <p style="
-              margin:4px 0 0;
-              font-size:13px;
-              line-height:1.6;
-              color:#64748b;
-            ">
-              Dados declarados pelo cliente
-              que podem apoiar qualificação,
-              dimensionamento e preparação
-              da próxima conversa.
-            </p>
-
-            <!-- REDE -->
-
             ${sectionTitle(
-              "Rede e Perímetro",
+              "Indicadores técnicos",
             )}
 
             <table
@@ -1482,86 +2236,292 @@ async function sendAssessmentNotification(
                 font-size:14px;
               "
             >
-
               ${emailRow(
-                "Proteção de internet",
-                translate(
-                  answers
-                    .firewallLevel,
+                "Indicador geral",
+                scoreLabel(
+                  assessment.overall_score,
                 ),
               )}
 
               ${emailRow(
-                "Fabricante",
-                answers
-                  .firewallVendor,
-              )}
-
-              ${emailRow(
-                "Modelo",
-                answers
-                  .firewallModel,
-              )}
-
-              ${emailRow(
-                "Licenciamento ativo",
-                translate(
-                  answers
-                    .firewallLicense,
+                "Classificação geral",
+                maturityLabel(
+                  normalizeScore(
+                    assessment.overall_score,
+                  ),
                 ),
               )}
 
               ${emailRow(
-                "Monitoramento",
-                translate(
-                  answers
-                    .monitoring,
+                "Internet e rede",
+                scoreLabel(
+                  assessment.network_score,
                 ),
               )}
 
               ${emailRow(
-                "Quantidade de links",
-                answers
-                  .internetLinkCount,
+                "Computadores",
+                scoreLabel(
+                  assessment.endpoint_score,
+                ),
               )}
 
               ${emailRow(
-                "Velocidades",
+                "Dados e backup",
+                scoreLabel(
+                  assessment.continuity_score,
+                ),
+              )}
+
+              ${emailRow(
+                "Contas e acessos",
+                scoreLabel(
+                  assessment.identity_score,
+                ),
+              )}
+
+              ${emailRow(
+                "Cobertura",
+                `${displayValue(
+                  assessment.coverage_percent,
+                )}%`,
+              )}
+            </table>
+
+            ${sectionTitle(
+              "3 achados que mais importam",
+            )}
+
+            ${
+              topFindings.length
+                ? topFindings
+                    .map(
+                      (finding, index) =>
+                        findingCard(
+                          finding,
+                          index,
+                        ),
+                    )
+                    .join("")
+                : `
+                  <p style="
+                    font-size:13px;
+                    color:#64748b;
+                  ">
+                    Nenhum achado prioritário foi registrado.
+                  </p>
+                `
+            }
+
+            ${sectionTitle(
+              "Regras críticas acionadas",
+            )}
+
+            ${
+              criticalRules.length
+                ? criticalRules
+                    .map(
+                      (rule) =>
+                        criticalRuleCard(
+                          rule,
+                        ),
+                    )
+                    .join("")
+                : `
+                  <p style="
+                    font-size:13px;
+                    color:#64748b;
+                  ">
+                    Nenhuma regra crítica adicional foi acionada.
+                  </p>
+                `
+            }
+
+            ${sectionTitle(
+              "Preparação comercial",
+            )}
+
+            <div style="
+              background:#f8fafc;
+              border:1px solid #e2e8f0;
+              border-radius:12px;
+              padding:16px;
+              margin-bottom:14px;
+            ">
+              <div style="
+                font-size:12px;
+                color:#64748b;
+              ">
+                Frente comercial com maior aderência
+              </div>
+
+              <div style="
+                margin-top:4px;
+                font-size:18px;
+                font-weight:700;
+                color:#0f172a;
+              ">
+                ${escapeHtml(
+                  strongestCommercial.label,
+                )}
+                ·
+                ${strongestCommercial.value}/100
+              </div>
+            </div>
+
+            ${readinessBadge(
+              "Firewall / Rede",
+              firewallReadiness,
+            )}
+
+            ${readinessBadge(
+              "Endpoint",
+              endpointReadiness,
+            )}
+
+            ${readinessBadge(
+              "Backup",
+              backupReadiness,
+            )}
+
+            ${sectionTitle(
+              "Firewall / Rede · dados para reunião",
+            )}
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              style="
+                border-collapse:collapse;
+                font-size:14px;
+              "
+            >
+              ${emailRow(
+                "Usuários",
+                getNumber(
+                  firewallSnapshot,
+                  ["users"],
+                ) ?? users,
+              )}
+
+              ${emailRow(
+                "Dispositivos",
+                getNumber(
+                  firewallSnapshot,
+                  ["devices"],
+                ) ?? devices,
+              )}
+
+              ${emailRow(
+                "Unidades",
+                getNumber(
+                  firewallSnapshot,
+                  ["sites"],
+                ) ?? sites,
+              )}
+
+              ${emailRow(
+                "Links",
                 linkSpeeds ||
                   "Não informado",
               )}
 
               ${emailRow(
-                "Perfil de uso",
-                translate(
-                  answers
-                    .networkUsage,
+                "Tecnologia atual",
+                getString(
+                  firewallSnapshot,
+                  ["currentTechnology"],
+                ) ||
+                  [
+                    getString(
+                      answers,
+                      ["firewallVendor"],
+                    ),
+                    getString(
+                      answers,
+                      ["firewallModel"],
+                    ),
+                  ]
+                    .filter(Boolean)
+                    .join(" ") ||
+                  translate(
+                    answers.firewallLevel,
+                  ),
+              )}
+
+              ${emailRow(
+                "Gestão",
+                translateFirewallManagement(
+                  getString(
+                    firewallSnapshot,
+                    ["management"],
+                  ) ||
+                    answers.firewallManagement,
                 ),
               )}
 
               ${emailRow(
-                "VPN remota",
-                answers
-                  .vpnRemote,
+                "Relatórios",
+                translateFirewallReporting(
+                  getString(
+                    firewallSnapshot,
+                    ["reporting"],
+                  ) ||
+                    answers.firewallReporting,
+                ),
+              )}
+
+              ${emailRow(
+                "Monitoramento 24x7",
+                translateMonitoring24x7(
+                  getString(
+                    firewallSnapshot,
+                    ["monitoring24x7"],
+                  ) ||
+                    answers.firewallMonitoring24x7,
+                ),
+              )}
+
+              ${emailRow(
+                "Acesso remoto",
+                getNumber(
+                  firewallSnapshot,
+                  ["vpnRemote"],
+                ) ??
+                  answers.vpnRemote,
               )}
 
               ${emailRow(
                 "VPN entre unidades",
-                answers
-                  .vpnSite,
+                getNumber(
+                  firewallSnapshot,
+                  ["vpnSite"],
+                ) ??
+                  answers.vpnSite,
               )}
 
               ${emailRow(
                 "VLANs",
-                answers.vlans,
+                getNumber(
+                  firewallSnapshot,
+                  ["vlans"],
+                ) ??
+                  answers.vlans,
               )}
 
+              ${emailRow(
+                "Observação interna",
+                getString(
+                  opportunityNotesSource,
+                  ["firewall"],
+                ) ||
+                  "Não informado",
+              )}
             </table>
 
-            <!-- ENDPOINT -->
-
             ${sectionTitle(
-              "Dispositivos e Endpoints",
+              "Endpoint · dados para reunião",
             )}
 
             <table
@@ -1573,197 +2533,282 @@ async function sendAssessmentNotification(
                 font-size:14px;
               "
             >
+              ${emailRow(
+                "Quantidade",
+                getNumber(
+                  endpointSnapshot,
+                  ["quantity"],
+                ) ??
+                  devices,
+              )}
 
               ${emailRow(
-                "Proteção atual",
-                translate(
-                  answers
-                    .endpointLevel,
+                "Fabricante",
+                getString(
+                  endpointSnapshot,
+                  ["vendor"],
+                ) ||
+                  answers.endpointVendor,
+              )}
+
+              ${emailRow(
+                "Produto / licença",
+                getString(
+                  endpointSnapshot,
+                  ["product"],
+                ) ||
+                  answers.endpointProduct,
+              )}
+
+              ${emailRow(
+                "Nível efetivo inferido",
+                translateEndpointLevel(
+                  getString(
+                    endpointSnapshot,
+                    ["protectionLevel"],
+                  ) ||
+                    getString(
+                      calculated,
+                      ["effectiveEndpointLevel"],
+                    ),
                 ),
               )}
 
               ${emailRow(
-                "Endpoints",
-                answers
-                  .endpointCount,
+                "Gestão central",
+                translate(
+                  answers.endpointCentralManagement,
+                ),
               )}
 
+              ${emailRow(
+                "Resposta aos alertas",
+                translateEndpointResponse(
+                  getString(
+                    endpointSnapshot,
+                    ["response"],
+                  ) ||
+                    answers.endpointResponse,
+                ),
+              )}
+
+              ${emailRow(
+                "Inventário",
+                translateInventory(
+                  answers.assetInventory,
+                ),
+              )}
+
+              ${emailRow(
+                "Vulnerabilidades",
+                translateVulnerability(
+                  answers.vulnerabilityManagement,
+                ),
+              )}
+
+              ${emailRow(
+                "Observação interna",
+                getString(
+                  opportunityNotesSource,
+                  ["endpoint"],
+                ) ||
+                  "Não informado",
+              )}
+            </table>
+
+            ${sectionTitle(
+              "Backup · dados para reunião",
+            )}
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              style="
+                border-collapse:collapse;
+                font-size:14px;
+              "
+            >
               ${emailRow(
                 "Servidores",
-                answers.servers,
-              )}
-
-              ${emailRow(
-                "Atualizações automáticas",
-                translate(
-                  answers
-                    .autoUpdates,
-                ),
-              )}
-
-              ${emailRow(
-                "Administradores locais",
-                translate(
-                  answers
-                    .localAdmins,
-                ),
-              )}
-
-              ${emailRow(
-                "Uso de equipamento pessoal",
-                translate(
-                  answers.byod,
-                ),
-              )}
-
-            </table>
-
-            <!-- BACKUP -->
-
-            ${sectionTitle(
-              "Backup e Continuidade",
-            )}
-
-            <table
-              width="100%"
-              cellpadding="0"
-              cellspacing="0"
-              style="
-                border-collapse:collapse;
-                font-size:14px;
-              "
-            >
-
-              ${emailRow(
-                "Modelo de backup",
-                translate(
-                  answers
-                    .backupLevel,
-                ),
+                getNumber(
+                  backupSnapshot,
+                  ["servers"],
+                ) ??
+                  servers,
               )}
 
               ${emailRow(
                 "Volume aproximado",
-                displayNumber(
-                  answers
-                    .backupVolumeGb,
-                  " GB",
+                (() => {
+                  const value =
+                    getNumber(
+                      backupSnapshot,
+                      ["volumeGb"],
+                    ) ??
+                    getNumber(
+                      answers,
+                      ["backupVolumeGb"],
+                    );
+
+                  return value
+                    ? `${value} GB`
+                    : "Não informado";
+                })(),
+              )}
+
+              ${emailRow(
+                "Fabricante",
+                getString(
+                  backupSnapshot,
+                  ["vendor"],
+                ) ||
+                  answers.backupVendor,
+              )}
+
+              ${emailRow(
+                "Produto / licença",
+                getString(
+                  backupSnapshot,
+                  ["product"],
+                ) ||
+                  answers.backupProduct,
+              )}
+
+              ${emailRow(
+                "Responsável",
+                translateBackupResponsibility(
+                  getString(
+                    backupSnapshot,
+                    ["responsibility"],
+                  ) ||
+                    answers.backupResponsibility,
+                ),
+              )}
+
+              ${emailRow(
+                "Onde ficam os dados",
+                translateDataLocation(
+                  answers.dataLocation,
+                ),
+              )}
+
+              ${emailRow(
+                "Isolamento",
+                translateBackupIsolation(
+                  getString(
+                    backupSnapshot,
+                    ["isolation"],
+                  ) ||
+                    answers.backupIsolation,
                 ),
               )}
 
               ${emailRow(
                 "Teste de restauração",
-                translate(
-                  answers
-                    .restoreTests,
+                translateRestoreTests(
+                  getString(
+                    backupSnapshot,
+                    ["restoreTests"],
+                  ) ||
+                    answers.restoreTests,
                 ),
               )}
 
               ${emailRow(
                 "Parada tolerada",
                 translate(
-                  answers
-                    .maxDowntime,
-                ),
-              )}
-
-            </table>
-
-            <!-- IDENTIDADE -->
-
-            ${sectionTitle(
-              "Identidade e Acesso",
-            )}
-
-            <table
-              width="100%"
-              cellpadding="0"
-              cellspacing="0"
-              style="
-                border-collapse:collapse;
-                font-size:14px;
-              "
-            >
-
-              ${emailRow(
-                "MFA",
-                translate(
-                  answers.mfa,
+                  answers.maxDowntime,
                 ),
               )}
 
               ${emailRow(
-                "Contas compartilhadas",
-                translate(
-                  answers
-                    .sharedAccounts,
+                "Impacto operacional",
+                translateOperationalImpact(
+                  answers.operationalImpact,
                 ),
               )}
 
               ${emailRow(
-                "Remoção de acessos",
-                translate(
-                  answers
-                    .offboarding,
-                ),
-              )}
-
-            </table>
-
-            <!-- CONTEXTO -->
-
-            ${sectionTitle(
-              "Contexto operacional",
-            )}
-
-            <table
-              width="100%"
-              cellpadding="0"
-              cellspacing="0"
-              style="
-                border-collapse:collapse;
-                font-size:14px;
-              "
-            >
-
-              ${emailRow(
-                "Sistemas críticos",
-                criticalSystems ||
+                "Observação interna",
+                getString(
+                  opportunityNotesSource,
+                  ["backup"],
+                ) ||
                   "Não informado",
               )}
+            </table>
 
+            ${sectionTitle(
+              "Contexto do cliente",
+            )}
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              style="
+                border-collapse:collapse;
+                font-size:14px;
+              "
+            >
               ${emailRow(
                 "Dados pessoais ou sensíveis",
                 translate(
-                  answers
-                    .sensitiveData,
+                  answers.sensitiveData,
                 ),
               )}
 
               ${emailRow(
                 "Histórico de incidente",
                 translate(
-                  answers
-                    .incidentHistory,
+                  answers.incidentHistory,
                 ),
               )}
 
               ${emailRow(
                 "Principal preocupação",
-                answers
-                  .mainConcern,
+                answers.mainConcern,
               )}
 
               ${emailRow(
-                "Observações",
-                answers.notes,
+                "Sistemas críticos",
+                criticalSystems ||
+                  "Não informado",
               )}
+            </table>
 
+            ${sectionTitle(
+              "Cenário financeiro ilustrativo",
+            )}
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              style="
+                border-collapse:collapse;
+                font-size:14px;
+              "
+            >
+              ${emailRow(
+                "Faixa",
+                Number.isFinite(
+                  impactLow,
+                ) &&
+                Number.isFinite(
+                  impactHigh,
+                )
+                  ? `${money(
+                      impactLow,
+                    )} a ${money(
+                      impactHigh,
+                    )}`
+                  : "Não informado",
+              )}
             </table>
 
             ${intendedRecipientNotice}
-
-            <!-- RODAPÉ -->
 
             <div style="
               margin:30px 0 20px;
@@ -1775,7 +2820,6 @@ async function sendAssessmentNotification(
               line-height:1.8;
               color:#64748b;
             ">
-
               <strong>
                 Account Manager:
               </strong>
@@ -1792,8 +2836,7 @@ async function sendAssessmentNotification(
 
               ${escapeHtml(
                 displayValue(
-                  assessment
-                    .source_ref,
+                  assessment.source_ref,
                 ),
               )}
 
@@ -1815,11 +2858,9 @@ async function sendAssessmentNotification(
 
               ${escapeHtml(
                 displayValue(
-                  assessment
-                    .methodology_version,
+                  assessment.methodology_version,
                 ),
               )}
-
             </div>
 
             <p style="
@@ -1828,28 +2869,13 @@ async function sendAssessmentNotification(
               line-height:1.7;
               color:#94a3b8;
             ">
-              Este Security Assessment
-              representa um diagnóstico
-              inicial baseado nas informações
-              fornecidas pelo respondente.
-              Os resultados devem ser
-              revisados pela equipe Concierge
-              antes de qualquer recomendação
-              técnica ou comercial definitiva.
+              Este briefing é interno. O Security Assessment representa um diagnóstico inicial baseado nas informações fornecidas pelo respondente. Qualquer recomendação, dimensionamento ou proposta deve ser validada pelo Account Manager e pela equipe técnica antes de apresentação ao cliente.
             </p>
-
           </div>
-
         </div>
-
       </body>
-
     </html>
   `;
-
-  /* =======================================================
-     ENVIO
-  ======================================================= */
 
   try {
     const resendResponse =
@@ -2055,7 +3081,7 @@ async function createAssessment(
         "draft",
 
       methodology_version:
-        "v2.4",
+        "v4.1-adaptive-refined",
 
       started_at:
         new Date()
@@ -2328,6 +3354,10 @@ async function saveAssessment(
 
       units_count:
         unitsCount,
+
+      methodology_version:
+        payload.methodologyVersion ||
+        "v4.1-adaptive-refined",
     })
     .eq(
       "id",
@@ -2538,7 +3568,7 @@ async function completeAssessment(
     coveragePercent = null,
     priorityDomain = null,
     methodologyVersion =
-      "v2.4",
+      "v4.1-adaptive-refined",
   } = payload.result;
 
   const {

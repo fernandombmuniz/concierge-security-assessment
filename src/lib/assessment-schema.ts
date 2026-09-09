@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { emptyAssessment, type AssessmentData } from '@/types';
+import {
+  emptyAssessment,
+  type AssessmentData,
+} from '@/types';
 
 const text = (max = 500) =>
   z.string().max(max).catch('');
@@ -11,265 +14,521 @@ const num = z.coerce
   .max(10_000_000)
   .catch(0);
 
-const enumOf = <T extends readonly [string, ...string[]]>(
+const enumOf = <
+  T extends readonly [
+    string,
+    ...string[],
+  ],
+>(
   values: T,
   fallback: T[number],
-) => z.enum(values).catch(fallback as never);
+) =>
+  z
+    .enum(values)
+    .catch(
+      fallback as never,
+    );
 
 /**
- * Valida e normaliza no servidor o mesmo formato
+ * Valida e normaliza o mesmo formato
  * utilizado pelo formulário do Security Assessment.
+ *
+ * Importante:
+ * O Zod remove campos desconhecidos por padrão.
+ * Por isso todos os campos V4.1 usados pelo scoring,
+ * relatório e briefing interno precisam existir aqui.
  */
-export const assessmentDataSchema = z.object({
-  companyName: text(200),
-  sector: text(120),
-  sectorOther: text(120),
-  contactName: text(160),
-  contactRole: text(160),
-  contactEmail: text(200),
+export const assessmentDataSchema =
+  z.object({
+    /**
+     * EMPRESA E CONTATO
+     */
+    companyName:
+      text(200),
 
-  users: num,
-  devices: num,
-  itTeamSize: num,
-  sites: num,
+    sector:
+      text(120),
 
-  internetLinkCount: num,
+    sectorOther:
+      text(120),
 
-  links: z
-    .array(
-      z.object({
-        speedMbps: num,
-      }),
-    )
-    .max(20)
-    .catch([{ speedMbps: 0 }]),
+    contactName:
+      text(160),
 
-  networkUsage: enumOf(
-    ['light', 'medium', 'high'],
-    'medium',
-  ),
+    contactRole:
+      text(160),
 
-  firewallLevel: enumOf(
-    [
-      'none',
-      'isp',
-      'router',
-      'utm',
-      'ngfw',
-      'managed_ngfw',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    contactEmail:
+      text(200),
 
-  firewallVendor: text(120),
-  firewallModel: text(120),
+    users:
+      num,
 
-  firewallLicense: enumOf(
-    ['yes', 'no', 'unknown'],
-    'unknown',
-  ),
+    devices:
+      num,
 
-  vpnRemote: num,
-  vpnSite: num,
-  vlans: num,
+    itTeamSize:
+      num,
 
-  monitoring: enumOf(
-    [
-      'none',
-      'reactive_it',
-      'outsourced_it',
-      'security_team',
-      'soc',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    sites:
+      num,
 
-  firewallThreatPrevention: enumOf(
-    ['yes', 'partial', 'no', 'unknown'],
-    'unknown',
-  ),
+    /**
+     * INTERNET E REDE
+     */
+    internetLinkCount:
+      num,
 
-  networkMaintenance: enumOf(
-    ['formal', 'informal', 'none', 'unknown'],
-    'unknown',
-  ),
+    links: z
+      .array(
+        z.object({
+          speedMbps:
+            num,
+        }),
+      )
+      .max(20)
+      .catch([
+        {
+          speedMbps: 0,
+        },
+      ]),
 
-  endpointLevel: enumOf(
-    [
-      'none',
-      'basic_av',
-      'business_av',
-      'edr',
-      'managed_edr',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    networkUsage:
+      enumOf(
+        [
+          'light',
+          'medium',
+          'high',
+        ],
+        'medium',
+      ),
 
-  endpointCount: num,
-  servers: num,
+    firewallLevel:
+      enumOf(
+        [
+          'none',
+          'isp',
+          'router',
+          'utm',
+          'ngfw',
+          'managed_ngfw',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  autoUpdates: enumOf(
-    ['yes', 'no', 'unknown'],
-    'unknown',
-  ),
+    firewallVendor:
+      text(120),
 
-  localAdmins: enumOf(
-    ['yes', 'no', 'unknown'],
-    'unknown',
-  ),
+    firewallModel:
+      text(120),
 
-  byod: enumOf(
-    ['yes', 'no', 'unknown'],
-    'unknown',
-  ),
+    firewallLicense:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  endpointCentralManagement: enumOf(
-    ['yes', 'partial', 'no', 'unknown'],
-    'unknown',
-  ),
+    firewallManagement:
+      enumOf(
+        [
+          'internal',
+          'outsourced',
+          'isp',
+          'shared',
+          'unmanaged',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  endpointResponse: enumOf(
-    [
-      'managed_soc',
-      'defined_team',
-      'alerts_only',
-      'none',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    firewallReporting:
+      enumOf(
+        [
+          'periodic',
+          'on_demand',
+          'incident_only',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  assetInventory: enumOf(
-    [
-      'managed',
-      'partial',
-      'informal',
-      'none',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    firewallMonitoring24x7:
+      enumOf(
+        [
+          'yes',
+          'partial',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  vulnerabilityManagement: enumOf(
-    [
-      'continuous',
-      'regular',
-      'occasional',
-      'reactive',
-      'none',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    vpnRemote:
+      num,
 
-  dataLocation: enumOf(
-    [
-      'corporate_central',
-      'mixed',
-      'endpoints',
-      'personal_cloud',
-      'saas_only',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    vpnSite:
+      num,
 
-  backupLevel: enumOf(
-    [
-      'none',
-      'manual',
-      'automated_local',
-      'cloud',
-      'multi_copy',
-      'managed',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    vlans:
+      num,
 
-  backupVolumeGb: num,
+    monitoring:
+      enumOf(
+        [
+          'none',
+          'reactive_it',
+          'outsourced_it',
+          'security_team',
+          'soc',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  restoreTests: enumOf(
-    ['regular', 'once', 'never', 'unknown'],
-    'unknown',
-  ),
+    firewallThreatPrevention:
+      enumOf(
+        [
+          'yes',
+          'partial',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  maxDowntime: enumOf(
-    ['4h', '8h', '1d', '2d', 'more', 'unknown'],
-    'unknown',
-  ),
+    networkMaintenance:
+      enumOf(
+        [
+          'formal',
+          'informal',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  backupIsolation: enumOf(
-    [
-      'immutable',
-      'isolated',
-      'separate_account',
-      'same_environment',
-      'none',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    /**
+     * COMPUTADORES / ENDPOINT
+     *
+     * O formulário V4.1 pergunta apenas se existe proteção.
+     * A classificação efetiva é inferida depois no scoring.
+     *
+     * Mantemos os valores antigos para compatibilidade
+     * com assessments já salvos.
+     */
+    endpointLevel:
+      enumOf(
+        [
+          'none',
+          'basic_av',
+          'business_av',
+          'edr',
+          'managed_edr',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  mfa: enumOf(
-    ['yes', 'partial', 'no', 'unknown'],
-    'unknown',
-  ),
+    endpointVendor:
+      text(120),
 
-  sharedAccounts: enumOf(
-    ['yes', 'no', 'unknown'],
-    'unknown',
-  ),
+    endpointProduct:
+      text(180),
 
-  offboarding: enumOf(
-    ['formal', 'informal', 'unknown'],
-    'unknown',
-  ),
+    endpointCount:
+      num,
 
-  emailProtection: enumOf(
-    [
-      'advanced',
-      'standard',
-      'basic',
-      'none',
-      'unknown',
-    ],
-    'unknown',
-  ),
+    servers:
+      num,
 
-  incidentResponse: enumOf(
-    ['formal', 'informal', 'none', 'unknown'],
-    'unknown',
-  ),
+    autoUpdates:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  criticalSystems: z
-    .array(z.string().max(160))
-    .max(50)
-    .catch([]),
+    localAdmins:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  sensitiveData: enumOf(
-    ['yes', 'no', 'unknown'],
-    'unknown',
-  ),
+    byod:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  incidentHistory: enumOf(
-    ['yes', 'no', 'unknown'],
-    'unknown',
-  ),
+    endpointCentralManagement:
+      enumOf(
+        [
+          'yes',
+          'partial',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
 
-  mainConcern: text(500),
-  notes: text(4000),
-});
+    endpointResponse:
+      enumOf(
+        [
+          'managed_soc',
+          'defined_team',
+          'alerts_only',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    assetInventory:
+      enumOf(
+        [
+          'managed',
+          'partial',
+          'informal',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    vulnerabilityManagement:
+      enumOf(
+        [
+          'continuous',
+          'regular',
+          'occasional',
+          'reactive',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    /**
+     * DADOS E BACKUP
+     */
+    dataLocation:
+      enumOf(
+        [
+          'corporate_central',
+          'mixed',
+          'endpoints',
+          'personal_cloud',
+          'saas_only',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    backupLevel:
+      enumOf(
+        [
+          'none',
+          'manual',
+          'automated_local',
+          'cloud',
+          'multi_copy',
+          'managed',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    backupVendor:
+      text(120),
+
+    backupProduct:
+      text(180),
+
+    backupResponsibility:
+      enumOf(
+        [
+          'internal',
+          'outsourced',
+          'shared',
+          'nobody',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    backupVolumeGb:
+      num,
+
+    restoreTests:
+      enumOf(
+        [
+          'regular',
+          'once',
+          'never',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    maxDowntime:
+      enumOf(
+        [
+          '4h',
+          '8h',
+          '1d',
+          '2d',
+          'more',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    backupIsolation:
+      enumOf(
+        [
+          'immutable',
+          'isolated',
+          'separate_account',
+          'same_environment',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    operationalImpact:
+      enumOf(
+        [
+          'low',
+          'partial',
+          'major',
+          'halt',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    /**
+     * CONTAS, IDENTIDADE E RESPOSTA
+     */
+    mfa:
+      enumOf(
+        [
+          'yes',
+          'partial',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    sharedAccounts:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    offboarding:
+      enumOf(
+        [
+          'formal',
+          'informal',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    emailProtection:
+      enumOf(
+        [
+          'advanced',
+          'standard',
+          'basic',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    incidentResponse:
+      enumOf(
+        [
+          'formal',
+          'informal',
+          'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    criticalSystems:
+      z
+        .array(
+          z
+            .string()
+            .max(160),
+        )
+        .max(50)
+        .catch([]),
+
+    sensitiveData:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    incidentHistory:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    mainConcern:
+      text(500),
+
+    notes:
+      text(4000),
+  });
 
 export function parseAssessmentData(
   input: unknown,
 ): AssessmentData {
   const merged = {
     ...emptyAssessment,
-    ...(typeof input === 'object' && input ? input : {}),
+    ...(typeof input ===
+      'object' &&
+    input
+      ? input
+      : {}),
   };
 
   return assessmentDataSchema.parse(

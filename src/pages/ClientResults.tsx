@@ -641,13 +641,19 @@ export default function ClientResults() {
       'Revisar as contas mais importantes e onde ainda existe dependência apenas de senha',
   };
 
+  const priorityDomain =
+    r.priority;
+
   const priorityFinding =
-    r.findings.find(
-      (finding) =>
-        finding.domain ===
-        r.priorityLabel,
-    ) ||
-    r.findings[0];
+    priorityDomain
+      ? r.findings.find(
+          (finding) =>
+            finding.domain ===
+            r.labels[
+              priorityDomain
+            ],
+        )
+      : undefined;
 
   const executiveNarrative =
     buildExecutiveNarrative(
@@ -934,11 +940,15 @@ export default function ClientResults() {
           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
             <div className="max-w-3xl">
               <span className="section-kicker">
-                O que entendemos
+                O que mais chamou atenção
               </span>
 
               <h3 className="mt-1 text-xl font-bold text-white">
-                O que mais chamou atenção
+                {r.priority
+                  ? priorityExecName[
+                      r.priority
+                    ]
+                  : 'Leitura do ambiente'}
               </h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-300">
@@ -977,21 +987,27 @@ export default function ClientResults() {
 
             <div>
               <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                Primeiro ponto a revisar
+                Menor indicador
               </div>
 
               <div className="mt-1 font-bold text-amber-300">
                 {r.priority
-                  ? priorityExecName[
+                  ? `${priorityExecName[
                       r.priority
-                    ]
+                    ]} · ${
+                      safeScore(
+                        r.scores[
+                          r.priority
+                        ],
+                      ) ?? '—'
+                    }/100`
                   : 'Aguardando dados'}
               </div>
             </div>
 
             <div>
               <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                Próximo passo
+                O que vale confirmar
               </div>
 
               <div className="mt-1 font-bold text-slate-100">
@@ -999,7 +1015,7 @@ export default function ClientResults() {
                   ? nextStepText[
                       r.priority
                     ]
-                  : 'Validar os pontos prioritários identificados'}
+                  : 'Validar os pontos identificados'}
               </div>
             </div>
           </div>
@@ -1061,7 +1077,7 @@ export default function ClientResults() {
         {r.priority && (
           <section className="glass-card mt-6 border-l-4 border-l-amber-500/60 p-6">
             <span className="text-xs font-bold uppercase tracking-[.16em] text-amber-400">
-              Por onde começar
+              Menor indicador do diagnóstico
             </span>
 
             <h3 className="mt-2 text-2xl font-bold text-white">
@@ -1073,6 +1089,8 @@ export default function ClientResults() {
             </h3>
 
             <p className="mt-3 text-sm leading-relaxed text-slate-300">
+              Esta foi a área com o menor indicador entre as que conseguimos avaliar.
+              {' '}
               {
                 priorityReasonText[
                   r.priority
