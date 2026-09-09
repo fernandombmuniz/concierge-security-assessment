@@ -89,6 +89,40 @@ export type DataLocationLevel =
   | 'saas_only'
   | 'unknown';
 
+export type FirewallManagementLevel =
+  | 'internal'
+  | 'outsourced'
+  | 'isp'
+  | 'shared'
+  | 'unmanaged'
+  | 'unknown';
+
+export type SecurityReportingLevel =
+  | 'periodic'
+  | 'on_demand'
+  | 'incident_only'
+  | 'none'
+  | 'unknown';
+
+export type OperationalImpactLevel =
+  | 'low'
+  | 'partial'
+  | 'major'
+  | 'halt'
+  | 'unknown';
+
+export type BackupResponsibilityLevel =
+  | 'internal'
+  | 'outsourced'
+  | 'shared'
+  | 'nobody'
+  | 'unknown';
+
+export type TechnicalDepth =
+  | 'basic'
+  | 'informed'
+  | 'technical';
+
 export interface AssessmentData {
   companyName: string;
   sector: string;
@@ -153,6 +187,20 @@ export interface AssessmentData {
 
   mainConcern: string;
   notes: string;
+
+  // V4 adaptive fields. Optional for backward compatibility with V3 data.
+  firewallManagement?: FirewallManagementLevel;
+  firewallReporting?: SecurityReportingLevel;
+  firewallMonitoring24x7?: CapabilityLevel;
+
+  endpointVendor?: string;
+  endpointProduct?: string;
+
+  backupVendor?: string;
+  backupProduct?: string;
+  backupResponsibility?: BackupResponsibilityLevel;
+
+  operationalImpact?: OperationalImpactLevel;
 }
 
 export const emptyAssessment: AssessmentData = {
