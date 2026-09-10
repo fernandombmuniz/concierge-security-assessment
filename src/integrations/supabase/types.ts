@@ -161,7 +161,7 @@ export type Database = {
           account_manager_id: string | null
           company_name: string | null
           completed_at: string | null
-          consent_at: string | null
+          privacy_acknowledged_at: string | null
           continuity_score: number | null
           coverage_percentage: number | null
           created_at: string
@@ -198,7 +198,7 @@ export type Database = {
           account_manager_id?: string | null
           company_name?: string | null
           completed_at?: string | null
-          consent_at?: string | null
+          privacy_acknowledged_at?: string | null
           continuity_score?: number | null
           coverage_percentage?: number | null
           created_at?: string
@@ -235,7 +235,7 @@ export type Database = {
           account_manager_id?: string | null
           company_name?: string | null
           completed_at?: string | null
-          consent_at?: string | null
+          privacy_acknowledged_at?: string | null
           continuity_score?: number | null
           coverage_percentage?: number | null
           created_at?: string

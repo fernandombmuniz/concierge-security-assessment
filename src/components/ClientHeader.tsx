@@ -6,6 +6,7 @@ import {
   saveDraft,
   getSubmission,
 } from '../storage';
+import { loadSession } from '../lib/assessment-session';
 
 export default function ClientHeader() {
   const location = useLocation();
@@ -15,6 +16,9 @@ export default function ClientHeader() {
 
   const [lastId, setLastId] =
     useState<string | null>(null);
+
+  const [canAccessDiagnostic, setCanAccessDiagnostic] =
+    useState(false);
 
   useEffect(() => {
     const draft = loadDraft();
@@ -37,15 +41,30 @@ export default function ClientHeader() {
       );
 
     setLastId(persistedLastId);
+    setCanAccessDiagnostic(Boolean(loadSession()));
 
     setHasAnswers(
       draftHasAnswers || !!persistedLastId,
     );
   }, [location.pathname, location.search]);
 
-  const navLinkClass = (path: string) => {
+  const navLinkClass = (
+    path: string,
+    disabled = false,
+  ) => {
     const active =
       location.pathname === path;
+
+    if (disabled) {
+      return `
+        flex min-h-11 items-center justify-center
+        rounded-lg px-2 py-2
+        text-center text-xs font-semibold
+        text-slate-600
+        opacity-70
+        sm:px-3.5 sm:text-sm
+      `;
+    }
 
     return `
       flex min-h-11 items-center justify-center
@@ -62,6 +81,8 @@ export default function ClientHeader() {
   };
 
   const handleEditClick = () => {
+    if (!canAccessDiagnostic) return;
+
     const params =
       new URLSearchParams(location.search);
 
@@ -254,25 +275,31 @@ export default function ClientHeader() {
             Início
           </Link>
 
-          <Link
-            to="/diagnostico"
-            className={navLinkClass(
-              '/diagnostico',
-            )}
-          >
-            Diagnóstico
-          </Link>
+          {canAccessDiagnostic ? (
+            <Link
+              to="/diagnostico"
+              className={navLinkClass('/diagnostico')}
+            >
+              Diagnóstico
+            </Link>
+          ) : (
+            <span
+              className={navLinkClass('/diagnostico', true)}
+              aria-disabled="true"
+              title="Inicie o diagnóstico pela tela inicial após ler o aviso de privacidade."
+            >
+              Diagnóstico
+            </span>
+          )}
 
           <Link
             to={resultadoPath}
-            className={navLinkClass(
-              '/resultado',
-            )}
+            className={navLinkClass('/resultado')}
           >
             Resultado
           </Link>
 
-          {hasAnswers && (
+          {hasAnswers && canAccessDiagnostic && (
             <Link
               to="/diagnostico"
               onClick={handleEditClick}

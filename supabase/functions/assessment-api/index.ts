@@ -5,24 +5,462 @@ import { createClient } from "npm:@supabase/supabase-js@2";
    CONFIGURAÇÃO
 ========================================================= */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://concierge-security-assessment.pages.dev",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
+const MAX_REQUEST_BYTES =
+  220_000;
+
+const MAX_ANSWERS_BYTES =
+  160_000;
+
+const MAX_RESULT_BYTES =
+  100_000;
+
+const MAX_INTERNAL_TOKEN_LENGTH =
+  2_048;
+
+function getAllowedOrigins(): Set<string> {
+  const configured =
+    (
+      Deno.env.get(
+        "ASSESSMENT_ALLOWED_ORIGINS",
+      ) || ""
+    )
+      .split(",")
+      .map(
+        (value) =>
+          value.trim(),
+      )
+      .filter(Boolean);
+
+  return new Set([
+    ...DEFAULT_ALLOWED_ORIGINS,
+    ...configured,
+  ]);
+}
+
+function getCorsHeaders(
+  req?: Request,
+): Record<string, string> {
+  const origin =
+    req?.headers.get(
+      "origin",
+    ) || "";
+
+  const allowed =
+    getAllowedOrigins();
+
+  const allowOrigin =
+    allowed.has(origin)
+      ? origin
+      : DEFAULT_ALLOWED_ORIGINS[0];
+
+  return {
+    "Access-Control-Allow-Origin":
+      allowOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods":
+      "POST, OPTIONS",
+    "Access-Control-Max-Age":
+      "86400",
+    "Vary":
+      "Origin",
+  };
+}
 
 function jsonResponse(
   body: Record<string, unknown>,
   status = 200,
+  req?: Request,
 ) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...corsHeaders,
+      ...getCorsHeaders(req),
       "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options":
+        "nosniff",
+      "Referrer-Policy":
+        "no-referrer",
     },
   });
+}
+
+function withRequestHeaders(
+  response: Response,
+  req: Request,
+): Response {
+  const headers =
+    new Headers(
+      response.headers,
+    );
+
+  const cors =
+    getCorsHeaders(
+      req,
+    );
+
+  for (
+    const [
+      key,
+      value,
+    ] of Object.entries(
+      cors,
+    )
+  ) {
+    headers.set(
+      key,
+      value,
+    );
+  }
+
+  headers.set(
+    "Cache-Control",
+    "no-store",
+  );
+
+  headers.set(
+    "X-Content-Type-Options",
+    "nosniff",
+  );
+
+  headers.set(
+    "Referrer-Policy",
+    "no-referrer",
+  );
+
+  return new Response(
+    response.body,
+    {
+      status:
+        response.status,
+      statusText:
+        response.statusText,
+      headers,
+    },
+  );
+}
+
+function utf8Size(
+  value: unknown,
+): number {
+  try {
+    return new TextEncoder()
+      .encode(
+        JSON.stringify(value),
+      )
+      .byteLength;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
+function isUuid(
+  value: unknown,
+): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  );
+}
+
+function isSafeToken(
+  value: unknown,
+  maxLength = 512,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 16 &&
+    value.length <= maxLength &&
+    /^[A-Za-z0-9._~-]+$/.test(
+      value,
+    )
+  );
+}
+
+function clampText(
+  value: unknown,
+  maxLength: number,
+): string | null {
+  if (
+    typeof value !== "string"
+  ) {
+    return null;
+  }
+
+  const trimmed =
+    value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.slice(
+    0,
+    maxLength,
+  );
+}
+
+function truncateForLog(
+  value: unknown,
+  maxLength = 1_500,
+): string {
+  const text =
+    value instanceof Error
+      ? value.message
+      : typeof value === "string"
+        ? value
+        : (() => {
+            try {
+              return JSON.stringify(
+                value,
+              );
+            } catch {
+              return "Erro não serializável";
+            }
+          })();
+
+  return text.slice(
+    0,
+    maxLength,
+  );
+}
+
+function validateCommonPayload(
+  payload: RequestPayload,
+): string | null {
+  if (
+    !payload ||
+    typeof payload !==
+      "object"
+  ) {
+    return "Requisição inválida.";
+  }
+
+  if (
+    !(
+      "action" in payload
+    ) ||
+    typeof payload.action !==
+      "string"
+  ) {
+    return "Ação não informada.";
+  }
+
+  return null;
+}
+
+function validateCreatePayload(
+  payload: CreatePayload,
+): string | null {
+  if (
+    payload.ref !== undefined &&
+    payload.ref !== null &&
+    (
+      typeof payload.ref !==
+        "string" ||
+      payload.ref.length > 80
+    )
+  ) {
+    return "Referência inválida.";
+  }
+
+  if (
+    payload.source !== undefined &&
+    payload.source !== null &&
+    (
+      typeof payload.source !==
+        "string" ||
+      payload.source.length > 120
+    )
+  ) {
+    return "Origem inválida.";
+  }
+
+  if (
+    payload.privacyNoticeVersion !==
+      undefined &&
+    payload.privacyNoticeVersion !==
+      null &&
+    (
+      typeof payload
+        .privacyNoticeVersion !==
+        "string" ||
+      payload
+        .privacyNoticeVersion
+        .length > 80
+    )
+  ) {
+    return "Versão do aviso de privacidade inválida.";
+  }
+
+  if (
+    payload.consentAt !==
+      undefined &&
+    payload.consentAt !==
+      null &&
+    (
+      typeof payload.consentAt !==
+        "string" ||
+      Number.isNaN(
+        Date.parse(
+          payload.consentAt,
+        ),
+      )
+    )
+  ) {
+    return "Data de consentimento inválida.";
+  }
+
+  return null;
+}
+
+function validateSavePayload(
+  payload: SavePayload,
+): string | null {
+  if (
+    !isUuid(
+      payload.assessmentId,
+    )
+  ) {
+    return "Assessment inválido.";
+  }
+
+  if (
+    !isSafeToken(
+      payload.publicToken,
+      512,
+    )
+  ) {
+    return "Token inválido.";
+  }
+
+  if (
+    !payload.answers ||
+    typeof payload.answers !==
+      "object" ||
+    Array.isArray(
+      payload.answers,
+    )
+  ) {
+    return "Formato de respostas inválido.";
+  }
+
+  if (
+    utf8Size(
+      payload.answers,
+    ) >
+    MAX_ANSWERS_BYTES
+  ) {
+    return "As respostas excedem o tamanho permitido.";
+  }
+
+  if (
+    payload.currentStep !==
+      undefined &&
+    (
+      typeof payload.currentStep !==
+        "number" ||
+      !Number.isFinite(
+        payload.currentStep,
+      ) ||
+      payload.currentStep < 0 ||
+      payload.currentStep > 10
+    )
+  ) {
+    return "Etapa inválida.";
+  }
+
+  if (
+    payload.methodologyVersion !==
+      undefined &&
+    payload.methodologyVersion !==
+      null &&
+    (
+      typeof payload
+        .methodologyVersion !==
+        "string" ||
+      payload
+        .methodologyVersion
+        .length > 80
+    )
+  ) {
+    return "Versão de metodologia inválida.";
+  }
+
+  return null;
+}
+
+function validateCompletePayload(
+  payload: CompletePayload,
+): string | null {
+  const saveError =
+    validateSavePayload({
+      action:
+        "save",
+      assessmentId:
+        payload.assessmentId,
+      publicToken:
+        payload.publicToken,
+      answers:
+        payload.answers,
+      methodologyVersion:
+        typeof payload.result
+          ?.methodologyVersion ===
+          "string"
+          ? payload.result
+              .methodologyVersion
+          : undefined,
+    });
+
+  if (saveError) {
+    return saveError;
+  }
+
+  if (
+    !payload.result ||
+    typeof payload.result !==
+      "object" ||
+    Array.isArray(
+      payload.result,
+    )
+  ) {
+    return "Resultado do diagnóstico ausente.";
+  }
+
+  if (
+    utf8Size(
+      payload.result,
+    ) >
+    MAX_RESULT_BYTES
+  ) {
+    return "O resultado excede o tamanho permitido.";
+  }
+
+  return null;
+}
+
+function validateInternalReportPayload(
+  payload: InternalReportPayload,
+): string | null {
+  if (
+    !isSafeToken(
+      payload.token,
+      MAX_INTERNAL_TOKEN_LENGTH,
+    )
+  ) {
+    return "Link interno inválido.";
+  }
+
+  return null;
 }
 
 function getAdminKey(): string {
@@ -1427,7 +1865,7 @@ async function validateAssessment(
 ========================================================= */
 
 const DEFAULT_INTERNAL_REPORT_TTL_DAYS =
-  30;
+  5;
 
 function bytesToBase64Url(
   bytes: Uint8Array,
@@ -3430,7 +3868,7 @@ async function sendAssessmentNotification(
             "failed",
 
           error_message:
-            JSON.stringify(
+            truncateForLog(
               resendData,
             ),
 
@@ -3447,7 +3885,7 @@ async function sendAssessmentNotification(
         reason:
           "resend_failed",
         error:
-          resendData,
+          "Falha no envio da notificação.",
       };
     }
 
@@ -3526,9 +3964,11 @@ async function createAssessment(
     string | null = null;
 
   const ref =
-    payload.ref
-      ?.trim()
-      .toLowerCase() ||
+    clampText(
+      payload.ref,
+      80,
+    )
+      ?.toLowerCase() ||
     null;
 
   if (ref) {
@@ -3580,9 +4020,10 @@ async function createAssessment(
         accountManagerId,
 
       source_ref:
-        payload.source
-          ?.trim() ||
-        null,
+        clampText(
+          payload.source,
+          120,
+        ),
 
       status:
         "draft",
@@ -3593,6 +4034,16 @@ async function createAssessment(
       started_at:
         new Date()
           .toISOString(),
+
+      privacy_notice_version:
+        payload
+          .privacyNoticeVersion ||
+        null,
+
+      privacy_acknowledged_at:
+        payload
+          .consentAt ||
+        null,
     })
     .select(
       "id, public_token, status, account_manager_id",
@@ -4173,18 +4624,72 @@ async function completeAssessment(
    HTTP
 ========================================================= */
 
+function isOriginAllowed(
+  req: Request,
+): boolean {
+  const origin =
+    req.headers.get(
+      "origin",
+    );
+
+  if (!origin) {
+    return true;
+  }
+
+  return getAllowedOrigins()
+    .has(origin);
+}
+
 Deno.serve(
   async (req) => {
     if (
       req.method ===
       "OPTIONS"
     ) {
+      if (
+        !isOriginAllowed(
+          req,
+        )
+      ) {
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Origem não permitida.",
+          },
+          403,
+          req,
+        );
+      }
+
       return new Response(
         "ok",
         {
           headers:
-            corsHeaders,
+            getCorsHeaders(
+              req,
+            ),
         },
+      );
+    }
+
+    if (
+      !isOriginAllowed(
+        req,
+      )
+    ) {
+      return jsonResponse(
+        {
+          success:
+            false,
+
+          error:
+            "Origem não permitida.",
+        },
+        403,
+        req,
       );
     }
 
@@ -4201,16 +4706,48 @@ Deno.serve(
             "Método não permitido.",
         },
         405,
+        req,
+      );
+    }
+
+    const contentLength =
+      Number(
+        req.headers.get(
+          "content-length",
+        ),
+      );
+
+    if (
+      Number.isFinite(
+        contentLength,
+      ) &&
+      contentLength >
+        MAX_REQUEST_BYTES
+    ) {
+      return jsonResponse(
+        {
+          success:
+            false,
+
+          error:
+            "Requisição muito grande.",
+        },
+        413,
+        req,
       );
     }
 
     try {
-      const payload =
-        await req.json() as
-          RequestPayload;
+      const rawBody =
+        await req.text();
 
       if (
-        !payload?.action
+        new TextEncoder()
+          .encode(
+            rawBody,
+          )
+          .byteLength >
+        MAX_REQUEST_BYTES
       ) {
         return jsonResponse(
           {
@@ -4218,34 +4755,164 @@ Deno.serve(
               false,
 
             error:
-              "Ação não informada.",
+              "Requisição muito grande.",
+          },
+          413,
+          req,
+        );
+      }
+
+      let payload:
+        RequestPayload;
+
+      try {
+        payload =
+          JSON.parse(
+            rawBody,
+          ) as RequestPayload;
+      } catch {
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "JSON inválido.",
           },
           400,
+          req,
+        );
+      }
+
+      const commonError =
+        validateCommonPayload(
+          payload,
+        );
+
+      if (commonError) {
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              commonError,
+          },
+          400,
+          req,
         );
       }
 
       switch (
         payload.action
       ) {
-        case "create":
-          return await createAssessment(
-            payload,
-          );
+        case "create": {
+          const error =
+            validateCreatePayload(
+              payload,
+            );
 
-        case "save":
-          return await saveAssessment(
-            payload,
-          );
+          if (error) {
+            return jsonResponse(
+              {
+                success:
+                  false,
 
-        case "complete":
-          return await completeAssessment(
-            payload,
-          );
+                error,
+              },
+              400,
+              req,
+            );
+          }
 
-        case "internal_report":
-          return await getInternalReport(
-            payload,
+          return withRequestHeaders(
+            await createAssessment(
+              payload,
+            ),
+            req,
           );
+        }
+
+        case "save": {
+          const error =
+            validateSavePayload(
+              payload,
+            );
+
+          if (error) {
+            return jsonResponse(
+              {
+                success:
+                  false,
+
+                error,
+              },
+              400,
+              req,
+            );
+          }
+
+          return withRequestHeaders(
+            await saveAssessment(
+              payload,
+            ),
+            req,
+          );
+        }
+
+        case "complete": {
+          const error =
+            validateCompletePayload(
+              payload,
+            );
+
+          if (error) {
+            return jsonResponse(
+              {
+                success:
+                  false,
+
+                error,
+              },
+              400,
+              req,
+            );
+          }
+
+          return withRequestHeaders(
+            await completeAssessment(
+              payload,
+            ),
+            req,
+          );
+        }
+
+        case "internal_report": {
+          const error =
+            validateInternalReportPayload(
+              payload,
+            );
+
+          if (error) {
+            return jsonResponse(
+              {
+                success:
+                  false,
+
+                error,
+              },
+              400,
+              req,
+            );
+          }
+
+          return withRequestHeaders(
+            await getInternalReport(
+              payload,
+            ),
+            req,
+          );
+        }
 
         default:
           return jsonResponse(
@@ -4257,12 +4924,15 @@ Deno.serve(
                 "Ação inválida.",
             },
             400,
+            req,
           );
       }
     } catch (error) {
       console.error(
-        "Erro inesperado:",
-        error,
+        "Erro inesperado na assessment-api:",
+        truncateForLog(
+          error,
+        ),
       );
 
       return jsonResponse(
@@ -4271,11 +4941,10 @@ Deno.serve(
             false,
 
           error:
-            error instanceof Error
-              ? error.message
-              : "Erro interno no processamento do diagnóstico.",
+            "Erro interno no processamento do diagnóstico.",
         },
         500,
+        req,
       );
     }
   },

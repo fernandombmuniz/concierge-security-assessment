@@ -4,6 +4,10 @@
  * Guarda apenas o identificador e o token de edição do próprio respondente,
  * permitindo salvar as respostas no banco em tempo real sem exigir login.
  * O rascunho local existente continua funcionando exatamente como antes.
+ *
+ * A partir do Bloco 4, a sessão só é considerada válida quando também existe
+ * evidência local de que o aviso de privacidade foi reconhecido antes do início
+ * do diagnóstico. Isso impede acesso direto a /diagnostico sem passar pela box.
  */
 const KEY = 'concierge-assessment-session-v1';
 
@@ -15,6 +19,13 @@ export interface AssessmentSession {
   consentAt: string;
 }
 
+function isValidAcknowledgement(value: unknown): value is string {
+  if (typeof value !== 'string' || !value.trim()) return false;
+
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp);
+}
+
 export function loadSession(): AssessmentSession | null {
   if (typeof window === 'undefined') return null;
 
@@ -22,8 +33,23 @@ export function loadSession(): AssessmentSession | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as AssessmentSession;
-    return parsed?.assessmentId && parsed?.editToken ? parsed : null;
+    const parsed = JSON.parse(raw) as Partial<AssessmentSession>;
+
+    if (
+      !parsed?.assessmentId ||
+      !parsed?.editToken ||
+      !isValidAcknowledgement(parsed?.consentAt)
+    ) {
+      return null;
+    }
+
+    return {
+      assessmentId: parsed.assessmentId,
+      editToken: parsed.editToken,
+      ref: parsed.ref ?? null,
+      source: parsed.source ?? null,
+      consentAt: parsed.consentAt,
+    };
   } catch {
     return null;
   }

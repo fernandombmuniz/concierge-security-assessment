@@ -260,6 +260,19 @@ type EndpointProtectionChoice =
 export default function AssessmentForm() {
   const nav = useNavigate();
 
+  const [accessReady, setAccessReady] = useState(false);
+
+  useEffect(() => {
+    const session = loadSession();
+
+    if (!session) {
+      nav('/', { replace: true });
+      return;
+    }
+
+    setAccessReady(true);
+  }, [nav]);
+
   const [step, setStep] = useState(() => {
     const saved = localStorage.getItem(
       'concierge-client-assessment-step-v2',
@@ -645,6 +658,12 @@ export default function AssessmentForm() {
     ].includes(
       a.backupLevel,
     );
+
+  if (!accessReady) {
+    return (
+      <main className="min-h-screen bg-dashboard-animate bg-grid-tech" />
+    );
+  }
 
   return (
     <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">

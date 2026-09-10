@@ -17,6 +17,7 @@ import {
   MonitorSmartphone,
   Database,
   KeyRound,
+  ChevronDown,
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -25,6 +26,7 @@ export default function LandingPage() {
   const [consent, setConsent] = useState(false);
   const [starting, setStarting] = useState(false);
   const [entryReady, setEntryReady] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   const publicRef = searchParams.get('ref');
   const publicSource = searchParams.get('src');
@@ -208,23 +210,89 @@ export default function LandingPage() {
               })}
             </div>
 
-            <label className="mx-auto mt-10 flex max-w-2xl cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/45 p-4 text-left">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(event) => setConsent(event.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-teal-500"
-              />
+            <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-xl border border-slate-800 bg-slate-950/45 text-left">
+              <label
+                htmlFor="privacy-acknowledgement"
+                className="flex cursor-pointer items-start gap-3 p-5"
+              >
+                <input
+                  id="privacy-acknowledgement"
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(event) => setConsent(event.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-teal-500"
+                />
 
-              <span className="text-xs leading-relaxed text-slate-400">
-                Autorizo a Concierge Segurança Digital a coletar e tratar as
-                informações fornecidas neste diagnóstico com a finalidade de
-                elaborar a avaliação de segurança e o contato comercial
-                correspondente, conforme a Lei Geral de Proteção de Dados
-                (LGPD). Os dados são utilizados apenas internamente e podem
-                ser corrigidos ou excluídos a pedido.
-              </span>
-            </label>
+                <span className="text-sm leading-6 text-slate-300">
+                  Li e estou ciente de que as informações fornecidas serão
+                  tratadas pela Concierge Segurança Digital para realizar este
+                  diagnóstico, gerar o resultado e permitir o acompanhamento
+                  pelo responsável comercial. Os dados são mantidos por prazo
+                  limitado e eliminados automaticamente. Evite informar senhas,
+                  credenciais ou dados pessoais sensíveis neste formulário.
+                </span>
+              </label>
+
+              <div className="border-t border-slate-800/90">
+                <button
+                  type="button"
+                  onClick={() => setPrivacyOpen((current) => !current)}
+                  aria-expanded={privacyOpen}
+                  aria-controls="privacy-details"
+                  className="flex w-full items-center justify-between gap-4 px-5 py-3.5 text-left text-sm font-semibold text-teal-300 transition hover:bg-slate-900/50 hover:text-teal-200"
+                >
+                  <span>Ver detalhes sobre privacidade</span>
+                  <ChevronDown
+                    size={18}
+                    className={`shrink-0 transition-transform duration-200 ${
+                      privacyOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {privacyOpen && (
+                  <div
+                    id="privacy-details"
+                    className="border-t border-slate-800/80 px-5 pb-5 pt-4"
+                  >
+                    <div className="grid gap-4 text-sm leading-6 text-slate-400 sm:grid-cols-2">
+                      <div>
+                        <p className="font-semibold text-slate-200">Finalidade</p>
+                        <p className="mt-1">
+                          Realizar o diagnóstico, gerar o resultado e permitir o
+                          acompanhamento do atendimento pela equipe responsável.
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-slate-200">Retenção</p>
+                        <p className="mt-1">
+                          Rascunhos por até 7 dias, diagnósticos concluídos por
+                          até 15 dias e link interno de acesso por até 5 dias.
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-slate-200">Acesso e operação</p>
+                        <p className="mt-1">
+                          O acesso é limitado às pessoas autorizadas envolvidas
+                          no atendimento. Fornecedores de infraestrutura podem
+                          processar dados quando necessários à operação do serviço.
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-slate-200">Eliminação</p>
+                        <p className="mt-1">
+                          Encerrados os prazos definidos, os dados relacionados
+                          ao assessment são eliminados automaticamente.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="mt-6 flex justify-center">
               <button
