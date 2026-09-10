@@ -13,6 +13,8 @@ interface ApiResponse {
   savedAt?: string;
   completedAt?: string;
   alreadyCompleted?: boolean;
+  answers?: unknown;
+  expiresAt?: string;
 }
 
 function getSupabaseUrl(): string {
@@ -333,5 +335,53 @@ export async function completeAssessment({
     completedAt:
       response.completedAt ??
       new Date().toISOString(),
+  };
+}
+
+
+export async function loadInternalAssessmentReport(
+  token: string,
+): Promise<{
+  data: ReturnType<
+    typeof parseAssessmentData
+  >;
+  expiresAt?: string;
+}> {
+  if (!token.trim()) {
+    throw new Error(
+      "Token interno ausente.",
+    );
+  }
+
+  const result =
+    await callAssessmentApi({
+      action:
+        "internal_report",
+
+      token:
+        token.trim(),
+    });
+
+  if (!result.answers) {
+    throw new Error(
+      "A API não retornou os dados do relatório.",
+    );
+  }
+
+  const data =
+    parseAssessmentData(
+      result.answers,
+    );
+
+  if (result.expiresAt) {
+    return {
+      data,
+      expiresAt:
+        result.expiresAt,
+    };
+  }
+
+  return {
+    data,
   };
 }

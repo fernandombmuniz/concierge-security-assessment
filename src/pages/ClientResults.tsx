@@ -68,6 +68,10 @@ import {
   selectTopFindings,
 } from '../lib/finding-priority';
 
+import {
+  loadInternalAssessmentReport,
+} from '../lib/assessment.functions';
+
 type ResultState = {
   data: AssessmentData;
   fromSubmission: boolean;
@@ -221,10 +225,39 @@ export default function ClientResults() {
   const urlId =
     searchParams.get('id');
 
+  const internalReportToken =
+    searchParams.get(
+      'internalReport',
+    );
+
   const [resultState, setResultState] =
     useState<ResultState>(() =>
-      resolveResultState(urlId),
+      internalReportToken
+        ? {
+            data: loadDraft(),
+            fromSubmission: false,
+            protected: false,
+          }
+        : resolveResultState(
+            urlId,
+          ),
     );
+
+  const [
+    isInternalReportLoading,
+    setIsInternalReportLoading,
+  ] = useState(
+    Boolean(
+      internalReportToken,
+    ),
+  );
+
+  const [
+    internalReportError,
+    setInternalReportError,
+  ] = useState<
+    string | null
+  >(null);
 
   const [
     isScoreModalOpen,
@@ -257,10 +290,89 @@ export default function ClientResults() {
     useState(false);
 
   useEffect(() => {
-    setResultState(
-      resolveResultState(urlId),
+    let cancelled =
+      false;
+
+    if (!internalReportToken) {
+      setIsInternalReportLoading(
+        false,
+      );
+
+      setInternalReportError(
+        null,
+      );
+
+      setResultState(
+        resolveResultState(
+          urlId,
+        ),
+      );
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIsInternalReportLoading(
+      true,
     );
-  }, [urlId]);
+
+    setInternalReportError(
+      null,
+    );
+
+    void loadInternalAssessmentReport(
+      internalReportToken,
+    )
+      .then(
+        ({ data }) => {
+          if (cancelled) {
+            return;
+          }
+
+          setResultState({
+            data,
+            fromSubmission:
+              true,
+            protected:
+              false,
+          });
+        },
+      )
+      .catch(
+        (error) => {
+          if (cancelled) {
+            return;
+          }
+
+          console.error(
+            'Falha ao abrir relatório interno:',
+            error,
+          );
+
+          setInternalReportError(
+            error instanceof
+              Error
+              ? error.message
+              : 'Não foi possível validar este link.',
+          );
+        },
+      )
+      .finally(() => {
+        if (!cancelled) {
+          setIsInternalReportLoading(
+            false,
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    internalReportToken,
+    urlId,
+  ]);
 
   useEffect(() => {
     const onKeyDown = (
@@ -366,6 +478,67 @@ export default function ClientResults() {
         setIsPdfGenerating(false);
       }
     };
+
+  if (
+    isInternalReportLoading
+  ) {
+    return (
+      <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">
+        <div className="mx-auto max-w-5xl">
+          <ClientHeader />
+
+          <div className="glass-card mt-6 p-8 text-center md:p-12">
+            <Loader2
+              className="mx-auto animate-spin text-teal-300"
+              size={32}
+            />
+
+            <h2 className="mt-5 text-2xl font-bold text-white">
+              Abrindo relatório
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
+              Estamos validando o link interno e carregando a mesma leitura apresentada ao cliente.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (
+    internalReportToken &&
+    internalReportError
+  ) {
+    return (
+      <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">
+        <div className="mx-auto max-w-5xl">
+          <ClientHeader />
+
+          <div className="glass-card mt-6 p-8 text-center md:p-12">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-amber-500/20 bg-amber-500/10">
+              <LockKeyhole
+                className="text-amber-300"
+                size={28}
+              />
+            </div>
+
+            <h2 className="mt-5 text-2xl font-bold text-white">
+              Link interno indisponível
+            </h2>
+
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
+              Este link é inválido, expirou ou o relatório não está mais disponível.
+            </p>
+
+            <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-slate-500">
+              {internalReportError}
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   /**
    * Resultado recebido por URL,
@@ -641,19 +814,13 @@ export default function ClientResults() {
       'Revisar as contas mais importantes e onde ainda existe dependência apenas de senha',
   };
 
-  const priorityDomain =
-    r.priority;
-
   const priorityFinding =
-    priorityDomain
-      ? r.findings.find(
-          (finding) =>
-            finding.domain ===
-            r.labels[
-              priorityDomain
-            ],
-        )
-      : undefined;
+    r.findings.find(
+      (finding) =>
+        finding.domain ===
+        r.priorityLabel,
+    ) ||
+    r.findings[0];
 
   const executiveNarrative =
     buildExecutiveNarrative(
@@ -940,15 +1107,11 @@ export default function ClientResults() {
           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
             <div className="max-w-3xl">
               <span className="section-kicker">
-                O que mais chamou atenção
+                O que entendemos
               </span>
 
               <h3 className="mt-1 text-xl font-bold text-white">
-                {r.priority
-                  ? priorityExecName[
-                      r.priority
-                    ]
-                  : 'Leitura do ambiente'}
+                O que mais chamou atenção
               </h3>
 
               <p className="mt-3 text-sm leading-7 text-slate-300">
@@ -987,27 +1150,21 @@ export default function ClientResults() {
 
             <div>
               <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                Menor indicador
+                Primeiro ponto a revisar
               </div>
 
               <div className="mt-1 font-bold text-amber-300">
                 {r.priority
-                  ? `${priorityExecName[
+                  ? priorityExecName[
                       r.priority
-                    ]} · ${
-                      safeScore(
-                        r.scores[
-                          r.priority
-                        ],
-                      ) ?? '—'
-                    }/100`
+                    ]
                   : 'Aguardando dados'}
               </div>
             </div>
 
             <div>
               <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                O que vale confirmar
+                Próximo passo
               </div>
 
               <div className="mt-1 font-bold text-slate-100">
@@ -1015,7 +1172,7 @@ export default function ClientResults() {
                   ? nextStepText[
                       r.priority
                     ]
-                  : 'Validar os pontos identificados'}
+                  : 'Validar os pontos prioritários identificados'}
               </div>
             </div>
           </div>
@@ -1077,7 +1234,7 @@ export default function ClientResults() {
         {r.priority && (
           <section className="glass-card mt-6 border-l-4 border-l-amber-500/60 p-6">
             <span className="text-xs font-bold uppercase tracking-[.16em] text-amber-400">
-              Menor indicador do diagnóstico
+              Por onde começar
             </span>
 
             <h3 className="mt-2 text-2xl font-bold text-white">
@@ -1089,8 +1246,6 @@ export default function ClientResults() {
             </h3>
 
             <p className="mt-3 text-sm leading-relaxed text-slate-300">
-              Esta foi a área com o menor indicador entre as que conseguimos avaliar.
-              {' '}
               {
                 priorityReasonText[
                   r.priority

@@ -100,6 +100,11 @@ interface SavePayload {
   methodologyVersion?: string | null;
 }
 
+interface InternalReportPayload {
+  action: "internal_report";
+  token: string;
+}
+
 interface CompletePayload {
   action: "complete";
   assessmentId: string;
@@ -123,7 +128,8 @@ interface CompletePayload {
 type RequestPayload =
   | CreatePayload
   | SavePayload
-  | CompletePayload;
+  | CompletePayload
+  | InternalReportPayload;
 
 /* =========================================================
    HELPERS
@@ -1417,6 +1423,435 @@ async function validateAssessment(
 }
 
 /* =========================================================
+   LINK INTERNO SEGURO DO RELATÓRIO
+========================================================= */
+
+const DEFAULT_INTERNAL_REPORT_TTL_DAYS =
+  30;
+
+function bytesToBase64Url(
+  bytes: Uint8Array,
+): string {
+  let binary = "";
+
+  for (
+    let index = 0;
+    index < bytes.length;
+    index += 1
+  ) {
+    binary += String.fromCharCode(
+      bytes[index],
+    );
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function stringToBase64Url(
+  value: string,
+): string {
+  return bytesToBase64Url(
+    new TextEncoder().encode(
+      value,
+    ),
+  );
+}
+
+async function signInternalReportPayload(
+  payloadBase64: string,
+  secret: string,
+): Promise<string> {
+  const key =
+    await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(
+        secret,
+      ),
+      {
+        name: "HMAC",
+        hash: "SHA-256",
+      },
+      false,
+      ["sign"],
+    );
+
+  const signature =
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(
+        payloadBase64,
+      ),
+    );
+
+  return bytesToBase64Url(
+    new Uint8Array(
+      signature,
+    ),
+  );
+}
+
+async function createInternalReportToken(
+  assessmentId: string,
+): Promise<string | null> {
+  const secret =
+    Deno.env.get(
+      "INTERNAL_REPORT_LINK_SECRET",
+    );
+
+  if (!secret) {
+    console.warn(
+      "INTERNAL_REPORT_LINK_SECRET não configurado. O botão do relatório interno será omitido.",
+    );
+
+    return null;
+  }
+
+  const ttlDaysRaw =
+    Number(
+      Deno.env.get(
+        "INTERNAL_REPORT_LINK_TTL_DAYS",
+      ) ||
+        DEFAULT_INTERNAL_REPORT_TTL_DAYS,
+    );
+
+  const ttlDays =
+    Number.isFinite(
+      ttlDaysRaw,
+    ) &&
+    ttlDaysRaw > 0
+      ? ttlDaysRaw
+      : DEFAULT_INTERNAL_REPORT_TTL_DAYS;
+
+  const expiresAt =
+    Math.floor(
+      Date.now() / 1000,
+    ) +
+    Math.round(
+      ttlDays *
+        24 *
+        60 *
+        60,
+    );
+
+  const payload = {
+    assessmentId,
+    exp: expiresAt,
+    purpose:
+      "internal-report",
+    version: 1,
+  };
+
+  const payloadBase64 =
+    stringToBase64Url(
+      JSON.stringify(
+        payload,
+      ),
+    );
+
+  const signature =
+    await signInternalReportPayload(
+      payloadBase64,
+      secret,
+    );
+
+  return `${payloadBase64}.${signature}`;
+}
+
+function buildInternalReportUrl(
+  token: string,
+): string {
+  const appUrl =
+    (
+      Deno.env.get(
+        "ASSESSMENT_APP_URL",
+      ) ||
+      "https://concierge-security-assessment.pages.dev"
+    ).replace(
+      /\/+$/,
+      "",
+    );
+
+  return (
+    `${appUrl}/resultado?internalReport=` +
+    encodeURIComponent(
+      token,
+    )
+  );
+}
+
+
+function base64UrlToBytes(
+  value: string,
+): Uint8Array {
+  const normalized =
+    value
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+  const padded =
+    normalized +
+    "=".repeat(
+      (4 -
+        (normalized.length %
+          4)) %
+        4,
+    );
+
+  const binary =
+    atob(padded);
+
+  const bytes =
+    new Uint8Array(
+      binary.length,
+    );
+
+  for (
+    let index = 0;
+    index < binary.length;
+    index += 1
+  ) {
+    bytes[index] =
+      binary.charCodeAt(
+        index,
+      );
+  }
+
+  return bytes;
+}
+
+function base64UrlToString(
+  value: string,
+): string {
+  return new TextDecoder().decode(
+    base64UrlToBytes(
+      value,
+    ),
+  );
+}
+
+async function verifyInternalReportToken(
+  token: string,
+): Promise<{
+  assessmentId: string;
+  exp: number;
+} | null> {
+  const secret =
+    Deno.env.get(
+      "INTERNAL_REPORT_LINK_SECRET",
+    );
+
+  if (
+    !secret ||
+    !token
+  ) {
+    return null;
+  }
+
+  const parts =
+    token.split(".");
+
+  if (
+    parts.length !== 2
+  ) {
+    return null;
+  }
+
+  const [
+    payloadBase64,
+    suppliedSignature,
+  ] = parts;
+
+  const expectedSignature =
+    await signInternalReportPayload(
+      payloadBase64,
+      secret,
+    );
+
+  const suppliedBytes =
+    new TextEncoder().encode(
+      suppliedSignature,
+    );
+
+  const expectedBytes =
+    new TextEncoder().encode(
+      expectedSignature,
+    );
+
+  if (
+    suppliedBytes.length !==
+    expectedBytes.length
+  ) {
+    return null;
+  }
+
+  let difference = 0;
+
+  for (
+    let index = 0;
+    index <
+    suppliedBytes.length;
+    index += 1
+  ) {
+    difference |=
+      suppliedBytes[index] ^
+      expectedBytes[index];
+  }
+
+  if (difference !== 0) {
+    return null;
+  }
+
+  let payload: Record<
+    string,
+    unknown
+  >;
+
+  try {
+    payload =
+      JSON.parse(
+        base64UrlToString(
+          payloadBase64,
+        ),
+      );
+  } catch {
+    return null;
+  }
+
+  const assessmentId =
+    typeof payload.assessmentId ===
+    "string"
+      ? payload.assessmentId
+      : "";
+
+  const exp =
+    typeof payload.exp ===
+      "number" &&
+    Number.isFinite(
+      payload.exp,
+    )
+      ? payload.exp
+      : 0;
+
+  if (
+    !assessmentId ||
+    payload.purpose !==
+      "internal-report" ||
+    payload.version !== 1 ||
+    exp <=
+      Math.floor(
+        Date.now() / 1000,
+      )
+  ) {
+    return null;
+  }
+
+  return {
+    assessmentId,
+    exp,
+  };
+}
+
+async function getInternalReport(
+  payload: InternalReportPayload,
+) {
+  const verified =
+    await verifyInternalReportToken(
+      payload.token,
+    );
+
+  if (!verified) {
+    return jsonResponse(
+      {
+        success: false,
+        error:
+          "Link interno inválido ou expirado.",
+      },
+      403,
+    );
+  }
+
+  const {
+    data: assessment,
+    error: assessmentError,
+  } = await supabaseAdmin
+    .from("assessments")
+    .select(
+      "id, status, completed_at",
+    )
+    .eq(
+      "id",
+      verified.assessmentId,
+    )
+    .maybeSingle();
+
+  if (
+    assessmentError ||
+    !assessment ||
+    assessment.status !==
+      "completed"
+  ) {
+    return jsonResponse(
+      {
+        success: false,
+        error:
+          "Relatório não encontrado ou ainda não concluído.",
+      },
+      404,
+    );
+  }
+
+  const {
+    data: responseData,
+    error: responseError,
+  } = await supabaseAdmin
+    .from(
+      "assessment_responses",
+    )
+    .select(
+      "answers",
+    )
+    .eq(
+      "assessment_id",
+      verified.assessmentId,
+    )
+    .maybeSingle();
+
+  if (
+    responseError ||
+    !responseData
+  ) {
+    return jsonResponse(
+      {
+        success: false,
+        error:
+          "Não foi possível carregar o relatório.",
+      },
+      500,
+    );
+  }
+
+  const answers =
+    getObject(
+      responseData.answers,
+    );
+
+  return jsonResponse({
+    success: true,
+    assessmentId:
+      verified.assessmentId,
+    expiresAt:
+      new Date(
+        verified.exp * 1000,
+      ).toISOString(),
+    answers,
+  });
+}
+
+/* =========================================================
    RESEND
 ========================================================= */
 
@@ -2018,6 +2453,18 @@ async function sendAssessmentNotification(
       ["backup"],
     );
 
+  const internalReportToken =
+    await createInternalReportToken(
+      assessmentId,
+    );
+
+  const internalReportUrl =
+    internalReportToken
+      ? buildInternalReportUrl(
+          internalReportToken,
+        )
+      : null;
+
   const strongestCommercial =
     [
       {
@@ -2114,6 +2561,66 @@ async function sendAssessmentNotification(
             ">
               ${escapeHtml(sector)}
             </p>
+
+            ${
+              internalReportUrl
+                ? `
+                  <div style="
+                    margin:0 0 22px;
+                    padding:18px;
+                    border:1px solid #dbeafe;
+                    background:#f8fafc;
+                    border-radius:12px;
+                  ">
+                    <div style="
+                      font-size:11px;
+                      text-transform:uppercase;
+                      letter-spacing:.09em;
+                      color:#475569;
+                      font-weight:700;
+                    ">
+                      Relatório apresentado ao cliente
+                    </div>
+
+                    <p style="
+                      margin:7px 0 14px;
+                      color:#64748b;
+                      font-size:13px;
+                      line-height:1.6;
+                    ">
+                      Abra a mesma leitura pública gerada ao final deste assessment.
+                    </p>
+
+                    <a
+                      href="${escapeHtml(
+                        internalReportUrl,
+                      )}"
+                      style="
+                        display:inline-block;
+                        background:#0f766e;
+                        color:#ffffff;
+                        text-decoration:none;
+                        font-size:13px;
+                        font-weight:700;
+                        padding:11px 16px;
+                        border-radius:9px;
+                      "
+                    >
+                      Abrir relatório do cliente
+                    </a>
+
+                    <p style="
+                      margin:11px 0 0;
+                      color:#94a3b8;
+                      font-size:11px;
+                      line-height:1.55;
+                    ">
+                      Link interno protegido e com validade limitada.
+                    </p>
+                  </div>
+                `
+                : ""
+            }
 
             <div style="
               border:1px solid #ccfbf1;
@@ -3732,6 +4239,11 @@ Deno.serve(
 
         case "complete":
           return await completeAssessment(
+            payload,
+          );
+
+        case "internal_report":
+          return await getInternalReport(
             payload,
           );
 
