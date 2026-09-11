@@ -7,8 +7,11 @@ import ScoreGauge from '../components/ScoreGauge';
 import DomainBars from '../components/DomainBars';
 import ImpactChart from '../components/ImpactChart';
 import SeverityBadge from '../components/SeverityBadge';
+import SecurityPostureRadar from '../components/SecurityPostureRadar';
+import PriorityPlan from '../components/PriorityPlan';
 import logo from '../assets/logo-concierge.jpg';
 import {AlertTriangle,ArrowLeft,BarChart3,Building2,Database,FileText,KeyRound,MonitorSmartphone,Server,ShieldCheck,Target,Wifi,Info} from 'lucide-react';
+import {buildPriorityPlan} from '../lib/priority-engine';
 
 const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);
 const usageLabel={light:'Leve',medium:'Médio',high:'Intenso'} as const;
@@ -20,6 +23,7 @@ export default function InternalResults(){
  if(!data?.found)return <main className="min-h-screen bg-slate-950 p-8 text-slate-200">Assessment não encontrado.</main>;
  const s={id:data.assessment.id,createdAt:data.assessment.created_at,data:{...emptyAssessment,...(JSON.parse(data.answersJson) as Partial<AssessmentData>)}};
  const r=scoreAssessment(s.data);
+ const priorityPlan=buildPriorityPlan(s.data,r,3);
  const domains=[
    {label:'Rede e Perímetro',value:r.scores.network,coverage:r.domainCoverage.network,confidence:r.domainConfidence.network,icon:<Server size={17} className="text-cyan-400"/>},
    {label:'Endpoints',value:r.scores.endpoint,coverage:r.domainCoverage.endpoint,confidence:r.domainConfidence.endpoint,icon:<MonitorSmartphone size={17} className="text-cyan-400"/>},
@@ -39,10 +43,13 @@ export default function InternalResults(){
    <div className="glass-card p-6"><div className="flex items-center justify-between"><div className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">Qualidade das respostas</div><ShieldCheck className="text-cyan-400"/></div><div className="mt-3 text-3xl font-bold text-white">{r.completeness}%</div><p className="mt-2 text-sm text-slate-400">Quanto maior a cobertura das respostas, mais contextualizado fica o diagnóstico.</p></div>
   </section>
 
-  <section className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+  <section className="mt-5 grid gap-5 xl:grid-cols-3">
    <div className="glass-card p-6 md:p-7"><div className="mb-6 flex items-center justify-between"><div><div className="text-xs font-bold uppercase tracking-[.16em] text-teal-400">Visão comparativa</div><h2 className="mt-1 text-2xl font-bold">Maturidade por domínio</h2></div><Wifi className="text-slate-600"/></div><DomainBars items={domains}/></div>
-   <div className="glass-card p-6 md:p-7"><div className="text-xs font-bold uppercase tracking-[.16em] text-teal-400">Distribuição dos achados</div><h2 className="mt-1 text-2xl font-bold">Onde está a atenção</h2><div className="mt-7 grid grid-cols-3 gap-3">{(['Alta','Média','Baixa'] as const).map(k=><div key={k} className="rounded-xl border border-slate-800 bg-slate-950/35 p-4 text-center"><div className={`text-3xl font-extrabold ${k==='Alta'?'text-rose-300':k==='Média'?'text-amber-300':'text-emerald-300'}`}>{severityCount[k]}</div><div className="mt-1 text-xs uppercase tracking-wide text-slate-500">{k}</div></div>)}</div><div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/30 p-4"><div className="text-sm font-semibold text-slate-200">Leitura recomendada</div><p className="mt-2 text-sm leading-relaxed text-slate-400">Comece pelos achados de severidade alta no domínio prioritário. O resultado orienta a conversa, mas não substitui validação técnica.</p></div></div>
+   <div className="glass-card p-6 md:p-7"><div className="text-xs font-bold uppercase tracking-[.16em] text-teal-400">Mapa de postura</div><h2 className="mt-1 text-2xl font-bold">Equilíbrio entre as áreas</h2><p className="mt-2 text-sm text-slate-500">A mesma nota técnica vista como perfil relativo do ambiente.</p><SecurityPostureRadar items={[{key:'network',label:'Internet e rede',value:r.scores.network},{key:'endpoint',label:'Computadores',value:r.scores.endpoint},{key:'backup',label:'Dados e backup',value:r.scores.backup},{key:'identity',label:'Contas e acessos',value:r.scores.identity}]}/></div>
+   <div className="glass-card p-6 md:p-7"><div className="text-xs font-bold uppercase tracking-[.16em] text-teal-400">Distribuição dos achados</div><h2 className="mt-1 text-2xl font-bold">Onde está a atenção</h2><div className="mt-7 grid grid-cols-3 gap-3">{(['Alta','Média','Baixa'] as const).map(k=><div key={k} className="rounded-xl border border-slate-800 bg-slate-950/35 p-4 text-center"><div className={`text-3xl font-extrabold ${k==='Alta'?'text-rose-300':k==='Média'?'text-amber-300':'text-emerald-300'}`}>{severityCount[k]}</div><div className="mt-1 text-xs uppercase tracking-wide text-slate-500">{k}</div></div>)}</div><div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/30 p-4"><div className="text-sm font-semibold text-slate-200">Leitura recomendada</div><p className="mt-2 text-sm leading-relaxed text-slate-400">Comece pelas prioridades do plano abaixo e use os achados como evidência para aprofundar a reunião.</p></div></div>
   </section>
+
+  <section className="mt-9"><div className="mb-4"><div className="text-xs font-bold uppercase tracking-[.16em] text-teal-400">Priority Engine · uso interno</div><h2 className="mt-1 text-2xl font-bold">Plano de prioridades</h2><p className="mt-1 text-sm text-slate-500">Mesma priorização apresentada ao cliente, com uma leitura comercial adicional para preparação do Account Manager.</p></div><PriorityPlan plan={priorityPlan} internal/></section>
 
   <section className="mt-9"><div className="mb-4 flex items-end justify-between gap-4"><div><div className="text-xs font-bold uppercase tracking-[.16em] text-teal-400">Diagnóstico contextual</div><h2 className="mt-1 text-2xl font-bold">O que merece atenção</h2></div><div className="text-sm text-slate-500">{r.findings.length} achado(s)</div></div><div className="grid gap-4 lg:grid-cols-2">{r.findings.length?r.findings.map(f=><article key={`${f.domain}-${f.title}`} className="glass-card p-6"><div className="flex items-start justify-between gap-4"><div className="flex items-center gap-2 text-sm font-semibold text-slate-400"><AlertTriangle size={17} className="text-amber-300"/>{f.domain}</div><SeverityBadge severity={f.severity}/></div><h3 className="mt-4 text-xl font-bold leading-snug text-white">{f.title}</h3><div className="mt-4 space-y-3 text-sm leading-relaxed"><div><div className="text-xs font-bold uppercase tracking-[.12em] text-slate-600">O que identificamos</div><p className="mt-1 text-slate-300">{f.situation}</p></div><div><div className="text-xs font-bold uppercase tracking-[.12em] text-slate-600">Possível consequência</div><p className="mt-1 text-slate-300">{f.consequence}</p></div><div className="rounded-lg border border-slate-800 bg-slate-950/35 p-3 text-slate-400"><b className="text-slate-300">Ponto técnico avaliado:</b> {f.technical}</div></div></article>):<div className="glass-card p-6 text-slate-400">Nenhum achado prioritário foi gerado com os dados informados.</div>}</div></section>
 

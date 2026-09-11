@@ -1032,7 +1032,7 @@ export function scoreAssessment(
 
       situation:
         a.firewallLevel === 'isp'
-          ? 'A proteção informada depende principalmente do equipamento fornecido pela operadora.'
+          ? 'A proteção informada está concentrada principalmente no equipamento fornecido pela operadora.'
           : 'Não foi identificada uma camada dedicada de proteção entre a internet e a rede da empresa.',
 
       consequence:
@@ -1091,7 +1091,7 @@ export function scoreAssessment(
       domain: labels.network,
 
       title:
-        'Você depende de um terceiro, mas tem pouca visibilidade do que acontece na rede',
+        'A gestão da rede é terceirizada, mas a visibilidade recebida pela empresa é limitada',
 
       situation:
         'O firewall é administrado por uma empresa terceirizada, porém você informou que não recebe acompanhamento periódico ou recebe informações apenas quando ocorre algum problema.',
@@ -1120,7 +1120,7 @@ export function scoreAssessment(
         'Pelas respostas, não foram confirmados recursos adicionais de inspeção e prevenção de ameaças no equipamento que protege a internet.',
 
       consequence:
-        'Isso aumenta a dependência de outras ferramentas para perceber comportamentos maliciosos que passem pelas regras tradicionais de acesso.',
+        'Nesse cenário, comportamentos maliciosos que passem pelas regras tradicionais podem exigir outras camadas de detecção e monitoramento para serem identificados.',
 
       technical:
         'IPS, proteção contra malware, controle de aplicações, filtragem e inteligência de ameaças.',
@@ -1168,7 +1168,7 @@ export function scoreAssessment(
         'Não foi identificada uma camada corporativa de proteção aplicada de forma consistente aos computadores.',
 
       consequence:
-        'A empresa fica mais dependente da percepção dos usuários e de controles isolados para identificar ameaças nos dispositivos.',
+        'Sem uma proteção corporativa padronizada, aumenta a chance de ameaças nos dispositivos serem percebidas apenas por controles isolados ou por sintomas visíveis ao usuário.',
 
       technical:
         'Proteção de endpoint, gestão central e acompanhamento dos dispositivos.',
@@ -1320,12 +1320,12 @@ export function scoreAssessment(
       domain: labels.backup,
 
       title:
-        'Recuperar os dados pode depender demais de ações manuais',
+        'A recuperação dos dados possui etapas manuais relevantes',
 
       situation:
         a.backupLevel === 'none'
           ? 'Não foi identificado um processo formal de cópia e proteção dos dados.'
-          : 'As cópias dependem de execução manual.',
+          : 'As cópias são executadas manualmente.',
 
       consequence:
         'Em uma situação de perda de dados ou ransomware, a empresa pode descobrir somente durante a recuperação que alguma informação importante não estava protegida como esperado.',
@@ -1429,13 +1429,13 @@ export function scoreAssessment(
       domain: labels.identity,
 
       title:
-        'O e-mail pode depender demais da percepção do usuário',
+        'A proteção de e-mail pode deixar decisões importantes para o usuário',
 
       situation:
         'Não foram identificadas camadas adicionais amplas de proteção contra phishing, links e anexos maliciosos.',
 
       consequence:
-        'Mensagens bem construídas podem passar pelos filtros básicos e chegar até alguém que precise decidir sozinho se aquilo é legítimo.',
+        'Mensagens bem construídas podem passar pelos filtros básicos e chegar ao usuário sem uma camada adicional de análise antes da decisão.',
 
       technical:
         'Anti-phishing, análise de links e anexos, autenticação de domínio e proteção avançada de e-mail.',

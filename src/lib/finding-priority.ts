@@ -274,6 +274,12 @@ export function rankFindings(
         ) ||
         title.includes(
           'pouca visibilidade',
+        ) ||
+        title.includes(
+          'gestao da rede e terceirizada',
+        ) ||
+        title.includes(
+          'visibilidade recebida',
         )
       ) {
         score += 70;

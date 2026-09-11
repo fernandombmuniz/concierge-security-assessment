@@ -21,9 +21,9 @@ import {
   DomainKey,
 } from '../scoring';
 
-import ScoreGauge from '../components/ScoreGauge';
-import DomainBars from '../components/DomainBars';
+import SecurityMaturityMeter from '../components/SecurityMaturityMeter';
 import ImpactChart from '../components/ImpactChart';
+import PriorityPlan from '../components/PriorityPlan';
 import ClientHeader from '../components/ClientHeader';
 
 import {
@@ -69,13 +69,40 @@ import {
 } from '../lib/finding-priority';
 
 import {
+  buildPriorityPlan,
+} from '../lib/priority-engine';
+
+import {
   loadInternalAssessmentReport,
 } from '../lib/assessment.functions';
+
+import { readAttribution } from '../lib/assessment-session';
 
 type ResultState = {
   data: AssessmentData;
   fromSubmission: boolean;
   protected: boolean;
+};
+
+type AssessmentContact = {
+  name: string;
+  email: string;
+};
+
+const CONTACT_BY_REF: Record<string, AssessmentContact> = {
+  fernando: {
+    name: 'Fernando Muniz',
+    email: 'fernando.muniz@concierge.seg.br',
+  },
+  leonardo: {
+    name: 'Leonardo Araujo',
+    email: 'leonardo.araujo@concierge.seg.br',
+  },
+};
+
+const resolveAssessmentContact = (): AssessmentContact | null => {
+  const ref = readAttribution().ref?.trim().toLowerCase();
+  return ref ? CONTACT_BY_REF[ref] ?? null : null;
 };
 
 const rangeLabel = (
@@ -229,6 +256,10 @@ export default function ClientResults() {
     searchParams.get(
       'internalReport',
     );
+
+  const assessmentContact = internalReportToken
+    ? null
+    : resolveAssessmentContact();
 
   const [resultState, setResultState] =
     useState<ResultState>(() =>
@@ -843,6 +874,13 @@ export default function ClientResults() {
       3,
     );
 
+  const priorityPlan =
+    buildPriorityPlan(
+      draftData,
+      r,
+      3,
+    );
+
   const evaluatedScoresList =
     Object.entries(r.scores)
       .filter(
@@ -959,922 +997,434 @@ export default function ClientResults() {
             </div>
           )}
 
-        {/* 1. CONTEXTO */}
-        <section className="glass-card p-6 md:p-8">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <span className="section-kicker">
-                Ambiente analisado
-              </span>
-
-              <h2 className="mt-2 text-2xl font-bold text-white">
-                Resumo do diagnóstico
-              </h2>
-
-              <p className="mt-1 text-sm leading-relaxed text-slate-400">
-                A leitura abaixo foi
-                construída a partir das
-                respostas fornecidas sobre
-                internet, computadores,
-                dados, backup e contas.
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-300">
-                <span className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
-                  <TrendingUp
-                    size={15}
-                    className="text-teal-400"
-                  />
-
-                  Indicador geral:{' '}
-                  {safeLevel}
-                </span>
-
-                <span className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
-                  Setor:{' '}
-                  {(
-                    draftData.sector ===
-                    'Outros'
-                      ? draftData.sectorOther
-                      : draftData.sector
-                  ) ||
-                    'Não informado'}
-                </span>
-
-                <span className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
-                  {rangeLabel(
-                    draftData.users,
-                    'people',
-                  )}
-                </span>
-
-                <span className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
-                  {rangeLabel(
-                    draftData.endpointCount ||
-                      draftData.devices,
-                    'devices',
-                  )}
-                </span>
-
-                {draftData.servers >
-                  0 && (
-                  <span className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
-                    {draftData.servers}{' '}
-                    servidores
-                  </span>
-                )}
-
-                <span className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-1.5">
-                  {draftData.sites || 1}{' '}
-                  unidades
-                </span>
+        {/* 1. RESUMO EXECUTIVO + POSTURA */}
+        <section id="postura" className="glass-card overflow-hidden scroll-mt-24">
+          <div className="border-b border-slate-800/70 p-5 md:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <span className="section-kicker">Seu diagnóstico</span>
+                <h2 className="mt-2 text-2xl font-bold text-white">
+                  Resultado do diagnóstico e onde olhar primeiro
+                </h2>
+                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">
+                  Veja primeiro o indicador geral, compare as áreas avaliadas e use o ponto de atenção destacado como guia para os achados e prioridades.
+                </p>
               </div>
+
+              <button
+                type="button"
+                data-pdf-ignore="true"
+                onClick={() =>
+                  document
+                    .getElementById('prioridades')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-2.5 text-sm font-semibold text-teal-300 transition hover:bg-teal-500/15"
+              >
+                Ver por onde começar
+                <ChevronRight size={17} />
+              </button>
             </div>
           </div>
-        </section>
 
-        {/* 2. SCORE */}
-        <section className="mt-6 grid gap-6 md:grid-cols-[1fr_1.3fr]">
-          <div className="glass-card flex flex-col items-center justify-center p-6 text-center">
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-[.16em] text-slate-500">
-              Indicador de maturidade
-            </h3>
+          <div className="grid lg:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="flex flex-col items-center justify-center border-b border-slate-800/80 p-6 text-center lg:border-b-0 lg:border-r lg:p-7">
+              <span className="section-kicker self-start lg:self-auto">Indicador geral</span>
+              <div className="mt-4 w-full max-w-[280px]">
+                <SecurityMaturityMeter value={overall} level={safeLevel} />
+              </div>
+              <button
+                onClick={() => setIsScoreModalOpen(true)}
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+              >
+                <HelpCircle size={14} />
+                Como calculamos?
+              </button>
+            </div>
 
-            <ScoreGauge
-              value={overall}
-              size={160}
-            />
-
-            <div className="mt-4">
-              <div className="text-xl font-bold text-white">
-                {safeLevel}
+            <div className="min-w-0 p-5 md:p-6 lg:p-7">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <span className="section-kicker">Indicadores por área</span>
+                  <h3 className="mt-1 text-xl font-bold text-white">
+                    Compare as quatro áreas avaliadas
+                  </h3>
+                </div>
+                <span className="shrink-0 text-xs text-slate-500">Escala de 0 a 100</span>
               </div>
 
-              <p className="mt-2 max-w-[260px] text-xs leading-relaxed text-slate-400">
-                O indicador resume a
-                condição dos controles
-                informados. Quando algo não
-                pôde ser confirmado, isso
-                reduz a certeza da leitura
-                sem transformar automaticamente
-                o desconhecimento em falha.
-              </p>
-            </div>
-
-            <button
-              onClick={() =>
-                setIsScoreModalOpen(
-                  true,
-                )
-              }
-              className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-400 transition hover:text-teal-300"
-            >
-              <HelpCircle
-                size={16}
-              />
-
-              Como calculamos este indicador?
-            </button>
-          </div>
-
-          <div className="glass-card flex flex-col justify-between p-6">
-            <div>
-              <span className="section-kicker">
-                Visão geral
-              </span>
-
-              <h3 className="mt-1 text-xl font-bold text-white">
-                Visão por área
-              </h3>
-
-              <p className="mb-6 mt-1 text-xs text-slate-400">
-                Veja como cada área se
-                comportou a partir das
-                respostas fornecidas.
-              </p>
-            </div>
-
-            <div className="flex flex-grow flex-col justify-center">
-              <DomainBars
-                items={domains}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* 3. LEITURA GUIADA */}
-        <section className="glass-card mt-6 p-6 md:p-7">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-3xl">
-              <span className="section-kicker">
-                O que entendemos
-              </span>
-
-              <h3 className="mt-1 text-xl font-bold text-white">
-                O que mais chamou atenção
-              </h3>
-
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                {executiveNarrative}
-              </p>
-            </div>
-
-            <button
-              onClick={() =>
-                setIsDiagnosisModalOpen(
-                  true,
-                )
-              }
-              className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-teal-400 transition hover:text-teal-300"
-            >
-              <HelpCircle
-                size={16}
-              />
-
-              Como chegamos a esta conclusão?
-            </button>
-          </div>
-
-          <div className="mt-5 grid gap-3 border-t border-slate-800/70 pt-5 sm:grid-cols-3">
-            <div>
-              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                Indicador geral
-              </div>
-
-              <div className="mt-1 font-bold text-slate-100">
-                {overall !== null
-                  ? `${overall}/100 · ${safeLevel}`
-                  : 'Dados insuficientes'}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                Primeiro ponto a revisar
-              </div>
-
-              <div className="mt-1 font-bold text-amber-300">
-                {r.priority
-                  ? priorityExecName[
-                      r.priority
-                    ]
-                  : 'Aguardando dados'}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                Próximo passo
-              </div>
-
-              <div className="mt-1 font-bold text-slate-100">
-                {r.priority
-                  ? nextStepText[
-                      r.priority
-                    ]
-                  : 'Validar os pontos prioritários identificados'}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. RESUMO */}
-        <section className="glass-card mt-6 p-6">
-          <span className="section-kicker">
-            Resumo dos pontos principais
-          </span>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="mt-1 text-xl font-bold text-white">
-              O que vale revisar
-            </h3>
-
-            <button
-              onClick={() =>
-                setIsDiagnosisModalOpen(
-                  true,
-                )
-              }
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-400 transition hover:text-teal-300"
-            >
-              <HelpCircle
-                size={16}
-              />
-
-              Como chegamos a estes pontos?
-            </button>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3.5 rounded-xl border border-slate-800 bg-slate-950/20 p-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-amber-500/20 bg-amber-500/10">
-              <AlertTriangle
-                className="text-amber-300"
-                size={24}
-              />
-            </div>
-
-            <div>
-              <div className="text-base font-bold text-slate-200">
-                {topFindings.length}{' '}
-                pontos principais para revisar
-              </div>
-
-              <p className="mt-1 text-sm leading-relaxed text-slate-400">
-                Selecionamos os pontos que
-                mais ajudam a entender onde
-                vale começar. O restante
-                continua considerado pela
-                metodologia.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* 5. PRIORIDADE */}
-        {r.priority && (
-          <section className="glass-card mt-6 border-l-4 border-l-amber-500/60 p-6">
-            <span className="text-xs font-bold uppercase tracking-[.16em] text-amber-400">
-              Por onde começar
-            </span>
-
-            <h3 className="mt-2 text-2xl font-bold text-white">
-              {
-                priorityExecName[
-                  r.priority
-                ]
-              }
-            </h3>
-
-            <p className="mt-3 text-sm leading-relaxed text-slate-300">
-              {
-                priorityReasonText[
-                  r.priority
-                ]
-              }
-            </p>
-
-            <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 px-3.5 py-1.5 text-xs font-semibold text-slate-400">
-              <span>
-                Indicador desta área:
-              </span>
-
-              <span className="font-bold text-amber-300">
-                {
-                  priorityExecName[
-                    r.priority
-                  ]
-                }{' '}
-                ·{' '}
-                {safeScore(
-                  r.scores[
-                    r.priority
-                  ],
-                ) ?? '—'}
-                /100
-              </span>
-            </div>
-          </section>
-        )}
-
-        {/* 6. FINDINGS */}
-        <section className="mt-8">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <span className="section-kicker">
-                Pontos principais
-              </span>
-
-              <h3 className="text-2xl font-bold text-white">
-                Os principais pontos para revisar
-              </h3>
-
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-400">
-                Cada ponto começa pelo que
-                você informou e explica por
-                que aquilo merece atenção no
-                dia a dia.
-              </p>
-            </div>
-
-            <span className="text-sm text-slate-500">
-              {topFindings.length}{' '}
-              ponto(s) principal(is)
-            </span>
-          </div>
-
-          <div className="grid gap-4">
-            {topFindings
-              .map(
-                (
-                  finding,
-                  index,
-                ) => {
-                  const findingKey =
-                    `${plainDomainLabel(
-                      finding.domain,
-                    )}-${finding.title}-${index}`;
-
-                  const isExpanded =
-                    pdfMode ||
-                    expandedFindings.has(
-                      findingKey,
-                    );
-
-                  const source =
-                    getValidatedSourceForFinding(
-                      finding.title,
-                      finding.domain,
-                    );
-
-                  const presentation =
-                    presentFinding(
-                      finding,
-                      draftData,
-                    );
-
-                  const severityLabel =
-                    severityToClientLabel(
-                      finding.severity,
-                    );
-
+              <div className="mt-5 grid gap-x-5 gap-y-4 md:grid-cols-2">
+                {domains.map((item) => {
+                  const value = item.value ?? 0;
                   return (
-                    <article
-                      key={
-                        findingKey
-                      }
-                      className="glass-card overflow-hidden"
+                    <div
+                      key={item.label}
+                      className="min-w-0 rounded-xl border border-slate-800/80 bg-slate-950/20 px-4 py-4"
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!pdfMode) {
-                            toggleFinding(
-                              findingKey,
-                            );
-                          }
-                        }}
-                        aria-expanded={
-                          isExpanded
-                        }
-                        className="w-full p-5 text-left md:p-6"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-                                <AlertTriangle
-                                  size={15}
-                                  className="text-amber-400"
-                                />
+                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                        <div className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-slate-200">
+                          <span className="shrink-0">{item.icon}</span>
+                          <span className="min-w-0 leading-snug">{item.label}</span>
+                        </div>
+                        <div className="flex shrink-0 items-baseline gap-1">
+                          <span className="text-xl font-extrabold leading-none text-white">
+                            {item.value ?? '—'}
+                          </span>
+                          <span className="text-[10px] text-slate-500">/100</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-teal-400"
+                          style={{ width: `${value}%` }}
+                        />
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">
+                        {maturityLevel(item.value)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                                {plainDomainLabel(
-                                  finding.domain,
-                                )}
-                              </span>
+              {immediatePriority && (
+                <div className="mt-4 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm leading-relaxed text-slate-300">
+                    <span className="font-semibold text-white">Área que merece atenção primeiro:</span>{' '}
+                    {immediatePriority.label} apresenta o menor indicador entre as áreas avaliadas.
+                  </div>
+                  <button
+                    type="button"
+                    data-pdf-ignore="true"
+                    onClick={() =>
+                      document
+                        .getElementById('prioridades')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }
+                    className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-amber-300 transition hover:text-amber-200"
+                  >
+                    Ver prioridades
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
 
-                              <span
-                                className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold ${
-                                  finding.severity ===
-                                  'Alta'
-                                    ? 'border border-amber-700/25 bg-amber-950/25 text-amber-300'
-                                    : finding.severity ===
-                                        'Média'
-                                      ? 'border border-cyan-800/20 bg-cyan-950/20 text-cyan-300'
-                                      : 'border border-slate-700/30 bg-slate-900/30 text-slate-300'
-                                }`}
-                              >
-                                {
-                                  severityLabel
-                                }
-                              </span>
-                            </div>
+        {/* 3. LEITURA EXECUTIVA */}
+        <section className="glass-card mt-6 p-5 md:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-4xl">
+              <span className="section-kicker">Leitura do diagnóstico</span>
+              <h3 className="mt-1 text-xl font-bold text-white">O que mais chamou atenção</h3>
+              <p className="mt-2 text-sm leading-7 text-slate-300">{executiveNarrative}</p>
+            </div>
+            <button
+              onClick={() => setIsDiagnosisModalOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+            >
+              <HelpCircle size={15} />
+              Entender metodologia
+            </button>
+          </div>
+        </section>
 
-                            <h4 className="mt-3 text-lg font-bold leading-snug text-slate-100">
-                              {
-                                presentation.title
-                              }
-                            </h4>
+        {/* 4. ACHADOS PRINCIPAIS */}
+        <section id="achados" className="mt-7 scroll-mt-24">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="section-kicker">Principais achados</span>
+              <h3 className="mt-1 text-2xl font-bold text-white">
+                O que explica o resultado
+              </h3>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-400">
+                Mostramos primeiro apenas o essencial. Clique em “Ver detalhes” para consultar a explicação completa de cada achado.
+              </p>
+            </div>
+            <span className="text-xs text-slate-500">{topFindings.length} pontos selecionados</span>
+          </div>
 
-                            <div className="mt-3 max-w-3xl space-y-3 text-sm leading-relaxed">
-                              <p className="text-slate-300">
-                                <b className="text-slate-100">
-                                  O que
-                                  você nos
-                                  informou:
-                                </b>{' '}
-                                {
-                                  presentation.informed
-                                }
-                              </p>
+          <div className="grid gap-3">
+            {topFindings.map((finding, index) => {
+              const findingKey = `${plainDomainLabel(finding.domain)}-${finding.title}-${index}`;
+              const isExpanded = pdfMode || expandedFindings.has(findingKey);
+              const source = getValidatedSourceForFinding(finding.title, finding.domain);
+              const presentation = presentFinding(finding, draftData);
+              const severityLabel = severityToClientLabel(finding.severity);
 
-                              <p className="text-slate-300">
-                                <b className="text-slate-100">
-                                  O que
-                                  isso
-                                  indica:
-                                </b>{' '}
-                                {
-                                  presentation.indication
-                                }
-                              </p>
+              return (
+                <article key={findingKey} className="glass-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!pdfMode) toggleFinding(findingKey);
+                    }}
+                    aria-expanded={isExpanded}
+                    className="group w-full cursor-pointer p-4 text-left transition hover:bg-slate-950/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 md:p-5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-slate-700/60 bg-slate-950/35 text-xs font-extrabold text-teal-300">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
 
-                              <p className="text-slate-400">
-                                <b className="text-slate-300">
-                                  Na
-                                  prática:
-                                </b>{' '}
-                                {
-                                  presentation.practical
-                                }
-                              </p>
-                            </div>
-                          </div>
-
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-2xs font-bold uppercase tracking-[.12em] text-slate-500">
+                            {plainDomainLabel(finding.domain)}
+                          </span>
                           <span
-                            className="mt-1 shrink-0 text-teal-400"
-                            aria-hidden="true"
+                            className={`rounded-full px-2 py-0.5 text-2xs font-semibold ${
+                              finding.severity === 'Alta'
+                                ? 'border border-amber-700/25 bg-amber-950/25 text-amber-300'
+                                : finding.severity === 'Média'
+                                  ? 'border border-cyan-800/20 bg-cyan-950/20 text-cyan-300'
+                                  : 'border border-slate-700/30 bg-slate-900/30 text-slate-300'
+                            }`}
                           >
-                            {isExpanded ? (
-                              <ChevronDown
-                                size={20}
-                              />
-                            ) : (
-                              <ChevronRight
-                                size={20}
-                              />
-                            )}
+                            {severityLabel}
                           </span>
                         </div>
+                        <h4 className="mt-1 text-base font-bold leading-snug text-slate-100">
+                          {presentation.title}
+                        </h4>
+                        {!isExpanded && (
+                          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-400">
+                            {presentation.indication}
+                          </p>
+                        )}
+                      </div>
 
-                        <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-teal-400">
-                          {isExpanded
-                            ? 'Ocultar detalhes técnicos'
-                            : 'Ver detalhes técnicos'}
+                      <div className="flex shrink-0 items-center gap-2 text-xs font-semibold text-teal-400" aria-hidden="true">
+                        <span className="hidden sm:inline">
+                          {isExpanded ? 'Ocultar detalhes' : 'Ver detalhes'}
+                        </span>
+                        {isExpanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
+                      </div>
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-800/70 px-4 pb-5 pt-4 md:px-5">
+                      <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+                        <div className="space-y-3 text-sm leading-relaxed">
+                          <p className="text-slate-300">
+                            <b className="text-slate-100">O que você nos informou:</b>{' '}
+                            {presentation.informed}
+                          </p>
+                          <p className="text-slate-300">
+                            <b className="text-slate-100">O que isso indica:</b>{' '}
+                            {presentation.indication}
+                          </p>
+                          <p className="text-slate-400">
+                            <b className="text-slate-300">Na prática:</b>{' '}
+                            {presentation.practical}
+                          </p>
                         </div>
-                      </button>
 
-                      {isExpanded && (
-                        <div className="border-t border-slate-800/70 px-5 pb-6 pt-5 md:px-6">
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
-                              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                                Detalhe técnico
-                              </div>
-
-                              <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                                {
-                                  finding.technical
-                                }
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
-                              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                                Por que isso foi sinalizado
-                              </div>
-
-                              <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                                {
-                                  finding.consequence
-                                }
-                              </p>
-                            </div>
+                        <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
+                          <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
+                            Detalhe técnico
                           </div>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-300">{finding.technical}</p>
+                          <div className="mt-3 border-t border-slate-800/70 pt-3 text-xs leading-relaxed text-slate-500">
+                            {finding.consequence}
+                          </div>
+                        </div>
+                      </div>
 
-                          {source && (
-                            <div className="mt-4 rounded-xl border border-teal-900/15 bg-teal-950/5 p-4">
-                              <div className="text-xs font-semibold text-teal-400">
-                                Referência do controle
-                              </div>
-
-                              <p className="mt-1 text-sm leading-relaxed text-slate-300">
-                                {
-                                  source.statement
-                                }
-                              </p>
-
-                              <a
-                                href={
-                                  source.sourceUrl
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
-                              >
-                                {
-                                  source.organization
-                                }{' '}
-                                ·{' '}
-                                {
-                                  source.reportTitle
-                                }{' '}
-                                (
-                                {
-                                  source.year
-                                }
-                                )
-                              </a>
-                            </div>
-                          )}
+                      {source && (
+                        <div className="mt-4 rounded-xl border border-teal-900/15 bg-teal-950/5 p-4">
+                          <div className="text-xs font-semibold text-teal-400">Referência do controle</div>
+                          <p className="mt-1 text-sm leading-relaxed text-slate-300">{source.statement}</p>
+                          <a
+                            href={source.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+                          >
+                            {source.organization} · {source.reportTitle} ({source.year})
+                          </a>
                         </div>
                       )}
-                    </article>
-                  );
-                },
-              )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </section>
 
-        {/* 7. IMPACTO */}
-        <section className="mt-8 grid gap-6 md:grid-cols-[1fr_1.2fr]">
-          <div className="glass-card flex flex-col justify-between p-6">
-            <div>
-              <span className="section-kicker">
-                Cenário operacional ilustrativo
-              </span>
-
-              <h3 className="mt-1 text-xl font-bold text-white">
-                Quanto uma parada pode representar
-              </h3>
-
-              <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                {impactContext}
-              </p>
-
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                A faixa considera
-                produtividade interrompida,
-                esforço técnico de
-                recuperação e impacto
-                operacional adicional.
-              </p>
-
-              <div className="mt-5 rounded-xl border border-cyan-900/15 bg-cyan-950/5 p-3 text-xs leading-relaxed text-slate-300">
-                Esta é uma simulação de
-                ordem de grandeza. Não é uma
-                previsão de prejuízo, multa
-                ou custo real de incidente.
-              </div>
-
-              <div className="mt-6 text-3xl font-extrabold text-white">
-                {money(
-                  impactLow,
-                )}{' '}
-                <span className="text-base font-normal text-slate-500">
-                  a
-                </span>{' '}
-                {money(
-                  impactHigh,
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={() =>
-                setIsFaixaModalOpen(
-                  true,
-                )
-              }
-              className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-400 transition hover:text-teal-300"
-            >
-              <HelpCircle
-                size={16}
-              />
-
-              Como estimamos essa faixa?
-            </button>
+        {/* 5. IMPACTO E CONTEXTO */}
+        <section
+          className="glass-card mt-6 overflow-hidden"
+          data-report-keep-together="true"
+        >
+          <div className="border-b border-slate-800/70 p-5 md:p-6">
+            <span className="section-kicker">Impacto e contexto</span>
+            <h3 className="mt-1 text-xl font-bold text-white">
+              O que esse cenário pode representar na prática
+            </h3>
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">
+              Uma leitura complementar para dimensionar impacto operacional e interpretar os pontos identificados.
+            </p>
           </div>
 
-          <div className="glass-card flex flex-col justify-between p-6">
-            <div>
-              <span className="section-kicker">
-                Composição da faixa
-              </span>
-
-              <h3 className="mt-1 text-xl font-bold text-white">
-                De onde vem a estimativa
-              </h3>
-
-              <p className="mb-4 mt-1 text-xs text-slate-400">
-                A simulação separa o impacto
-                em três grupos para evitar
-                resumir uma parada apenas às
-                horas de trabalho perdidas.
-              </p>
-            </div>
-
-            <div className="flex flex-grow flex-col justify-center">
-              <ImpactChart
-                components={
-                  r.impactComponents
-                }
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* 8. VOCÊ SABIA */}
-        {contextualInsights.length >
-          0 && (
-          <section className="mt-6 grid gap-4 md:grid-cols-2">
-            {contextualInsights.map(
-              (insight) => {
-                const source =
-                  getValidatedSource(
-                    insight.sourceId,
-                  );
-
-
-                return (
-                  <article
-                    key={
-                      insight.id
-                    }
-                    className="rounded-2xl border border-slate-800 bg-slate-950/25 p-5 md:p-6"
-                  >
-                    <span className="section-kicker">
-                      {
-                        insight.eyebrow
-                      }
-                    </span>
-
-                    <h3 className="mt-2 text-lg font-bold leading-snug text-white">
-                      {
-                        insight.title
-                      }
-                    </h3>
-
-                    <p className="mt-3 text-sm leading-relaxed text-slate-300">
-                      {
-                        insight.body
-                      }
-                    </p>
-
-                    {source && (
-                      <div className="mt-4 border-t border-slate-800/70 pt-4">
-                        <p className="text-xs leading-relaxed text-slate-500">
-                          Fonte:{' '}
-                          {
-                            source.organization
-                          }{' '}
-                          ·{' '}
-                          {
-                            source.reportTitle
-                          }
-                        </p>
-
-                        <a
-                          href={
-                            source.sourceUrl
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
-                        >
-                          Ler a referência oficial
-                        </a>
-                      </div>
-                    )}
-                  </article>
-                );
-              },
-            )}
-          </section>
-        )}
-
-        {/* 9. CAMINHO */}
-        <section className="glass-card mt-6 p-6">
-          <span className="section-kicker">
-            Próximos passos
-          </span>
-
-          <h3 className="mt-1 text-xl font-bold text-white">
-            Por onde começar
-          </h3>
-
-          <p className="mb-6 mt-1 text-xs text-slate-400">
-            Uma ordem prática para revisar
-            os pontos identificados.
-          </p>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {immediatePriority && (
-              <div className="flex flex-col justify-between rounded-xl border border-amber-900/20 bg-amber-950/5 p-4">
+          <div className={`grid gap-5 p-5 md:p-6 ${contextualInsights.length > 0 ? 'lg:grid-cols-[1.05fr_.95fr]' : ''}`}>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div>
-                  <span className="block text-3xs font-bold uppercase tracking-wider text-amber-400">
-                    1. Primeiro ponto a revisar
-                  </span>
-
-                  <h4 className="mt-2 text-sm font-bold text-slate-100">
-                    {
-                      priorityExecName[
-                        immediatePriority.key
-                      ]
-                    }
-                  </h4>
-
-                  <p className="mt-1 text-2xs leading-relaxed text-slate-400">
-                    Este foi o ponto que
-                    mais chamou atenção.
-                    Vale começar confirmando
-                    como ele funciona hoje e
-                    o que ainda precisa ser
-                    validado.
-                  </p>
+                  <div className="text-3xs font-bold uppercase tracking-[.13em] text-slate-500">
+                    Impacto operacional estimado
+                  </div>
+                  <div className="mt-2 text-xl font-bold text-white">
+                    {money(impactLow)} a {money(impactHigh)}
+                  </div>
                 </div>
-
-                <div className="mt-4 text-xs font-bold text-amber-300">
-                  Indicador atual:{' '}
-                  {
-                    immediatePriority.score
-                  }
-                  /100
-                </div>
-              </div>
-            )}
-
-            {nextOpportunity && (
-              <div className="flex flex-col justify-between rounded-xl border border-cyan-900/10 bg-cyan-950/5 p-4">
-                <div>
-                  <span className="block text-3xs font-bold uppercase tracking-wider text-cyan-400">
-                    2. Próximo ponto a revisar
-                  </span>
-
-                  <h4 className="mt-2 text-sm font-bold text-slate-100">
-                    {
-                      priorityExecName[
-                        nextOpportunity.key
-                      ]
-                    }
-                  </h4>
-
-                  <p className="mt-1 text-2xs leading-relaxed text-slate-400">
-                    Depois do primeiro
-                    ponto, este é o próximo
-                    tema que vale revisar
-                    para reduzir dependências
-                    e melhorar a
-                    previsibilidade.
-                  </p>
-                </div>
-
-                <div className="mt-4 text-xs font-bold text-cyan-300">
-                  Indicador atual:{' '}
-                  {
-                    nextOpportunity.score
-                  }
-                  /100
-                </div>
-              </div>
-            )}
-
-            {mostMature && (
-              <div className="flex flex-col justify-between rounded-xl border border-emerald-900/15 bg-emerald-950/5 p-4">
-                <div>
-                  <span className="block text-3xs font-bold uppercase tracking-wider text-emerald-400">
-                    3. Área com melhor condição atual
-                  </span>
-
-                  <h4 className="mt-2 text-sm font-bold text-slate-100">
-                    {
-                      priorityExecName[
-                        mostMature.key
-                      ]
-                    }
-                  </h4>
-
-                  <p className="mt-1 text-2xs leading-relaxed text-slate-400">
-                    {mostMature.score <
-                    60
-                      ? 'Entre os pontos avaliados, este apresentou a melhor condição relativa, mas ainda há espaço importante para evolução.'
-                      : mostMature.score <
-                          80
-                        ? 'Este ponto apresenta uma base mais estruturada, mas ainda vale confirmar lacunas e revisar se os controles atuais continuam adequados.'
-                        : 'Este ponto apresenta uma condição mais madura. A recomendação é manter os controles existentes e revisá-los periodicamente.'}
-                  </p>
-                </div>
-
-                <div className="mt-4 text-xs font-bold text-emerald-300">
-                  Indicador atual:{' '}
-                  {
-                    mostMature.score
-                  }
-                  /100
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 10. CTA */}
-        <section className="mt-8 rounded-2xl border border-teal-950/30 bg-teal-950/10 p-6">
-          <div className="flex items-start gap-4">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-teal-500/20 bg-teal-500/10 text-teal-400">
-              <ShieldCheck
-                size={20}
-              />
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold text-white">
-                Quer entender melhor o que apareceu aqui?
-              </h3>
-
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-300">
-                Este diagnóstico já ajuda
-                a identificar os principais
-                pontos do ambiente. Uma
-                conversa curta pode servir
-                para confirmar as respostas,
-                entender as particularidades
-                da operação e separar o que
-                realmente merece ação do que
-                já está bem resolvido.
-              </p>
-
-              <div
-                className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center"
-                data-pdf-ignore="true"
-              >
                 <button
-                  type="button"
-                  onClick={
-                    handleDownloadReport
-                  }
-                  disabled={
-                    isPdfGenerating
-                  }
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-950/30 transition hover:bg-teal-500 disabled:cursor-wait disabled:bg-teal-800 disabled:text-teal-200"
+                  onClick={() => setIsFaixaModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
                 >
-                  {isPdfGenerating ? (
-                    <>
-                      <Loader2
-                        size={18}
-                        className="animate-spin"
-                      />
+                  <HelpCircle size={14} />
+                  Como estimamos?
+                </button>
+              </div>
 
-                      Preparando relatório...
+              <p className="mt-3 text-sm leading-relaxed text-slate-300">{impactContext}</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                A faixa considera produtividade interrompida, esforço técnico de recuperação e impacto operacional adicional. É uma ordem de grandeza, não uma previsão de prejuízo, multa ou custo real.
+              </p>
+
+              <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/20 p-4">
+                <ImpactChart components={r.impactComponents} />
+              </div>
+            </div>
+
+            {contextualInsights.length > 0 && (
+              <div className="min-w-0 border-t border-slate-800/70 pt-5 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+                <div className="text-3xs font-bold uppercase tracking-[.13em] text-slate-500">
+                  Contexto para interpretação
+                </div>
+                <div className="mt-3 space-y-3">
+                  {contextualInsights.map((insight) => {
+                    const source = getValidatedSource(insight.sourceId);
+                    return (
+                      <article key={insight.id} className="border-b border-slate-800/60 pb-3 last:border-b-0 last:pb-0">
+                        <span className="text-3xs font-bold uppercase tracking-[.12em] text-teal-500">
+                          {insight.eyebrow}
+                        </span>
+                        <h4 className="mt-1.5 text-sm font-bold leading-snug text-white">{insight.title}</h4>
+                        <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{insight.body}</p>
+                        {source && (
+                          <a
+                            href={source.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+                          >
+                            {source.organization} · {source.reportTitle}
+                          </a>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* 7. PLANO DE PRIORIDADES */}
+        <section
+          id="prioridades"
+          className="mt-8 scroll-mt-24"
+          data-report-slide-break="true"
+          data-report-keep-together="true"
+        >
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="section-kicker">Plano de prioridades</span>
+              <h3 className="mt-1 text-2xl font-bold text-white">Por onde começar</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+                A sequência abaixo organiza os três temas que merecem atenção primeiro. Ela indica ordem de revisão, sem estipular prazo de implementação.
+              </p>
+            </div>
+          </div>
+
+          <PriorityPlan plan={priorityPlan} compact={pdfMode} />
+
+          {pdfMode && (
+            <div className="mt-4 rounded-xl border border-teal-900/30 bg-teal-950/10 px-5 py-4">
+              <div className="text-xs font-bold uppercase tracking-[.12em] text-teal-400">
+                Ficou com dúvidas?
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-300">
+                {assessmentContact ? (
+                  <>
+                    Entre em contato com {assessmentContact.name}: {assessmentContact.email}
+                  </>
+                ) : (
+                  <>
+                    Entre em contato com o responsável Concierge que encaminhou este diagnóstico.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* 8. CTA */}
+        <section
+          className="mt-8 rounded-2xl border border-teal-950/30 bg-teal-950/10 p-5 md:p-6"
+          data-pdf-ignore="true"
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-teal-500/20 bg-teal-500/10 text-teal-400">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Ficou com dúvidas?</h3>
+                <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-300">
+                  {assessmentContact ? (
+                    <>
+                      Fale com {assessmentContact.name} pelo e-mail{' '}
+                      <a
+                        href={`mailto:${assessmentContact.email}`}
+                        className="font-semibold text-teal-400 transition hover:text-teal-300"
+                      >
+                        {assessmentContact.email}
+                      </a>
+                      .
                     </>
                   ) : (
                     <>
-                      <Download
-                        size={18}
-                      />
-
-                      Baixar relatório em PDF
+                      Fale com o responsável Concierge que encaminhou este diagnóstico.
                     </>
                   )}
-                </button>
-
-                <p className="text-xs leading-relaxed text-slate-500">
-                  O PDF reúne o mesmo
-                  diagnóstico exibido nesta
-                  página e inclui os detalhes
-                  técnicos dos principais
-                  pontos.
                 </p>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleDownloadReport}
+              disabled={isPdfGenerating}
+              data-pdf-ignore="true"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-950/30 transition hover:bg-teal-500 disabled:cursor-wait disabled:bg-teal-800 disabled:text-teal-200"
+            >
+              {isPdfGenerating ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Preparando relatório...
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  Baixar relatório em PDF
+                </>
+              )}
+            </button>
           </div>
         </section>
       </div>

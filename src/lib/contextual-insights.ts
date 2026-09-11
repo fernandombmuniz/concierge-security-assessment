@@ -185,11 +185,17 @@ export const presentFinding = (
     ) ||
     title.includes(
       'pouca visibilidade',
+    ) ||
+    title.includes(
+      'gestão da rede é terceirizada',
+    ) ||
+    title.includes(
+      'visibilidade recebida',
     )
   ) {
     return {
       title:
-        'A proteção existe, mas sua empresa enxerga pouco do que acontece nela',
+        'A gestão existe, mas a visibilidade recebida pela empresa é limitada',
 
       informed:
         fw
@@ -197,10 +203,10 @@ export const presentFinding = (
           : 'Você informou que o firewall é administrado por terceiros e que o acompanhamento recebido é limitado.',
 
       indication:
-        'Existe alguém cuidando do equipamento, mas isso não garante que sua empresa receba uma visão contínua sobre tentativas de ataque, bloqueios ou comportamentos suspeitos.',
+        'A administração por terceiros pode funcionar bem. O ponto a confirmar é se a empresa recebe visibilidade recorrente sobre eventos relevantes, bloqueios e comportamentos suspeitos.',
 
       practical:
-        'Um problema pode estar acontecendo ou sendo bloqueado sem virar uma informação útil para a empresa. Em outros casos, ele só chama atenção quando começa a afetar usuários ou sistemas.',
+        'Sem relatórios e acompanhamento claros, eventos relevantes podem ocorrer ou ser bloqueados sem chegar à equipe como informação útil para decisão.',
     };
   }
 
@@ -222,7 +228,7 @@ export const presentFinding = (
         'Esse tipo de equipamento pode atender muito bem funções como roteamento, regras, VPN e separação de redes. Pelas demais respostas, ainda não conseguimos confirmar uma camada mais ampla de análise e prevenção de ameaças.',
 
       practical:
-        'Parte da segurança pode depender de outras ferramentas ou de alguém perceber sintomas depois que algo já chegou aos computadores ou sistemas.',
+        'Sem monitoramento contínuo e uma rotina estruturada de análise, alguns sinais podem ser percebidos apenas depois que já afetaram computadores ou sistemas.',
     };
   }
 
@@ -242,7 +248,7 @@ export const presentFinding = (
           : finding.situation,
 
       indication:
-        'Isso reduz a visibilidade entre o momento em que algo suspeito começa e o momento em que alguém decide investigar.',
+        'Isso aumenta o intervalo entre o início de uma atividade suspeita e o momento em que ela é analisada.',
 
       practical:
         'Alguns ataques não começam derrubando sistemas. Eles podem permanecer silenciosos enquanto coletam credenciais, exploram acessos ou procuram dados importantes.',
@@ -278,7 +284,7 @@ export const presentFinding = (
   ) {
     return {
       title:
-        'Existe proteção, mas um alerta ainda pode ficar esperando alguém agir',
+        'Existe proteção, mas os alertas ainda precisam de um fluxo de resposta definido',
 
       informed:
         endpoint
@@ -286,7 +292,7 @@ export const presentFinding = (
           : finding.situation,
 
       indication:
-        'A ferramenta consegue gerar alertas, mas o valor deles depende de alguém analisar e decidir o que fazer.',
+        'A ferramenta consegue gerar alertas, mas ainda é necessário um processo definido para triagem, investigação e resposta.',
 
       practical:
         'Um comportamento suspeito pode permanecer aberto por mais tempo até virar investigação, contenção ou correção.',
@@ -300,7 +306,7 @@ export const presentFinding = (
   ) {
     return {
       title:
-        'A ferramenta pode detectar o problema, mas alguém ainda precisa agir',
+        'A tecnologia pode detectar o problema, mas a resposta precisa estar estruturada',
 
       informed:
         endpoint
@@ -364,10 +370,10 @@ export const presentFinding = (
   ) {
     return {
       title:
-        'Uma senha vazada pode ser suficiente para alguém entrar em uma conta',
+        'Uma senha vazada pode ser suficiente para acessar uma conta',
 
       informed:
-        'Você informou que algumas contas importantes ainda dependem apenas da senha.',
+        'Você informou que algumas contas importantes ainda utilizam apenas senha como fator de autenticação.',
 
       indication:
         'Quando existe uma segunda confirmação, descobrir a senha deixa de ser suficiente para concluir o acesso.',
@@ -464,7 +470,7 @@ export const presentFinding = (
     indication:
       finding.consequence,
     practical:
-      'Esse ponto merece uma revisão para confirmar como funciona hoje e qual impacto pode ter caso algo saia do esperado.',
+      'Esse ponto merece validação para confirmar como o controle funciona hoje e quais riscos permanecem no cenário informado.',
   };
 };
 

@@ -13,6 +13,54 @@ const SLIDE_WIDTH_MM = 338.67;  // 13.333 in
 const SLIDE_HEIGHT_MM = 190.50; // 7.5 in
 const SLIDE_PADDING_MM = 8;
 
+const BACKGROUND_RGB = { r: 2, g: 6, b: 23 };
+
+const isCanvasMostlyBackground = (canvas: HTMLCanvasElement) => {
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+
+  if (!context) {
+    return false;
+  }
+
+  const { width, height } = canvas;
+  const imageData = context.getImageData(0, 0, width, height).data;
+
+  let total = 0;
+  let backgroundLike = 0;
+  const step = 10;
+  const tolerance = 12;
+
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const index = (y * width + x) * 4;
+      const r = imageData[index];
+      const g = imageData[index + 1];
+      const b = imageData[index + 2];
+      const a = imageData[index + 3];
+
+      if (a < 8) continue;
+
+      total += 1;
+
+      const isBackgroundPixel =
+        Math.abs(r - BACKGROUND_RGB.r) <= tolerance &&
+        Math.abs(g - BACKGROUND_RGB.g) <= tolerance &&
+        Math.abs(b - BACKGROUND_RGB.b) <= tolerance;
+
+      if (isBackgroundPixel) {
+        backgroundLike += 1;
+      }
+    }
+  }
+
+  if (total === 0) {
+    return true;
+  }
+
+  return backgroundLike / total >= 0.992;
+};
+
+
 const nextFrame = () =>
   new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
@@ -121,7 +169,11 @@ type ProtectedRange = {
 const collectProtectedRanges = (root: HTMLElement): ProtectedRange[] => {
   const rootRect = root.getBoundingClientRect();
 
-  return Array.from(root.querySelectorAll<HTMLElement>('article'))
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'article, [data-report-keep-together="true"]',
+    ),
+  )
     .map((element) => {
       const rect = element.getBoundingClientRect();
 
@@ -363,10 +415,24 @@ export async function generateAssessmentPdf(
 
     const scaleY = capture.height / clone.scrollHeight;
 
-    const slides = slicesCss.map(({ start, end }) => ({
+    const rawSlides = slicesCss.map(({ start, end }) => ({
       start: Math.max(0, Math.round(start * scaleY)),
       end: Math.min(capture.height, Math.round(end * scaleY)),
     }));
+
+    // Remove com segurança apenas páginas finais efetivamente vazias.
+    const slides = [...rawSlides];
+    while (slides.length > 1) {
+      const last = slides.at(-1);
+      if (!last) break;
+
+      const lastCanvas = cropCanvas(capture, last.start, last.end);
+      if (!isCanvasMostlyBackground(lastCanvas)) {
+        break;
+      }
+
+      slides.pop();
+    }
 
     const totalSlides = slides.length;
 

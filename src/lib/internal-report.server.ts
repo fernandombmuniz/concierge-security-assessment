@@ -9,6 +9,10 @@ import {
   selectTopFindings,
 } from "@/lib/finding-priority";
 
+import {
+  buildPriorityPlan,
+} from "@/lib/priority-engine";
+
 /**
  * Relatório interno enviado exclusivamente ao Account Manager.
  *
@@ -425,6 +429,63 @@ export function buildInternalReport(
       r.criticalRules,
       3,
     );
+
+  const priorityPlan =
+    buildPriorityPlan(
+      a,
+      r,
+      3,
+    );
+
+  const priorityPlanHtml =
+    priorityPlan.items.length
+      ? priorityPlan.items
+          .map(
+            (item) => `
+              <div style="
+                border:1px solid #dbeafe;
+                border-radius:10px;
+                padding:14px;
+                margin-bottom:12px;
+                background:#f8fafc;
+              ">
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+                  <div>
+                    <div style="font-size:11px;color:#0f766e;font-weight:700;text-transform:uppercase;letter-spacing:.08em">
+                      Prioridade ${item.rank} · ${esc(item.domainLabel)}
+                    </div>
+                    <div style="margin-top:5px;font-size:15px;font-weight:700;color:#0f172a">
+                      ${esc(item.title)}
+                    </div>
+                  </div>
+                  <div style="white-space:nowrap;font-size:11px;font-weight:700;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:999px;padding:4px 8px">
+                    ${esc(item.urgency)}
+                  </div>
+                </div>
+
+                <p style="margin:10px 0 0;font-size:13px;line-height:1.55;color:#334155">
+                  <b>Lacuna:</b> ${esc(item.gap)}
+                </p>
+
+                <p style="margin:7px 0 0;font-size:13px;line-height:1.55;color:#0f172a">
+                  <b>Ação recomendada:</b> ${esc(item.action)}
+                </p>
+
+                <p style="margin:7px 0 0;font-size:12px;line-height:1.55;color:#64748b">
+                  <b>Esforço sugerido:</b> ${esc(item.effort)}
+                  ${item.domainScore === null ? "" : ` · <b>Indicador da área:</b> ${item.domainScore}/100`}
+                </p>
+
+                ${item.commercialHint ? `
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.55;color:#0369a1">
+                    <b>Leitura comercial interna:</b> ${esc(item.commercialHint)}
+                  </div>
+                ` : ""}
+              </div>
+            `,
+          )
+          .join("")
+      : `<p style="font-size:13px;color:#64748b">Dados insuficientes para gerar um plano de prioridades confiável.</p>`;
 
   const findingsHtml =
     topFindings.length
@@ -873,6 +934,16 @@ export function buildInternalReport(
             r.technicalDepth,
           ],
         ]),
+      )}
+
+      ${section(
+        "Plano de prioridades",
+        `
+          <p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#475569">
+            Os principais achados foram organizados em uma ordem sugerida de atenção, considerando criticidade e contexto do ambiente.
+          </p>
+          ${priorityPlanHtml}
+        `,
       )}
 
       ${section(
