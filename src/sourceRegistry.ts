@@ -147,6 +147,25 @@ const SOURCES: SourceEntry[] = [
     sourceUrl: 'https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-aplica-a-primeira-multa-por-descumprimento-a-lgpd',
     validated: true,
   },
+
+  {
+    id: 'anpd-genai-radar-2026',
+    organization: 'ANPD',
+    reportTitle: 'Radar Tecnológico · Inteligência Artificial Generativa',
+    year: '2026',
+    statement: 'Em julho de 2026, a ANPD destacou possíveis ameaças à privacidade e à proteção de dados no uso de Inteligência Artificial Generativa, analisando o tema à luz da LGPD.',
+    sourceUrl: 'https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-lanca-versao-ingles-rt-ingles',
+    validated: true,
+  },
+  {
+    id: 'nist-ai-rmf-genai',
+    organization: 'NIST',
+    reportTitle: 'AI RMF · Generative AI Profile',
+    year: '2024',
+    statement: 'O NIST recomenda que organizações tratem riscos específicos de IA generativa com governança, avaliação de risco, monitoramento e controles compatíveis com o contexto de uso.',
+    sourceUrl: 'https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence',
+    validated: true,
+  },
   {
     id: 'anpd-small-business',
     organization: 'ANPD',

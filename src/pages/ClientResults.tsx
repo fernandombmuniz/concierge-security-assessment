@@ -76,7 +76,7 @@ import {
   loadInternalAssessmentReport,
 } from '../lib/assessment.functions';
 
-import { readAttribution } from '../lib/assessment-session';
+import { loadSession, readAttribution } from '../lib/assessment-session';
 
 type ResultState = {
   data: AssessmentData;
@@ -228,13 +228,13 @@ const resolveResultState = (
   }
 
   /**
-   * Último fallback permitido:
-   * rascunho do próprio navegador.
+   * Sem um assessment concluído, não exibimos resultado a partir de rascunho.
+   * Isso impede abrir /resultado antes do fim do diagnóstico.
    */
   return {
     data: loadDraft(),
     fromSubmission: false,
-    protected: false,
+    protected: true,
   };
 };
 
@@ -256,6 +256,26 @@ export default function ClientResults() {
     searchParams.get(
       'internalReport',
     );
+
+  const [clientAccessReady, setClientAccessReady] = useState(
+    Boolean(internalReportToken),
+  );
+
+  useEffect(() => {
+    if (internalReportToken) {
+      setClientAccessReady(true);
+      return;
+    }
+
+    const session = loadSession();
+
+    if (!session) {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    setClientAccessReady(true);
+  }, [internalReportToken, navigate]);
 
   const assessmentContact = internalReportToken
     ? null
@@ -510,6 +530,12 @@ export default function ClientResults() {
       }
     };
 
+  if (!clientAccessReady) {
+    return (
+      <main className="min-h-screen bg-dashboard-animate bg-grid-tech" />
+    );
+  }
+
   if (
     isInternalReportLoading
   ) {
@@ -611,11 +637,11 @@ export default function ClientResults() {
 
             <button
               onClick={() =>
-                navigate('/diagnostico')
+                navigate('/', { replace: true })
               }
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-3 font-semibold text-white transition hover:bg-teal-500"
             >
-              Iniciar novo diagnóstico
+              Voltar ao início
             </button>
           </div>
         </div>
@@ -671,11 +697,11 @@ export default function ClientResults() {
 
             <button
               onClick={() =>
-                navigate('/diagnostico')
+                navigate('/', { replace: true })
               }
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-3 font-semibold text-white transition hover:bg-teal-500"
             >
-              Iniciar diagnóstico
+              Voltar ao início
             </button>
           </div>
         </div>
@@ -944,6 +970,8 @@ export default function ClientResults() {
       ? r.impactRange[1]
       : 0;
 
+  const anpdFirstFineSource = getValidatedSource('anpd-first-fine');
+
   return (
     <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">
       <div
@@ -1151,7 +1179,12 @@ export default function ClientResults() {
               const isExpanded = pdfMode || expandedFindings.has(findingKey);
               const source = getValidatedSourceForFinding(finding.title, finding.domain);
               const presentation = presentFinding(finding, draftData);
-              const severityLabel = severityToClientLabel(finding.severity);
+              const severityLabel =
+                index === 0
+                  ? 'Vale revisar primeiro'
+                  : finding.severity === 'Baixa'
+                    ? 'Acompanhar'
+                    : 'Vale revisar';
 
               return (
                 <article key={findingKey} className="glass-card overflow-hidden">
@@ -1270,51 +1303,90 @@ export default function ClientResults() {
             </p>
           </div>
 
-          <div className={`grid gap-5 p-5 md:p-6 ${contextualInsights.length > 0 ? 'lg:grid-cols-[1.05fr_.95fr]' : ''}`}>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <div>
-                  <div className="text-3xs font-bold uppercase tracking-[.13em] text-slate-500">
-                    Impacto operacional estimado
+          <div className="p-5 md:p-6">
+            <div className="grid gap-5 lg:grid-cols-[.8fr_1.2fr] lg:items-start">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <div>
+                    <div className="text-3xs font-bold uppercase tracking-[.13em] text-slate-500">
+                      Impacto operacional estimado
+                    </div>
+                    <div className="mt-2 text-xl font-bold text-white">
+                      {money(impactLow)} a {money(impactHigh)}
+                    </div>
                   </div>
-                  <div className="mt-2 text-xl font-bold text-white">
-                    {money(impactLow)} a {money(impactHigh)}
-                  </div>
+                  <button
+                    onClick={() => setIsFaixaModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+                  >
+                    <HelpCircle size={14} />
+                    Como estimamos?
+                  </button>
                 </div>
-                <button
-                  onClick={() => setIsFaixaModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
-                >
-                  <HelpCircle size={14} />
-                  Como estimamos?
-                </button>
+
+                <p className="mt-3 text-sm leading-relaxed text-slate-300">{impactContext}</p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  A faixa considera produtividade interrompida, esforço técnico de recuperação e impacto operacional adicional. É uma ordem de grandeza, não uma previsão de prejuízo, multa ou custo real.
+                </p>
               </div>
 
-              <p className="mt-3 text-sm leading-relaxed text-slate-300">{impactContext}</p>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                A faixa considera produtividade interrompida, esforço técnico de recuperação e impacto operacional adicional. É uma ordem de grandeza, não uma previsão de prejuízo, multa ou custo real.
-              </p>
-
-              <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/20 p-4">
+              <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/20 p-4">
                 <ImpactChart components={r.impactComponents} />
               </div>
             </div>
 
+            {anpdFirstFineSource && (
+              <article className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 md:p-5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-3xs font-bold uppercase tracking-[.13em] text-amber-300">
+                      <Info size={14} className="shrink-0" />
+                      Você sabia?
+                    </div>
+                    <h4 className="mt-2 text-base font-bold leading-snug text-white md:text-lg">
+                      Uma microempresa já recebeu R$ 14.400 em multas da ANPD
+                    </h4>
+                    <p className="mt-2 max-w-4xl text-sm leading-relaxed text-slate-300">
+                      Em 2023, a ANPD aplicou duas multas simples à microempresa Telekall Infoservice, totalizando R$ 14.400, além de advertência. O caso é específico, mas reforça um ponto importante para PMEs: porte menor não elimina responsabilidades sobre dados pessoais.
+                    </p>
+                  </div>
+
+                  <a
+                    href={anpdFirstFineSource.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-xl border border-amber-500/20 bg-slate-950/30 px-3 py-2 text-xs font-semibold text-amber-300 transition hover:border-amber-400/40 hover:text-amber-200"
+                  >
+                    ANPD · Ver caso oficial
+                    <ChevronRight size={14} />
+                  </a>
+                </div>
+              </article>
+            )}
+
             {contextualInsights.length > 0 && (
-              <div className="min-w-0 border-t border-slate-800/70 pt-5 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+              <div className="mt-5 border-t border-slate-800/70 pt-5">
                 <div className="text-3xs font-bold uppercase tracking-[.13em] text-slate-500">
                   Contexto para interpretação
                 </div>
-                <div className="mt-3 space-y-3">
+
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
                   {contextualInsights.map((insight) => {
                     const source = getValidatedSource(insight.sourceId);
                     return (
-                      <article key={insight.id} className="border-b border-slate-800/60 pb-3 last:border-b-0 last:pb-0">
+                      <article
+                        key={insight.id}
+                        className="min-w-0 rounded-xl border border-slate-800/80 bg-slate-950/20 p-4"
+                      >
                         <span className="text-3xs font-bold uppercase tracking-[.12em] text-teal-500">
                           {insight.eyebrow}
                         </span>
-                        <h4 className="mt-1.5 text-sm font-bold leading-snug text-white">{insight.title}</h4>
-                        <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{insight.body}</p>
+                        <h4 className="mt-1.5 text-sm font-bold leading-snug text-white">
+                          {insight.title}
+                        </h4>
+                        <p className="mt-1.5 text-xs leading-relaxed text-slate-400 sm:text-sm">
+                          {insight.body}
+                        </p>
                         {source && (
                           <a
                             href={source.sourceUrl}

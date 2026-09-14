@@ -150,7 +150,7 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">
       <div className="mx-auto max-w-5xl">
-        <ClientHeader />
+        <ClientHeader lockAssessmentNavigation />
 
         <div className="glass-card relative mt-6 overflow-hidden p-8 text-center md:p-12">
           <div className="pointer-events-none absolute right-0 top-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-teal-500/5 blur-3xl" />

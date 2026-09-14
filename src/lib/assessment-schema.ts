@@ -172,6 +172,16 @@ export const assessmentDataSchema =
     vpnRemote:
       num,
 
+    vpnUsage:
+      enumOf(
+        [
+          'yes',
+          'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
     vpnSite:
       num,
 
@@ -244,8 +254,14 @@ export const assessmentDataSchema =
     endpointCount:
       num,
 
+    endpointOperatingSystem:
+      text(80),
+
     servers:
       num,
+
+    serverOperatingSystem:
+      text(80),
 
     autoUpdates:
       enumOf(
@@ -497,6 +513,18 @@ export const assessmentDataSchema =
         [
           'yes',
           'no',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    aiUsageGovernance:
+      enumOf(
+        [
+          'controlled',
+          'partial',
+          'open',
+          'not_used',
           'unknown',
         ],
         'unknown',

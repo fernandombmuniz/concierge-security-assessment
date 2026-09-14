@@ -8,7 +8,11 @@ import {
 } from '../storage';
 import { loadSession } from '../lib/assessment-session';
 
-export default function ClientHeader() {
+export default function ClientHeader({
+  lockAssessmentNavigation = false,
+}: {
+  lockAssessmentNavigation?: boolean;
+}) {
   const location = useLocation();
 
   const [hasAnswers, setHasAnswers] =
@@ -40,13 +44,19 @@ export default function ClientHeader() {
         'concierge-client-last-assessment-id-v2',
       );
 
-    setLastId(persistedLastId);
-    setCanAccessDiagnostic(Boolean(loadSession()));
+    const hasValidResult = Boolean(
+      persistedLastId && getSubmission(persistedLastId),
+    );
+
+    setLastId(hasValidResult ? persistedLastId : null);
+    setCanAccessDiagnostic(
+      !lockAssessmentNavigation && Boolean(loadSession()),
+    );
 
     setHasAnswers(
-      draftHasAnswers || !!persistedLastId,
+      !lockAssessmentNavigation && (draftHasAnswers || hasValidResult),
     );
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, lockAssessmentNavigation]);
 
   const navLinkClass = (
     path: string,
@@ -132,6 +142,10 @@ export default function ClientHeader() {
       }
     }
   };
+
+  const canAccessResult = Boolean(
+    !lockAssessmentNavigation && lastId,
+  );
 
   const resultadoPath = lastId
     ? `/resultado?id=${lastId}`
@@ -292,12 +306,26 @@ export default function ClientHeader() {
             </span>
           )}
 
-          <Link
-            to={resultadoPath}
-            className={navLinkClass('/resultado')}
-          >
-            Resultado
-          </Link>
+          {canAccessResult ? (
+            <Link
+              to={resultadoPath}
+              className={navLinkClass('/resultado')}
+            >
+              Resultado
+            </Link>
+          ) : (
+            <span
+              className={navLinkClass('/resultado', true)}
+              aria-disabled="true"
+              title={
+                lockAssessmentNavigation
+                  ? 'Leia o aviso de privacidade e inicie o diagnóstico para continuar.'
+                  : 'Conclua o diagnóstico para visualizar o resultado.'
+              }
+            >
+              Resultado
+            </span>
+          )}
 
           {hasAnswers && canAccessDiagnostic && (
             <Link

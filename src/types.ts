@@ -123,6 +123,13 @@ export type TechnicalDepth =
   | 'informed'
   | 'technical';
 
+export type AiUsageGovernanceLevel =
+  | 'controlled'
+  | 'partial'
+  | 'open'
+  | 'not_used'
+  | 'unknown';
+
 export interface AssessmentData {
   companyName: string;
   sector: string;
@@ -146,6 +153,7 @@ export interface AssessmentData {
   firewallLicense: 'yes' | 'no' | 'unknown';
 
   vpnRemote: number;
+  vpnUsage: 'yes' | 'no' | 'unknown';
   vpnSite: number;
   vlans: number;
 
@@ -155,7 +163,9 @@ export interface AssessmentData {
 
   endpointLevel: EndpointLevel;
   endpointCount: number;
+  endpointOperatingSystem?: string;
   servers: number;
+  serverOperatingSystem?: string;
   autoUpdates: 'yes' | 'no' | 'unknown';
   localAdmins: 'yes' | 'no' | 'unknown';
   byod: 'yes' | 'no' | 'unknown';
@@ -183,6 +193,7 @@ export interface AssessmentData {
 
   criticalSystems: string[];
   sensitiveData: 'yes' | 'no' | 'unknown';
+  aiUsageGovernance: AiUsageGovernanceLevel;
   incidentHistory: 'yes' | 'no' | 'unknown';
 
   mainConcern: string;
@@ -226,6 +237,7 @@ export const emptyAssessment: AssessmentData = {
   firewallLicense: 'unknown',
 
   vpnRemote: 0,
+  vpnUsage: 'unknown',
   vpnSite: 0,
   vlans: 0,
 
@@ -235,7 +247,9 @@ export const emptyAssessment: AssessmentData = {
 
   endpointLevel: 'unknown',
   endpointCount: 0,
+  endpointOperatingSystem: 'unknown',
   servers: 0,
+  serverOperatingSystem: 'unknown',
   autoUpdates: 'unknown',
   localAdmins: 'unknown',
   byod: 'unknown',
@@ -263,6 +277,7 @@ export const emptyAssessment: AssessmentData = {
 
   criticalSystems: [],
   sensitiveData: 'unknown',
+  aiUsageGovernance: 'unknown',
   incidentHistory: 'unknown',
 
   mainConcern: '',

@@ -225,7 +225,7 @@ export const presentFinding = (
           : finding.situation,
 
       indication:
-        'Esse tipo de equipamento pode atender muito bem funções como roteamento, regras, VPN e separação de redes. Pelas demais respostas, ainda não conseguimos confirmar uma camada mais ampla de análise e prevenção de ameaças.',
+        'Esse tipo de equipamento pode atender muito bem funções como roteamento, regras, VPN e separação de redes. Pelas demais respostas, ainda não conseguimos confirmar recursos mais completos para analisar e bloquear ameaças.',
 
       practical:
         'Sem monitoramento contínuo e uma rotina estruturada de análise, alguns sinais podem ser percebidos apenas depois que já afetaram computadores ou sistemas.',
@@ -251,7 +251,7 @@ export const presentFinding = (
         'Isso aumenta o intervalo entre o início de uma atividade suspeita e o momento em que ela é analisada.',
 
       practical:
-        'Alguns ataques não começam derrubando sistemas. Eles podem permanecer silenciosos enquanto coletam credenciais, exploram acessos ou procuram dados importantes.',
+        'Alguns ataques não começam derrubando sistemas. Eles podem permanecer silenciosos enquanto coletam senhas e acessos ou procuram dados importantes.',
     };
   }
 
@@ -292,10 +292,10 @@ export const presentFinding = (
           : finding.situation,
 
       indication:
-        'A ferramenta consegue gerar alertas, mas ainda é necessário um processo definido para triagem, investigação e resposta.',
+        'A ferramenta consegue gerar alertas, mas ainda é necessário um processo definido para analisar o alerta, investigar e agir.',
 
       practical:
-        'Um comportamento suspeito pode permanecer aberto por mais tempo até virar investigação, contenção ou correção.',
+        'Um comportamento suspeito pode permanecer aberto por mais tempo até virar investigação, bloqueio do problema ou correção.',
     };
   }
 
@@ -317,7 +317,7 @@ export const presentFinding = (
         'Uma tecnologia de detecção consegue gerar sinais importantes, mas eles precisam virar investigação e decisão rapidamente.',
 
       practical:
-        'Um alerta pode existir no painel sem necessariamente virar contenção, investigação ou remoção da ameaça no tempo necessário.',
+        'Um alerta pode existir no painel sem necessariamente virar investigação, isolamento do equipamento ou remoção da ameaça no tempo necessário.',
     };
   }
 
@@ -336,7 +336,7 @@ export const presentFinding = (
           : finding.situation,
 
       indication:
-        'Ter backup é importante, mas a proteção da cópia também importa. Quando produção e backup compartilham o mesmo ambiente, conta ou credenciais, um único incidente pode alcançar os dois.',
+        'Ter backup é importante, mas a proteção da cópia também importa. Quando produção e backup compartilham o mesmo ambiente, conta ou acessos, um único incidente pode alcançar os dois.',
 
       practical:
         'A empresa pode descobrir durante o incidente que justamente a cópia usada para recuperar os dados também foi apagada, criptografada ou comprometida.',
@@ -356,7 +356,7 @@ export const presentFinding = (
         'Você informou que existem cópias, mas que uma restauração real ainda não foi testada.',
 
       indication:
-        'O teste confirma se os arquivos estão íntegros, se as credenciais funcionam e quanto tempo a recuperação realmente leva.',
+        'O teste confirma se os arquivos estão íntegros, se os acessos funcionam e quanto tempo a recuperação realmente leva.',
 
       practical:
         'Sem esse teste, uma limitação pode aparecer somente quando a empresa já estiver parada e precisar dos dados.',
@@ -379,7 +379,7 @@ export const presentFinding = (
         'Quando existe uma segunda confirmação, descobrir a senha deixa de ser suficiente para concluir o acesso.',
 
       practical:
-        'Sem essa camada adicional, uma senha reutilizada, descoberta ou capturada em phishing pode abrir caminho para e-mail, sistemas ou outros serviços da empresa.',
+        'Sem essa segunda proteção, uma senha reutilizada, descoberta ou capturada em phishing pode abrir caminho para e-mail, sistemas ou outros serviços da empresa.',
     };
   }
 
@@ -491,13 +491,62 @@ export function getContextualInsights(
     insights.push({
       id: 'anpd-small-company',
       domain: 'identity',
-      eyebrow: 'Você sabia?',
+      eyebrow: 'LGPD na prática',
       title:
-        'Empresas pequenas também podem ser fiscalizadas pela ANPD',
+        'Pequeno porte não elimina a responsabilidade sobre dados pessoais',
       body:
-        'Em 2023, uma microempresa brasileira recebeu duas multas simples de R$ 7.200, totalizando R$ 14.400, além de advertência. O caso não significa que sua empresa teria a mesma sanção, mas mostra que pequeno porte não elimina responsabilidades relacionadas à LGPD.',
-      sourceId: 'anpd-first-fine',
-      priority: 100,
+        'A ANPD possui regras específicas para agentes de pequeno porte, mas essas flexibilizações não afastam as demais obrigações da LGPD. Saber onde os dados estão, quem acessa e como são protegidos continua sendo relevante mesmo em empresas menores.',
+      sourceId: 'anpd-small-business',
+      priority: 108,
+    });
+  }
+
+  if (
+    data.aiUsageGovernance === 'open' ||
+    data.aiUsageGovernance === 'partial'
+  ) {
+    insights.push({
+      id: 'ai-data-governance',
+      domain: 'identity',
+      eyebrow: 'IA e proteção de dados',
+      title:
+        data.aiUsageGovernance === 'open'
+          ? 'Uso de IA sem uma regra definida pode expor informações que não deveriam sair da empresa'
+          : 'Orientações sobre IA ajudam, mas regras diferentes entre áreas ainda deixam espaço para risco',
+      body:
+        'Ferramentas como ChatGPT, Copilot e Gemini podem receber textos, documentos e outros dados enviados pelos usuários. Em julho de 2026, a ANPD publicou um estudo sobre IA generativa destacando possíveis ameaças à privacidade e à proteção de dados. Uma regra simples sobre ferramentas permitidas e quais informações podem ser enviadas já reduz bastante esse ponto cego.',
+      sourceId: 'anpd-genai-radar-2026',
+      priority: 112,
+    });
+  } else if (data.aiUsageGovernance === 'controlled') {
+    insights.push({
+      id: 'ai-data-governance-positive',
+      domain: 'identity',
+      eyebrow: 'IA e proteção de dados',
+      title: 'A empresa já informou ter regras para o uso de Inteligência Artificial',
+      body:
+        'Definir ferramentas permitidas e limites para o envio de dados é um bom ponto de partida. O próximo passo é manter essas orientações claras, atualizadas e conhecidas por quem utiliza IA no trabalho.',
+      sourceId: 'nist-ai-rmf-genai',
+      priority: 72,
+    });
+  }
+
+  if (
+    data.firewallMonitoring24x7 === 'no' ||
+    data.firewallMonitoring24x7 === 'partial'
+  ) {
+    insights.push({
+      id: 'after-hours-response',
+      domain: 'identity',
+      eyebrow: 'Fora do expediente',
+      title:
+        data.firewallMonitoring24x7 === 'no'
+          ? 'Um alerta importante à noite pode esperar até o próximo expediente'
+          : 'Existe alguém para acionar fora do horário, mas o alerta pode não ser percebido imediatamente',
+      body:
+        'Boas práticas de resposta a incidentes recomendam responsáveis e formas de acionamento definidos. Essa capacidade pode ser interna, terceirizada ou híbrida; o ponto importante é saber quem recebe o alerta e quem pode iniciar uma resposta quando o problema acontece.',
+      sourceId: 'cis-incident-response',
+      priority: 106,
     });
   }
 
@@ -571,7 +620,7 @@ export function getContextualInsights(
       title:
         'Uma atualização disponível não significa uma atualização aplicada',
       body:
-        'A gestão de vulnerabilidades existe para localizar, priorizar e acompanhar correções. Sem uma rotina, uma falha conhecida pode permanecer aberta por mais tempo do que a empresa imagina.',
+        'Uma rotina de atualização e correção ajuda a localizar falhas conhecidas, priorizar o que merece atenção e acompanhar o que já foi corrigido. Sem uma rotina, uma falha conhecida pode permanecer aberta por mais tempo do que a empresa imagina.',
       sourceId:
         'cis-vulnerability-management',
       priority: 80,
@@ -584,7 +633,7 @@ export function getContextualInsights(
         b.priority -
         a.priority,
     )
-    .slice(0, 2);
+    .slice(0, 3);
 }
 
 /**

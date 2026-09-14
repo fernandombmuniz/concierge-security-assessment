@@ -5,6 +5,7 @@ import type {
 } from '../scoring';
 import { rankFindings } from './finding-priority';
 import type { scoreAssessment } from '../scoring';
+import { presentFinding } from './contextual-insights';
 
 export type PriorityEffort = 'Baixo' | 'Médio' | 'Alto';
 export type PriorityUrgency = 'Alta' | 'Média' | 'Baixa';
@@ -81,7 +82,7 @@ const actionForFinding = (finding: Finding) => {
     return {
       gap: 'A gestão existe, mas faltam evidências recorrentes de visibilidade, acompanhamento e resposta.',
       action:
-        'Definir uma rotina de relatórios de segurança, eventos relevantes, responsáveis por triagem e critérios de escalonamento.',
+        'Definir uma rotina simples de acompanhamento, com alertas importantes, responsáveis e critérios claros para saber quando agir.',
       effort: 'Médio' as const,
     };
   }
@@ -100,15 +101,15 @@ const actionForFinding = (finding: Finding) => {
       return {
         gap: 'O acompanhamento de eventos ocorre de forma reativa ou não possui uma rotina contínua claramente definida.',
         action:
-          'Definir monitoramento de eventos, triagem, responsáveis, alertas prioritários e processo de resposta para a camada de rede.',
+          'Definir alertas, responsáveis e uma rotina de resposta para eventos importantes da internet e da rede.',
         effort: 'Médio' as const,
       };
     }
 
     return {
-      gap: 'A camada de borda não demonstra, pelas respostas, capacidade suficiente de prevenção, visibilidade e controle de ameaças.',
+      gap: 'Pelas respostas, a proteção da conexão com a internet parece ter recursos limitados para analisar, registrar e bloquear ameaças.',
       action:
-        'Revisar a arquitetura de proteção da internet, os serviços de segurança ativos, políticas, atualizações e capacidade de registrar e bloquear ameaças.',
+        'Revisar como a internet é protegida, quais recursos de segurança estão ativos, como são atualizados e se conseguem registrar e bloquear ameaças.',
       effort: 'Médio' as const,
     };
   }
@@ -125,9 +126,9 @@ const actionForFinding = (finding: Finding) => {
       text.includes('investig')
     ) {
       return {
-        gap: 'Existe capacidade de proteção ou detecção, mas a resposta aos alertas não está suficientemente estruturada.',
+        gap: 'Existe proteção ou geração de alertas, mas ainda falta uma rotina clara para analisar e agir quando algo importante aparece.',
         action:
-          'Definir quem recebe alertas, como ocorre a triagem, quando um equipamento deve ser isolado e como investigação e remediação são registradas.',
+          'Definir quem recebe os alertas, quando um computador deve ser isolado e como a investigação e a correção são registradas.',
         effort: 'Médio' as const,
       };
     }
@@ -135,7 +136,7 @@ const actionForFinding = (finding: Finding) => {
     return {
       gap: 'A proteção dos dispositivos não está padronizada ou não oferece visibilidade central suficiente.',
       action:
-        'Padronizar a proteção dos endpoints, centralizar a gestão e confirmar cobertura dos dispositivos e servidores elegíveis.',
+        'Padronizar a proteção dos computadores, centralizar o acompanhamento e confirmar quais computadores e servidores estão cobertos.',
       effort: 'Médio' as const,
     };
   }
@@ -145,9 +146,9 @@ const actionForFinding = (finding: Finding) => {
     text.includes('falhas conhecidas')
   ) {
     return {
-      gap: 'Não há evidência de um ciclo contínuo para identificar, priorizar e corrigir vulnerabilidades.',
+      gap: 'Não foi confirmada uma rotina clara para encontrar e corrigir falhas conhecidas nos computadores.',
       action:
-        'Estabelecer inventário de ativos, varreduras periódicas, priorização por criticidade e acompanhamento da correção.',
+        'Manter uma lista atualizada dos equipamentos e uma rotina periódica para revisar atualizações e falhas conhecidas.',
       effort: 'Médio' as const,
     };
   }
@@ -157,9 +158,9 @@ const actionForFinding = (finding: Finding) => {
     text.includes('fora do radar')
   ) {
     return {
-      gap: 'A empresa não possui visão suficientemente confiável dos ativos que precisam estar protegidos.',
+      gap: 'A empresa pode não ter uma visão completa de todos os equipamentos que precisam estar protegidos.',
       action:
-        'Consolidar um inventário mínimo de dispositivos, responsáveis, sistema operacional, criticidade e estado de proteção.',
+        'Manter uma lista simples dos computadores e servidores, com responsável, sistema operacional e situação da proteção.',
       effort: 'Baixo' as const,
     };
   }
@@ -188,9 +189,9 @@ const actionForFinding = (finding: Finding) => {
       text.includes('mesmo incidente')
     ) {
       return {
-        gap: 'Produção e backup podem compartilhar credenciais, administração ou alcance do mesmo incidente.',
+        gap: 'Os dados principais e suas cópias podem estar próximos demais e acabar afetados pelo mesmo incidente.',
         action:
-          'Criar separação administrativa e uma cópia isolada ou imutável, reduzindo a possibilidade de comprometimento simultâneo.',
+          'Manter pelo menos uma cópia separada e protegida para reduzir a chance de o mesmo incidente atingir os dados e o backup.',
         effort: 'Médio' as const,
       };
     }
@@ -209,18 +210,18 @@ const actionForFinding = (finding: Finding) => {
     text.includes('autenticacao')
   ) {
     return {
-      gap: 'Contas relevantes ainda podem utilizar apenas senha ou ter MFA aplicado somente de forma parcial.',
+      gap: 'Algumas contas importantes ainda podem depender apenas de senha ou usar uma segunda confirmação só em parte dos acessos.',
       action:
-        'Priorizar MFA para contas administrativas, e-mail e sistemas críticos e revisar exceções que ainda utilizam autenticação de fator único.',
+        'Ativar uma segunda confirmação nas contas administrativas, no e-mail e nos sistemas mais importantes, começando pelos acessos de maior impacto.',
       effort: 'Baixo' as const,
     };
   }
 
   if (text.includes('compartilh')) {
     return {
-      gap: 'Credenciais compartilhadas reduzem rastreabilidade e dificultam revogação individual de acesso.',
+      gap: 'Contas compartilhadas dificultam saber quem fez cada ação e remover o acesso de uma única pessoa.',
       action:
-        'Migrar contas compartilhadas para identidades individuais e revisar permissões, trilhas de auditoria e processo de desligamento.',
+        'Usar contas individuais sempre que possível e revisar permissões e remoção de acessos quando alguém muda de função ou sai da empresa.',
       effort: 'Médio' as const,
     };
   }
@@ -230,9 +231,9 @@ const actionForFinding = (finding: Finding) => {
     text.includes('phishing')
   ) {
     return {
-      gap: 'A filtragem atual pode permitir que mensagens suspeitas cheguem ao usuário sem uma camada adicional de análise.',
+      gap: 'A proteção atual de e-mail pode deixar mensagens suspeitas chegarem ao usuário sem uma verificação adicional.',
       action:
-        'Revisar proteção contra phishing, links e anexos, autenticação de domínio e resposta a mensagens maliciosas reportadas.',
+        'Revisar a proteção contra golpes por e-mail, links e anexos e definir o que acontece quando alguém reporta uma mensagem suspeita.',
       effort: 'Médio' as const,
     };
   }
@@ -244,7 +245,7 @@ const actionForFinding = (finding: Finding) => {
     return {
       gap: 'Não está suficientemente claro quem decide, quem executa e quem deve ser acionado durante um incidente.',
       action:
-        'Formalizar um fluxo mínimo de resposta com responsáveis, contatos, critérios de severidade, contenção, recuperação e comunicação.',
+        'Definir responsáveis, contatos e passos básicos para isolar o problema, recuperar a operação e comunicar quem precisa saber.',
       effort: 'Baixo' as const,
     };
   }
@@ -290,6 +291,7 @@ export function buildPriorityPlan(
   const selected: typeof ranked = [];
   const usedDomains = new Map<string, number>();
   const usedTitles = new Set<string>();
+  const usedActions = new Set<string>();
 
   for (const candidate of ranked) {
     if (selected.length >= limit) break;
@@ -302,9 +304,13 @@ export function buildPriorityPlan(
     const normalizedTitle = normalize(candidate.finding.title);
     if (usedTitles.has(normalizedTitle)) continue;
 
+    const actionSignature = normalize(actionForFinding(candidate.finding).action);
+    if (usedActions.has(actionSignature)) continue;
+
     selected.push(candidate);
     usedDomains.set(candidate.finding.domain, count + 1);
     usedTitles.add(normalizedTitle);
+    usedActions.add(actionSignature);
   }
 
   const items = selected.map((candidate, index): PriorityPlanItem => {
@@ -312,6 +318,7 @@ export function buildPriorityPlan(
     const finding = candidate.finding;
     const domain = domainFromFinding(finding.domain);
     const action = actionForFinding(finding);
+    const presentation = presentFinding(finding, data);
     const isCritical = Boolean(domain && criticalDomains.has(domain));
 
     const contextualReasons = [...candidate.reasons];
@@ -329,11 +336,11 @@ export function buildPriorityPlan(
       domain,
       domainLabel: domain ? domainPublicLabel[domain] : finding.domain,
       domainScore: domain ? result.scores[domain] : null,
-      title: finding.title,
-      currentState: finding.situation,
+      title: presentation.title,
+      currentState: presentation.informed,
       gap: action.gap,
       action: action.action,
-      risk: finding.consequence,
+      risk: presentation.practical,
       effort: action.effort,
       urgency: urgencyFromFinding(finding, isCritical),
       rationale: Array.from(new Set(contextualReasons)),
