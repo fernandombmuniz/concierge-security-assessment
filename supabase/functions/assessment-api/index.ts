@@ -2001,6 +2001,7 @@ async function createInternalReportToken(
 
 function buildInternalReportUrl(
   token: string,
+  mode: "standard" | "executive" = "standard",
 ): string {
   const appUrl =
     (
@@ -2013,8 +2014,10 @@ function buildInternalReportUrl(
       "",
     );
 
+  const path = mode === "executive" ? "/executive" : "/resultado";
+
   return (
-    `${appUrl}/resultado?internalReport=` +
+    `${appUrl}${path}?internalReport=` +
     encodeURIComponent(
       token,
     )
@@ -2891,6 +2894,12 @@ async function sendAssessmentNotification(
       ["backup"],
     );
 
+
+  const isExecutiveAssessment =
+    assessment.source_ref === "executive" ||
+    assessment.methodology_version === "v4.5-executive" ||
+    getString(calculated, ["methodologyVersion"]) === "v4.5-executive";
+
   const internalReportToken =
     await createInternalReportToken(
       assessmentId,
@@ -2900,6 +2909,7 @@ async function sendAssessmentNotification(
     internalReportToken
       ? buildInternalReportUrl(
           internalReportToken,
+          isExecutiveAssessment ? "executive" : "standard",
         )
       : null;
 
@@ -2928,7 +2938,7 @@ async function sendAssessmentNotification(
         b.value - a.value,
     )[0];
 
-  const html = `
+  const standardHtml = `
     <!doctype html>
     <html lang="pt-BR">
       <body style="
@@ -3822,6 +3832,98 @@ async function sendAssessmentNotification(
     </html>
   `;
 
+  const executiveImpact = getObject(calculated.executiveImpact);
+  const executiveConcern =
+    getString(calculated, ["executiveConcern"]) ||
+    getString(answers, ["mainConcern"]) ||
+    "Não informado";
+
+  const executiveHtml = `
+    <!doctype html>
+    <html lang="pt-BR">
+      <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+        <div style="max-width:760px;margin:0 auto;padding:32px 16px;">
+          <div style="background:#0f172a;border-radius:14px 14px 0 0;padding:30px 34px;color:#ffffff;">
+            <div style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:#2dd4bf;font-weight:700;">Concierge Segurança Digital</div>
+            <h1 style="margin:9px 0 0;font-size:25px;line-height:1.25;">Novo Diagnóstico Executivo</h1>
+            <p style="margin:10px 0 0;color:#cbd5e1;font-size:14px;line-height:1.6;">Resumo interno para preparar a próxima conversa com o cliente.</p>
+          </div>
+
+          <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:32px 34px;border:1px solid #e2e8f0;border-top:0;">
+            <h2 style="margin:0;font-size:22px;line-height:1.3;">${escapeHtml(companyName)}</h2>
+            <p style="margin:6px 0 24px;color:#64748b;font-size:13px;">Respondente: ${escapeHtml(contactName)}</p>
+
+            ${
+              internalReportUrl
+                ? `
+                  <div style="margin:0 0 22px;padding:18px;border:1px solid #99f6e4;background:#f0fdfa;border-radius:12px;">
+                    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#0f766e;font-weight:700;">Relatório executivo apresentado ao cliente</div>
+                    <p style="margin:7px 0 14px;color:#475569;font-size:13px;line-height:1.6;">Abra a mesma leitura executiva gerada ao final deste diagnóstico.</p>
+                    <a href="${escapeHtml(internalReportUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:11px 16px;border-radius:9px;">Abrir relatório executivo</a>
+                    <p style="margin:11px 0 0;color:#94a3b8;font-size:11px;line-height:1.55;">Link interno protegido e com validade limitada.</p>
+                  </div>
+                `
+                : ""
+            }
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px;">
+              <div style="border:1px solid #ccfbf1;background:#f0fdfa;border-radius:12px;padding:16px;">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#0f766e;font-weight:700;">Indicador geral</div>
+                <div style="margin-top:6px;font-size:26px;font-weight:700;color:#0f172a;">${escapeHtml(scoreLabel(assessment.overall_score))}</div>
+              </div>
+              <div style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:16px;">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:700;">Principal preocupação</div>
+                <div style="margin-top:6px;font-size:16px;font-weight:700;color:#0f172a;">${escapeHtml(executiveConcern)}</div>
+              </div>
+            </div>
+
+            ${sectionTitle("Impacto operacional")}
+            <div style="border-left:4px solid #f59e0b;background:#fffbeb;padding:14px 16px;border-radius:8px;margin-bottom:18px;">
+              <div style="font-size:16px;font-weight:700;color:#92400e;">${escapeHtml(getString(executiveImpact, ["label"]) || "A validar")}</div>
+              <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#78350f;">${escapeHtml(getString(executiveImpact, ["lead"]) || getString(executiveImpact, ["copy"]) || "Impacto a validar na próxima conversa.")}</p>
+              <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#78350f;"><strong>Recuperação:</strong> ${escapeHtml(getString(executiveImpact, ["recovery"]) || "Não informado")}</p>
+              <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#78350f;"><strong>Resposta fora do expediente:</strong> ${escapeHtml(getString(executiveImpact, ["response"]) || "Não informado")}</p>
+            </div>
+
+            ${sectionTitle("3 pontos para a próxima conversa")}
+            ${
+              topFindings.length
+                ? topFindings.map((finding, index) => findingCard(finding, index)).join("")
+                : `<p style="font-size:13px;color:#64748b;">Nenhum achado prioritário foi registrado.</p>`
+            }
+
+            ${sectionTitle("Respostas executivas")}
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
+              ${emailRow("Responsável por TI", displayValue(answers.itOwner))}
+              ${emailRow("Impacto de uma parada", displayValue(answers.operationalImpact))}
+              ${emailRow("Proteção dos computadores", displayValue(answers.protection))}
+              ${emailRow("Backup / recuperação", displayValue(answers.backup))}
+              ${emailRow("Confirmação além da senha", displayValue(answers.mfa))}
+              ${emailRow("Uso de IA", displayValue(answers.aiGovernance))}
+              ${emailRow("Resposta fora do expediente", displayValue(answers.afterHours))}
+            </table>
+
+            ${intendedRecipientNotice}
+
+            <div style="margin:30px 0 20px;border-top:1px solid #e2e8f0;"></div>
+            <div style="font-size:12px;line-height:1.8;color:#64748b;">
+              <strong>Account Manager:</strong> ${escapeHtml(manager.name)}<br/>
+              <strong>Origem:</strong> ${escapeHtml(displayValue(assessment.source_ref))}<br/>
+              <strong>Assessment ID:</strong> ${escapeHtml(assessment.id)}<br/>
+              <strong>Metodologia:</strong> ${escapeHtml(displayValue(assessment.methodology_version))}
+            </div>
+            <p style="margin:24px 0 0;font-size:12px;line-height:1.7;color:#94a3b8;">Este briefing executivo é inicial e baseado nas informações fornecidas pelo respondente. Use-o para preparar a conversa e validar o cenário antes de qualquer recomendação técnica ou proposta.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const html = isExecutiveAssessment ? executiveHtml : standardHtml;
+  const emailSubject = isExecutiveAssessment
+    ? `Novo Diagnóstico Executivo | ${companyName}`
+    : `Novo Security Assessment | ${companyName}`;
+
   try {
     const resendResponse =
       await fetch(
@@ -3846,7 +3948,7 @@ async function sendAssessmentNotification(
             ],
 
             subject:
-              `Novo Security Assessment | ${companyName}`,
+              emailSubject,
 
             html,
           }),
