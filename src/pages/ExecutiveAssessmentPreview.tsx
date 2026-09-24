@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Building2,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -14,9 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
   TriangleAlert,
-  UsersRound,
 } from 'lucide-react';
-import logo from '../assets/logo-concierge.jpg';
 import SecurityMaturityMeter from '../components/SecurityMaturityMeter';
 import { generateAssessmentPdf, sanitizePdfFileName } from '../lib/report-pdf';
 
@@ -68,7 +65,7 @@ const optionClass = (selected: boolean) =>
 const inputClass =
   'w-full rounded-xl border border-slate-800 bg-slate-950/55 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-teal-500/60 focus:ring-2 focus:ring-teal-500/10';
 
-const sectionCard = 'glass-card border border-slate-800/80 bg-slate-950/70';
+const sectionCard = 'glass-card border border-cyan-300/[0.13] bg-[#071120]/82 shadow-[0_18px_55px_rgba(0,0,0,.24)] backdrop-blur-md';
 
 const scoreMap = {
   itOwner: { internal: 90, outsourced: 85, shared: 80, none: 25, unknown: 45 },
@@ -665,19 +662,48 @@ export default function ExecutiveAssessmentPreview() {
 
   if (!started) {
     return (
-      <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-8 md:py-12">
-        <div className="mx-auto max-w-5xl">
-          <div className="flex items-center gap-4">
-            <img src={logo} alt="Concierge Segurança Digital" className="h-11 rounded-lg object-contain" />
-          </div>
+      <main
+        className="relative min-h-screen overflow-hidden bg-[#07101f] px-4 py-6 text-white md:py-10"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 74% 18%, rgba(6,182,212,0.13), transparent 30%), radial-gradient(circle at 18% 12%, rgba(14,116,144,0.08), transparent 26%), linear-gradient(180deg, #07101f 0%, #081426 58%, #07101f 100%)',
+        }}
+      >
+        <div
+          className="pointer-events-none absolute inset-0 opacity-50"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(34,211,238,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.055) 1px, transparent 1px)',
+            backgroundSize: '64px 64px',
+          }}
+        />
+        <div className="pointer-events-none absolute -bottom-[32%] left-[-8%] h-[76%] w-[116%] origin-bottom opacity-55" style={{ backgroundImage: 'linear-gradient(rgba(34,211,238,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.10) 1px, transparent 1px)', backgroundSize: '58px 58px', transform: 'perspective(850px) rotateX(63deg)' }} />
+        <div className="relative mx-auto max-w-7xl">
+          <section className="relative overflow-hidden rounded-[28px] border border-cyan-300/[0.10] bg-[#0a1425]/78 px-6 py-8 shadow-[0_28px_90px_rgba(0,0,0,.35)] backdrop-blur-[2px] md:px-10 md:py-10 lg:px-12 lg:py-12">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/[0.035] via-transparent to-blue-950/10" />
+              <div className="absolute right-[-8%] top-[-16%] h-[420px] w-[650px] rounded-full bg-cyan-400/[0.055] blur-[80px]" />
+              <div className="absolute left-[48%] top-[7%] h-px w-[42%] bg-gradient-to-r from-transparent via-cyan-300/30 to-transparent" />
+              <svg className="absolute right-[-2%] top-[1%] hidden h-[255px] w-[300px] opacity-35 lg:block" viewBox="0 0 320 280" fill="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="shieldStroke" x1="40" y1="20" x2="285" y2="255" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#22d3ee" stopOpacity="0.9" />
+                    <stop offset="1" stopColor="#0ea5e9" stopOpacity="0.18" />
+                  </linearGradient>
+                </defs>
+                <path d="M160 28 254 62v70c0 61-34 102-94 127-60-25-94-66-94-127V62l94-34Z" stroke="url(#shieldStroke)" strokeWidth="2.4" />
+                <path d="M130 127v-18c0-20 13-35 30-35s30 15 30 35v18" stroke="#22d3ee" strokeOpacity=".78" strokeWidth="5" strokeLinecap="round" />
+                <rect x="119" y="126" width="82" height="67" rx="14" stroke="#22d3ee" strokeOpacity=".82" strokeWidth="4" />
+                <circle cx="160" cy="157" r="7" fill="#22d3ee" fillOpacity=".85" />
+                <path d="M160 164v15" stroke="#22d3ee" strokeOpacity=".8" strokeWidth="4" strokeLinecap="round" />
+              </svg>
+            </div>
 
-          <section className="glass-card relative mt-6 overflow-hidden p-7 md:p-10">
-            <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 translate-x-1/3 -translate-y-1/3 rounded-full bg-teal-500/5 blur-3xl" />
-            <div className="relative z-10 grid gap-10 lg:grid-cols-[1.1fr_.9fr] lg:items-center">
+            <div className="relative z-10 grid gap-10 lg:grid-cols-[1.13fr_.87fr] lg:items-start lg:gap-12">
               <div>
                 <span className="section-kicker">Diagnóstico Executivo de Segurança</span>
-                <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white md:text-5xl">
-                  Em 2 minutos, descubra quais riscos de segurança merecem sua atenção primeiro.
+                <h1 className="mt-5 max-w-[760px] text-[2.65rem] font-extrabold leading-[1.03] tracking-[-0.035em] text-white sm:text-5xl md:text-[3.35rem] lg:text-[3.65rem]">
+                  Em 2 minutos, descubra quais <span className="text-cyan-300">riscos de segurança</span> merecem sua atenção primeiro.
                 </h1>
                 <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
                   Veja onde uma falha pode interromper a operação, expor informações ou atrasar a recuperação. O resultado destaca prioridades claras para tornar a próxima conversa mais objetiva.
@@ -688,38 +714,55 @@ export default function ExecutiveAssessmentPreview() {
                     <Clock3 size={18} className="text-teal-400" />
                     Cerca de <b className="text-white">2 minutos</b>
                   </div>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/45 px-4 py-3 text-sm text-slate-300">
+                  <div className="flex items-center gap-2 rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 px-4 py-3 text-sm text-slate-300">
                     <Sparkles size={18} className="text-cyan-400" />
                     Perguntas simples sobre o negócio
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5 md:p-6">
-                <p className="text-sm font-bold text-white">Ao final, você recebe:</p>
-                <div className="mt-4 space-y-3">
-                  {[
-                    'os riscos que podem pesar mais na operação',
-                    'os três pontos que merecem atenção primeiro',
-                    'contexto com dados e boas práticas reconhecidas',
-                    'uma base objetiva para a próxima conversa',
-                  ].map((item) => (
-                    <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300">
-                      <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-teal-400" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
+              <div className="relative lg:min-h-[500px]">
+                <div className="relative z-10 flex items-center justify-center gap-4 py-2 lg:justify-start lg:pl-4">
+                  <svg className="h-[74px] w-[74px] shrink-0 drop-shadow-[0_0_20px_rgba(34,211,238,.20)]" viewBox="0 0 90 90" fill="none" aria-hidden="true">
+                    <path d="M45 6 76 18v24c0 21-12 35-31 43C26 77 14 63 14 42V18L45 6Z" stroke="white" strokeWidth="4" />
+                    <path d="M36 28 58 43 36 58V28Z" fill="white" />
+                    <rect x="60" y="52" width="12" height="12" rx="2" fill="#22d3ee" />
+                    <rect x="69" y="41" width="10" height="10" rx="2" fill="#22d3ee" />
+                  </svg>
+                  <div className="leading-none">
+                    <div className="text-4xl font-semibold tracking-[-0.03em] text-white md:text-[3.15rem]">Concierge</div>
+                    <div className="mt-2 text-sm font-bold uppercase tracking-[0.23em] text-cyan-300 md:text-base">Segurança Digital</div>
+                  </div>
+                </div>
+
+                <div className="relative z-10 mt-6 rounded-[28px] border border-cyan-300/35 bg-[#061121]/88 p-6 shadow-[0_24px_70px_rgba(0,0,0,.36),0_0_34px_rgba(34,211,238,.055)] backdrop-blur-md md:p-7">
+                  <p className="text-base font-bold text-white">Ao final, você recebe:</p>
+                  <div className="mt-4 space-y-3">
+                    {[
+                      'os riscos que podem pesar mais na operação',
+                      'os três pontos que merecem atenção primeiro',
+                      'contexto com dados e boas práticas reconhecidas',
+                      'uma base objetiva para a próxima conversa',
+                    ].map((item) => (
+                      <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-200 md:text-[15px]">
+                        <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-cyan-300 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,.12)]">
+                          <CheckCircle2 size={14} strokeWidth={2.2} />
+                        </span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="relative z-10 mt-9 rounded-2xl border border-slate-800 bg-slate-950/45 p-5">
+            <div className="relative z-10 mt-9 rounded-2xl border border-slate-700/85 bg-[#071120]/82 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.015)]">
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
                   checked={privacyAcknowledged}
                   onChange={(event) => setPrivacyAcknowledged(event.target.checked)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-teal-500"
+                  className="mt-1 h-4 w-4 shrink-0 accent-cyan-500"
                 />
                 <span className="text-sm leading-6 text-slate-300">
                   Li e estou ciente de que as informações serão usadas para gerar este diagnóstico e apoiar o acompanhamento comercial. Evite informar senhas, documentos pessoais ou dados sensíveis.
@@ -732,7 +775,7 @@ export default function ExecutiveAssessmentPreview() {
                 type="button"
                 disabled={!privacyAcknowledged || isStartingRemote}
                 onClick={beginExecutiveAssessment}
-                className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-3.5 text-sm font-bold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-w-[285px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-[0_14px_38px_rgba(13,148,136,.20)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {isStartingRemote ? <Loader2 size={18} className="animate-spin" /> : null}
                 {isStartingRemote ? 'Preparando...' : 'Iniciar diagnóstico executivo'}
@@ -750,10 +793,11 @@ export default function ExecutiveAssessmentPreview() {
 
   if (completed) {
     return (
-      <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-8 md:py-10">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <img src={logo} alt="Concierge Segurança Digital" className="h-10 rounded-lg object-contain" />
+      <main className="relative min-h-screen overflow-hidden bg-[#07101f] px-4 py-8 text-white md:py-10">
+        <CyberBackdrop />
+        <div className="relative z-10 mx-auto max-w-6xl">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-cyan-300/[0.10] bg-[#081426]/62 px-4 py-3 backdrop-blur-md">
+            <ExecutiveBrandLockup compact />
             <div className="flex flex-wrap gap-2" data-pdf-ignore="true">
               <button type="button" onClick={handleDownloadReport} disabled={isPdfGenerating} className="inline-flex items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-2.5 text-sm font-semibold text-teal-200 transition hover:bg-teal-500/15 disabled:cursor-not-allowed disabled:opacity-60">
                 {isPdfGenerating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
@@ -787,7 +831,7 @@ export default function ExecutiveAssessmentPreview() {
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {result.areas.map((area) => (
-                    <div key={area.key} className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+                    <div key={area.key} className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-semibold text-slate-400">{area.label}</span>
                         <strong className="text-lg text-white">{area.score}</strong>
@@ -804,7 +848,7 @@ export default function ExecutiveAssessmentPreview() {
 
           <section className="mt-6 grid gap-5 lg:grid-cols-[1.08fr_.92fr] lg:items-start">
             <div className={`${sectionCard} overflow-hidden`}>
-              <div className="border-b border-slate-800 px-6 py-5">
+              <div className="border-b border-cyan-300/[0.10] px-6 py-5">
                 <div className="flex items-center gap-3">
                   <div className="grid h-10 w-10 place-items-center rounded-xl border border-amber-400/20 bg-amber-400/5 text-amber-300">
                     <TriangleAlert size={20} />
@@ -820,7 +864,7 @@ export default function ExecutiveAssessmentPreview() {
                 <p className="mt-3 text-sm leading-7 text-slate-300">{result.impact.copy}</p>
 
                 <div className="mt-5 space-y-3">
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+                  <div className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
                     <div className="flex items-start gap-3">
                       <DatabaseBackup size={18} className="mt-0.5 shrink-0 text-cyan-300" />
                       <div>
@@ -829,7 +873,7 @@ export default function ExecutiveAssessmentPreview() {
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4">
+                  <div className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
                     <div className="flex items-start gap-3">
                       <Clock3 size={18} className="mt-0.5 shrink-0 text-cyan-300" />
                       <div>
@@ -870,7 +914,7 @@ export default function ExecutiveAssessmentPreview() {
           </section>
 
           <section className={`${sectionCard} mt-6 overflow-hidden`}>
-            <div className="border-b border-slate-800 px-6 py-5 md:px-8">
+            <div className="border-b border-cyan-300/[0.10] px-6 py-5 md:px-8">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">O que isso pode significar para o negócio</p>
               <h2 className="mt-2 text-2xl font-extrabold text-white">Dados que ajudam a colocar o resultado em perspectiva</h2>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
@@ -879,7 +923,7 @@ export default function ExecutiveAssessmentPreview() {
             </div>
             <div className="grid gap-4 p-6 md:grid-cols-3 md:p-8">
               {result.evidence.map((item) => (
-                <article key={item.title} className="rounded-2xl border border-slate-800 bg-slate-950/45 p-5">
+                <article key={item.title} className="rounded-2xl border border-cyan-300/[0.10] bg-[#061121]/62 p-5">
                   <div className="flex items-center gap-3">
                     <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-cyan-400/20 bg-cyan-400/5 text-cyan-300">
                       {item.icon === 'backup' ? <DatabaseBackup size={18} /> : item.icon === 'identity' ? <KeyRound size={18} /> : item.icon === 'ai' ? <Sparkles size={18} /> : item.icon === 'response' ? <Clock3 size={18} /> : <TriangleAlert size={18} />}
@@ -913,7 +957,7 @@ export default function ExecutiveAssessmentPreview() {
           </section>
 
           <section data-report-slide-break="true" data-report-keep-together="true" className={`${sectionCard} mt-6 overflow-hidden`}>
-            <div className="border-b border-slate-800 px-6 py-4 md:px-8">
+            <div className="border-b border-cyan-300/[0.10] px-6 py-4 md:px-8">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-300">Por onde começar</p>
               <h2 className="mt-2 text-2xl font-extrabold text-white">Três prioridades para a próxima conversa</h2>
               <p className="mt-2 text-sm text-slate-400">A ordem abaixo considera as respostas fornecidas nesta avaliação executiva.</p>
@@ -975,10 +1019,11 @@ export default function ExecutiveAssessmentPreview() {
   }
 
   return (
-    <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-8 md:py-10">
-      <div className="mx-auto max-w-4xl">
-        <div className="flex items-center justify-between gap-4">
-          <img src={logo} alt="Concierge Segurança Digital" className="h-10 rounded-lg object-contain" />
+    <main className="relative min-h-screen overflow-hidden bg-[#07101f] px-4 py-8 text-white md:py-10">
+      <CyberBackdrop />
+      <div className="relative z-10 mx-auto max-w-4xl">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-cyan-300/[0.10] bg-[#081426]/62 px-4 py-3 backdrop-blur-md">
+          <ExecutiveBrandLockup compact />
           <div className="text-right">
             <p className="text-xs font-semibold text-slate-500">Etapa {step + 1} de {steps.length}</p>
             <div className="mt-2 h-1.5 w-32 overflow-hidden rounded-full bg-slate-800 sm:w-44">
@@ -987,14 +1032,15 @@ export default function ExecutiveAssessmentPreview() {
           </div>
         </div>
 
-        <section className={`${sectionCard} mt-6 overflow-hidden`}>
-          <div className="border-b border-slate-800 px-6 py-6 md:px-8">
+        <section className={`${sectionCard} relative mt-6 overflow-hidden`}>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-400/[0.035] via-transparent to-blue-950/10" />
+          <div className="relative border-b border-cyan-300/[0.10] px-6 py-6 md:px-8">
             <span className="section-kicker">Diagnóstico Executivo</span>
             <h1 className="mt-3 text-3xl font-extrabold text-white">{steps[step].title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-400">{steps[step].subtitle}</p>
           </div>
 
-          <div className="space-y-7 px-6 py-7 md:px-8">
+          <div className="relative space-y-7 px-6 py-7 md:px-8">
             {step === 0 && (
               <>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1116,11 +1162,11 @@ export default function ExecutiveAssessmentPreview() {
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-slate-800 px-6 py-5 md:px-8">
+          <div className="relative flex items-center justify-between gap-3 border-t border-cyan-300/[0.10] bg-[#061121]/35 px-6 py-5 md:px-8">
             <button
               type="button"
               onClick={() => (step === 0 ? setStarted(false) : setStep((current) => current - 1))}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/45 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-700 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-700 hover:text-white"
             >
               <ArrowLeft size={17} />
               Voltar
@@ -1131,7 +1177,7 @@ export default function ExecutiveAssessmentPreview() {
                 type="button"
                 disabled={!canAdvance()}
                 onClick={() => setStep((current) => current + 1)}
-                className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_10px_28px_rgba(13,148,136,.18)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Continuar
                 <ArrowRight size={17} />
@@ -1141,7 +1187,7 @@ export default function ExecutiveAssessmentPreview() {
                 type="button"
                 disabled={!canAdvance() || isSubmittingRemote}
                 onClick={submitExecutiveAssessment}
-                className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_10px_28px_rgba(13,148,136,.18)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSubmittingRemote ? <Loader2 size={17} className="animate-spin" /> : null}
                 {isSubmittingRemote ? 'Concluindo...' : 'Ver meu resultado'}
@@ -1156,6 +1202,61 @@ export default function ExecutiveAssessmentPreview() {
         </p>
       </div>
     </main>
+  );
+}
+
+function CyberBackdrop() {
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 78% 12%, rgba(6,182,212,.14), transparent 27%), radial-gradient(circle at 20% 20%, rgba(14,116,144,.08), transparent 28%), linear-gradient(180deg, #07101f 0%, #081426 55%, #07101f 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-45"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(34,211,238,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.05) 1px, transparent 1px)',
+          backgroundSize: '68px 68px',
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,.8), rgba(0,0,0,.18))',
+        }}
+      />
+      <div
+        className="absolute -bottom-[24%] left-[-12%] h-[70%] w-[124%] origin-bottom opacity-55"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(34,211,238,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.09) 1px, transparent 1px)',
+          backgroundSize: '58px 58px',
+          transform: 'perspective(900px) rotateX(64deg)',
+        }}
+      />
+      <div className="absolute right-[-12%] top-[5%] h-[520px] w-[520px] rounded-full bg-cyan-400/[0.06] blur-[95px]" />
+      <svg className="absolute right-[2%] top-[8%] hidden h-[300px] w-[330px] opacity-[0.11] xl:block" viewBox="0 0 320 280" fill="none">
+        <path d="M160 28 254 62v70c0 61-34 102-94 127-60-25-94-66-94-127V62l94-34Z" stroke="#22d3ee" strokeWidth="2.2" />
+        <path d="M130 127v-18c0-20 13-35 30-35s30 15 30 35v18" stroke="#22d3ee" strokeWidth="4" strokeLinecap="round" />
+        <rect x="119" y="126" width="82" height="67" rx="14" stroke="#22d3ee" strokeWidth="3" />
+      </svg>
+    </div>
+  );
+}
+
+function ExecutiveBrandLockup({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="flex items-center gap-3">
+      <svg className={compact ? 'h-10 w-10 shrink-0' : 'h-[74px] w-[74px] shrink-0'} viewBox="0 0 90 90" fill="none" aria-hidden="true">
+        <path d="M45 6 76 18v24c0 21-12 35-31 43C26 77 14 63 14 42V18L45 6Z" stroke="white" strokeWidth="4" />
+        <path d="M36 28 58 43 36 58V28Z" fill="white" />
+        <rect x="60" y="52" width="12" height="12" rx="2" fill="#22d3ee" />
+        <rect x="69" y="41" width="10" height="10" rx="2" fill="#22d3ee" />
+      </svg>
+      <div className="leading-none">
+        <div className={compact ? 'text-xl font-semibold tracking-[-0.02em] text-white' : 'text-4xl font-semibold tracking-[-0.03em] text-white'}>Concierge</div>
+        <div className={compact ? 'mt-1 text-[9px] font-bold uppercase tracking-[0.22em] text-cyan-300' : 'mt-2 text-sm font-bold uppercase tracking-[0.23em] text-cyan-300'}>Segurança Digital</div>
+      </div>
+    </div>
   );
 }
 
