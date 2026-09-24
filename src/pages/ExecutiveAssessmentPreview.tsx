@@ -10,7 +10,6 @@ import {
   DatabaseBackup,
   KeyRound,
   Loader2,
-  Mail,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -32,6 +31,8 @@ type AfterHours = 'yes' | 'business_hours' | 'ad_hoc' | 'no' | 'unknown';
 interface ExecutiveAnswers {
   companyName: string;
   contactName: string;
+  computerCount: string;
+  internetSpeedMbps: string;
   itOwner: ItOwner;
   operationalImpact: OperationalImpact;
   protection: ProtectionLevel;
@@ -45,6 +46,8 @@ interface ExecutiveAnswers {
 const initialAnswers: ExecutiveAnswers = {
   companyName: '',
   contactName: '',
+  computerCount: '',
+  internetSpeedMbps: '',
   itOwner: 'unknown',
   operationalImpact: 'unknown',
   protection: 'unknown',
@@ -170,6 +173,8 @@ function executiveAnswersFromRemote(value: Record<string, unknown>): ExecutiveAn
   return {
     companyName: typeof value['companyName'] === 'string' ? value['companyName'] : '',
     contactName: typeof value['contactName'] === 'string' ? value['contactName'] : '',
+    computerCount: typeof value['computerCount'] === 'string' ? value['computerCount'] : typeof value['computerCount'] === 'number' ? String(value['computerCount']) : '',
+    internetSpeedMbps: typeof value['internetSpeedMbps'] === 'string' ? value['internetSpeedMbps'] : typeof value['internetSpeedMbps'] === 'number' ? String(value['internetSpeedMbps']) : '',
     itOwner: isOneOf(value['itOwner'], ['internal', 'outsourced', 'shared', 'none', 'unknown'] as const, 'unknown'),
     operationalImpact: isOneOf(value['operationalImpact'], ['low', 'partial', 'major', 'halt', 'unknown'] as const, 'unknown'),
     protection: isOneOf(value['protection'], ['monitored', 'basic', 'native', 'none', 'unknown'] as const, 'unknown'),
@@ -279,6 +284,16 @@ export default function ExecutiveAssessmentPreview() {
       cancelled = true;
     };
   }, [internalReportToken]);
+
+  useEffect(() => {
+    if (!completed) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [completed]);
 
   const set = <K extends keyof ExecutiveAnswers>(key: K, value: ExecutiveAnswers[K]) => {
     setAnswers((current) => ({ ...current, [key]: value }));
@@ -531,6 +546,8 @@ export default function ExecutiveAssessmentPreview() {
         answers: {
           companyName: answers.companyName.trim(),
           contactName: answers.contactName.trim(),
+          computerCount: answers.computerCount.trim(),
+          internetSpeedMbps: answers.internetSpeedMbps.trim(),
           contactRole: 'Diagnóstico executivo',
           contactEmail: '',
           executiveAssessment: true,
@@ -650,11 +667,8 @@ export default function ExecutiveAssessmentPreview() {
     return (
       <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-8 md:py-12">
         <div className="mx-auto max-w-5xl">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
             <img src={logo} alt="Concierge Segurança Digital" className="h-11 rounded-lg object-contain" />
-            <span className="rounded-full border border-teal-500/20 bg-teal-500/5 px-3 py-1.5 text-xs font-semibold text-teal-300">
-              
-            </span>
           </div>
 
           <section className="glass-card relative mt-6 overflow-hidden p-7 md:p-10">
@@ -942,14 +956,6 @@ export default function ExecutiveAssessmentPreview() {
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Uma conversa curta serve para validar o que realmente se aplica ao ambiente, separar prioridade de ruído e entender quais ações fazem sentido agora. O diagnóstico já mostra onde começar.</p>
               </div>
               <div className="flex flex-wrap gap-2" data-pdf-ignore="true">
-                {contact ? (
-                  <a href={`mailto:${contact.email}?subject=${encodeURIComponent(`Diagnóstico executivo - ${answers.companyName || 'empresa'}`)}`} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-teal-500">
-                    <Mail size={17} />
-                    Validar este cenário
-                  </a>
-                ) : (
-                  <span className="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/45 px-4 py-3 text-sm font-semibold text-slate-300">Fale com o responsável Concierge que enviou este diagnóstico</span>
-                )}
                 <button type="button" onClick={handleDownloadReport} disabled={isPdfGenerating} className="inline-flex items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-5 py-3 text-sm font-bold text-teal-200 transition hover:bg-teal-500/15 disabled:cursor-not-allowed disabled:opacity-60">
                   {isPdfGenerating ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
                   {isPdfGenerating ? 'Gerando PDF...' : 'Baixar relatório'}
@@ -1000,6 +1006,42 @@ export default function ExecutiveAssessmentPreview() {
                     <span className="mb-2 block text-sm font-semibold text-slate-200">Como podemos chamar você?</span>
                     <input className={inputClass} value={answers.contactName} onChange={(event) => set('contactName', event.target.value)} placeholder="Digite seu nome" />
                   </label>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/35 p-4 md:p-5">
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-white">Duas informações rápidas sobre o ambiente</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Pode informar valores aproximados. Se não souber, deixe em branco.</p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-slate-200">Quantos computadores e notebooks a empresa utiliza?</span>
+                      <input
+                        className={inputClass}
+                        type="number"
+                        min="0"
+                        inputMode="numeric"
+                        value={answers.computerCount}
+                        onChange={(event) => set('computerCount', event.target.value)}
+                        placeholder="Ex.: 30"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold text-slate-200">Qual é a velocidade da internet principal?</span>
+                      <div className="relative">
+                        <input
+                          className={`${inputClass} pr-16`}
+                          type="number"
+                          min="0"
+                          inputMode="numeric"
+                          value={answers.internetSpeedMbps}
+                          onChange={(event) => set('internetSpeedMbps', event.target.value)}
+                          placeholder="Ex.: 500"
+                        />
+                        <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs font-semibold text-slate-500">Mbps</span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 <Question title="Hoje, quem normalmente cuida da tecnologia e da segurança da empresa?" hint="Não precisa ser uma equipe de segurança dedicada.">

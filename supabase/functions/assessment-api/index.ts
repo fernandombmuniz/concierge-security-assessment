@@ -3892,6 +3892,12 @@ async function sendAssessmentNotification(
                 : `<p style="font-size:13px;color:#64748b;">Nenhum achado prioritário foi registrado.</p>`
             }
 
+            ${sectionTitle("Contexto inicial para a conversa")}
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;margin-bottom:22px;">
+              ${emailRow("Computadores / notebooks", getString(answers, ["computerCount"]) ? `${escapeHtml(getString(answers, ["computerCount"]))}` : "Não informado")}
+              ${emailRow("Internet principal", getString(answers, ["internetSpeedMbps"]) ? `${escapeHtml(getString(answers, ["internetSpeedMbps"]))} Mbps` : "Não informado")}
+            </table>
+
             ${sectionTitle("Respostas executivas")}
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
               ${emailRow("Responsável por TI", displayValue(answers.itOwner))}
