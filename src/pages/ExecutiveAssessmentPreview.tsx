@@ -28,6 +28,7 @@ type AfterHours = 'yes' | 'business_hours' | 'ad_hoc' | 'no' | 'unknown';
 interface ExecutiveAnswers {
   companyName: string;
   contactName: string;
+  contactEmail: string;
   computerCount: string;
   internetSpeedMbps: string;
   itOwner: ItOwner;
@@ -43,6 +44,7 @@ interface ExecutiveAnswers {
 const initialAnswers: ExecutiveAnswers = {
   companyName: '',
   contactName: '',
+  contactEmail: '',
   computerCount: '',
   internetSpeedMbps: '',
   itOwner: 'unknown',
@@ -170,6 +172,7 @@ function executiveAnswersFromRemote(value: Record<string, unknown>): ExecutiveAn
   return {
     companyName: typeof value['companyName'] === 'string' ? value['companyName'] : '',
     contactName: typeof value['contactName'] === 'string' ? value['contactName'] : '',
+    contactEmail: typeof value['contactEmail'] === 'string' ? value['contactEmail'] : '',
     computerCount: typeof value['computerCount'] === 'string' ? value['computerCount'] : typeof value['computerCount'] === 'number' ? String(value['computerCount']) : '',
     internetSpeedMbps: typeof value['internetSpeedMbps'] === 'string' ? value['internetSpeedMbps'] : typeof value['internetSpeedMbps'] === 'number' ? String(value['internetSpeedMbps']) : '',
     itOwner: isOneOf(value['itOwner'], ['internal', 'outsourced', 'shared', 'none', 'unknown'] as const, 'unknown'),
@@ -205,6 +208,10 @@ function impactLead(value: OperationalImpact) {
   if (value === 'partial') return 'Mesmo sem parar totalmente, a empresa pode pagar o incidente em produtividade, improvisos manuais e demora para voltar ao normal.';
   if (value === 'low') return 'A operação parece tolerar interrupções curtas, mas recuperação e tempo de resposta continuam definindo quanto o problema se prolonga.';
   return 'Ainda falta confirmar quanto uma indisponibilidade afeta a operação, mas recuperação e tempo de resposta já ajudam a indicar onde existe exposição.';
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 export default function ExecutiveAssessmentPreview() {
@@ -463,6 +470,7 @@ export default function ExecutiveAssessmentPreview() {
       return Boolean(
         answers.companyName.trim() &&
         answers.contactName.trim() &&
+        isValidEmail(answers.contactEmail) &&
         answered.has('itOwner') &&
         answered.has('operationalImpact'),
       );
@@ -546,7 +554,7 @@ export default function ExecutiveAssessmentPreview() {
           computerCount: answers.computerCount.trim(),
           internetSpeedMbps: answers.internetSpeedMbps.trim(),
           contactRole: 'Diagnóstico executivo',
-          contactEmail: '',
+          contactEmail: answers.contactEmail.trim(),
           executiveAssessment: true,
           itOwner: answers.itOwner,
           operationalImpact: answers.operationalImpact,
@@ -1051,6 +1059,21 @@ export default function ExecutiveAssessmentPreview() {
                   <label className="block">
                     <span className="mb-2 block text-sm font-semibold text-slate-200">Como podemos chamar você?</span>
                     <input className={inputClass} value={answers.contactName} onChange={(event) => set('contactName', event.target.value)} placeholder="Digite seu nome" />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <span className="mb-2 block text-sm font-semibold text-slate-200">Qual é o seu e-mail?</span>
+                    <input
+                      className={inputClass}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={answers.contactEmail}
+                      onChange={(event) => set('contactEmail', event.target.value)}
+                      placeholder="nome@empresa.com.br"
+                    />
+                    {answers.contactEmail && !isValidEmail(answers.contactEmail) && (
+                      <span className="mt-2 block text-xs text-amber-300">Digite um e-mail válido para continuar.</span>
+                    )}
                   </label>
                 </div>
 
