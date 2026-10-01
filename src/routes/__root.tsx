@@ -80,7 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Concierge Security Assessment | Segurança Digital" },
       {
         name: "description",
-        content: "Diagnóstico de segurança digital — Concierge Segurança Digital.",
+        content: "Diagnóstico de segurança digital - Concierge Segurança Digital.",
       },
       { name: "author", content: "Concierge Segurança Digital" },
       { property: "og:type", content: "website" },

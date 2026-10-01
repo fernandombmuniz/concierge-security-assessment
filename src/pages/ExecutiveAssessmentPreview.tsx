@@ -247,7 +247,7 @@ function executiveOverviewSummary(companyName: string, weakestAreas: string[], m
   if (!areas) {
     return `${company} compartilhou uma visão inicial do ambiente. A leitura abaixo mostra onde a operação pode ficar mais dependente de pessoas, improviso ou tempo de reação.`;
   }
-  return `${company} hoje parece mais exposta em ${areas}. Para a liderança, isso importa porque um problema nessa base costuma aparecer como parada, retrabalho, atraso ou pressão sobre a equipe — especialmente quando a principal preocupação já envolve ${concern}.`;
+  return `${company} hoje parece mais exposta em ${areas}. Para a liderança, isso importa porque um problema nessa base costuma aparecer como parada, retrabalho, atraso ou pressão sobre a equipe. Isso ganha ainda mais peso quando a principal preocupação já envolve ${concern}.`;
 }
 
 function executiveOverviewSupport(score: number, prioritiesCount: number) {

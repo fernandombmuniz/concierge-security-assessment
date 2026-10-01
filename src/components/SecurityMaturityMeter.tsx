@@ -142,7 +142,7 @@ export default function SecurityMaturityMeter({ value, level }: Props) {
             fontWeight="800"
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {score === null ? '—' : Math.round(animatedScore)}
+            {score === null ? '-' : Math.round(animatedScore)}
           </text>
           <text
             x="100"

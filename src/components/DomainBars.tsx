@@ -39,7 +39,7 @@ export default function DomainBars({ items }: { items: Item[] }) {
               </div>
               <div className="text-right">
                 <span className="text-lg font-bold text-white">
-                  {item.value === null ? '—' : item.value}
+                  {item.value === null ? '-' : item.value}
                 </span>
                 <span className="ml-1 text-xs text-slate-500">/100</span>
               </div>

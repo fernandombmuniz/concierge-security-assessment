@@ -136,7 +136,7 @@ export default function ScoreGauge({
         }}
       >
         <div className="text-5xl font-extrabold tracking-tight text-white tabular-nums">
-          {value === null ? '—' : displayValue}
+          {value === null ? '-' : displayValue}
         </div>
 
         <div className="mt-1 text-xs font-bold uppercase tracking-[.18em] text-slate-500">

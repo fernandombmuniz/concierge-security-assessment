@@ -3,7 +3,7 @@
  *
  * O envio usa a infraestrutura gerenciada de e-mail do projeto. Enquanto o
  * domínio remetente não estiver configurado/verificado, esta camada devolve
- * "not_configured" — o assessment continua salvo e concluído, e a notificação
+ * "not_configured" - o assessment continua salvo e concluído, e a notificação
  * fica registrada como pendente para reprocessamento posterior.
  */
 export type SendResult =

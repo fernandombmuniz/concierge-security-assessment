@@ -160,7 +160,7 @@ const numberOrDash = (
 ) =>
   Number.isFinite(value)
     ? String(value)
-    : "—";
+    : "-";
 
 const money = (value: number) =>
   new Intl.NumberFormat(

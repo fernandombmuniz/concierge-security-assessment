@@ -1312,7 +1312,7 @@ export default function ClientResults() {
                           <span>{domain.label}</span>
                         </div>
                         <strong className="text-xl leading-none text-white">
-                          {value ?? '—'}
+                          {value ?? '-'}
                         </strong>
                       </div>
                       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-800">
@@ -1466,7 +1466,7 @@ export default function ClientResults() {
                   r.scores[
                     r.priority
                   ],
-                ) ?? '—'}
+                ) ?? '-'}
                 /100
               </span>
             </div>
