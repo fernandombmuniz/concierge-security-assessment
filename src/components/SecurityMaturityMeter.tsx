@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
 interface Props {
@@ -17,7 +18,38 @@ const maturityBand = (score: number | null) => {
 
 export default function SecurityMaturityMeter({ value, level }: Props) {
   const score = value === null ? null : clamp(value);
-  const normalized = score ?? 0;
+  const [animatedScore, setAnimatedScore] = useState(0);
+
+  useEffect(() => {
+    if (score === null) {
+      setAnimatedScore(0);
+      return;
+    }
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setAnimatedScore(score);
+      return;
+    }
+
+    let frame = 0;
+    const startedAt = performance.now();
+    const duration = 1200;
+
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      // Acelera no início e desacelera ao chegar à leitura final, como um velocímetro.
+      const eased = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      setAnimatedScore(score * eased);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [score]);
+
+  const normalized = score === null ? 0 : animatedScore;
   const angle = Math.PI - (normalized / 100) * Math.PI;
   const markerX = 100 + 74 * Math.cos(angle);
   const markerY = 106 - 74 * Math.sin(angle);
@@ -110,7 +142,7 @@ export default function SecurityMaturityMeter({ value, level }: Props) {
             fontWeight="800"
             style={{ fontVariantNumeric: 'tabular-nums' }}
           >
-            {score === null ? '—' : Math.round(score)}
+            {score === null ? '—' : Math.round(animatedScore)}
           </text>
           <text
             x="100"

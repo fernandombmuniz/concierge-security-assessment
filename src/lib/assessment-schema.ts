@@ -73,6 +73,19 @@ export const assessmentDataSchema =
     sites:
       num,
 
+    securityOperationsModel:
+      enumOf(
+        [
+          'dedicated',
+          'scheduled',
+          'generalist_overloaded',
+          'reactive',
+          'managed_support',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
     /**
      * INTERNET E REDE
      */
@@ -304,6 +317,17 @@ export const assessmentDataSchema =
         'unknown',
       ),
 
+    endpointManagementModel:
+      enumOf(
+        [
+          'individual',
+          'central_internal',
+          'central_partner',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
     endpointResponse:
       enumOf(
         [
@@ -493,6 +517,18 @@ export const assessmentDataSchema =
           'formal',
           'informal',
           'none',
+          'unknown',
+        ],
+        'unknown',
+      ),
+
+    afterHoursResponse:
+      enumOf(
+        [
+          'managed_24x7',
+          'on_call',
+          'ad_hoc',
+          'business_hours',
           'unknown',
         ],
         'unknown',

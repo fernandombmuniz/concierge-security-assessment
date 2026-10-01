@@ -819,6 +819,48 @@ const genericLabels: Record<
   managed_soc:
     "Equipe especializada acompanha e responde",
 
+  individual:
+    "Administrada individualmente em cada computador",
+
+  central_internal:
+    "Painel central pela equipe de TI",
+
+  central_partner:
+    "Painel central por empresa terceirizada",
+
+  dedicated:
+    "Há pessoa ou equipe com foco dedicado em segurança",
+
+  scheduled:
+    "A TI reserva tempo regularmente para segurança",
+
+  generalist_overloaded:
+    "A mesma equipe acumula suporte, infraestrutura e segurança",
+
+  managed_support:
+    "Um fornecedor especializado apoia ou opera a segurança",
+
+  managed_24x7:
+    "Há equipe ou serviço com cobertura 24x7",
+
+  on_call:
+    "Há alguém de sobreaviso",
+
+  ad_hoc:
+    "Tentamos localizar alguém quando necessário",
+
+  business_hours:
+    "Normalmente seria tratado no próximo expediente",
+
+  controlled:
+    "Existem ferramentas permitidas e regras claras sobre dados",
+
+  open:
+    "Uso livre, sem regra definida",
+
+  not_used:
+    "A empresa não utiliza IA generativa no trabalho",
+
   defined_team:
     "Responsável ou equipe definida",
 
@@ -3158,11 +3200,6 @@ async function sendAssessmentNotification(
               )}
 
               ${emailRow(
-                "Usuários",
-                users,
-              )}
-
-              ${emailRow(
                 "Computadores / notebooks",
                 devices,
               )}
@@ -3177,6 +3214,87 @@ async function sendAssessmentNotification(
                 sites,
               )}
             </table>
+
+            ${sectionTitle(
+              "Respostas fornecidas no onboarding técnico",
+            )}
+
+            <p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#64748b;">
+              Registro fiel das respostas informadas pelo cliente. Esta seção fica separada das interpretações, scores e recomendações para que a conversa possa ser reconstruída com precisão.
+            </p>
+
+            <div style="margin:0 0 16px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+              <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px;">1. Empresa e operação</div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
+                ${emailRow("Nome da empresa", companyName)}
+                ${emailRow("Nome do respondente", contactName)}
+                ${emailRow("Cargo", contactRole)}
+                ${emailRow("E-mail", contactEmail)}
+                ${emailRow("Computadores e notebooks", devices)}
+                ${emailRow("Unidades ou filiais", sites)}
+                ${emailRow("Equipe interna de TI", getNumber(answers, ["itTeamSize"]) ?? "Não informado")}
+                ${emailRow("Como a segurança entra na rotina da TI", translate(answers.securityOperationsModel))}
+              </table>
+            </div>
+
+            <div style="margin:0 0 16px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+              <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px;">2. Internet e rede</div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
+                ${emailRow("Proteção atual da internet", translate(answers.firewallLevel))}
+                ${emailRow("Modelo ou solução", getString(answers, ["firewallModel"]) || "Não informado")}
+                ${emailRow("Quem administra", translateFirewallManagement(answers.firewallManagement))}
+                ${emailRow("O que acontece quando surge um alerta", translate(answers.monitoring))}
+                ${emailRow("Quantidade de links", getNumber(answers, ["internetLinkCount"]) ?? "Não informado")}
+                ${emailRow("Links e velocidades informados", linkSpeeds || "Não informado")}
+                ${emailRow("Acesso remoto", translate(answers.vpnUsage))}
+                ${emailRow("Pessoas com acesso remoto", getNumber(answers, ["vpnRemote"]) ?? "Não informado")}
+                ${emailRow("VPN entre unidades", getNumber(answers, ["vpnSite"]) ?? "Não informado")}
+                ${emailRow("Segmentação / VLANs", getNumber(answers, ["vlans"]) ?? "Não informado")}
+              </table>
+            </div>
+
+            <div style="margin:0 0 16px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+              <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px;">3. Computadores e endpoints</div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
+                ${emailRow("Cenário de proteção atual", translate(answers.endpointLevel))}
+                ${emailRow("Solução utilizada", getString(answers, ["endpointProduct"]) || "Não informado")}
+                ${emailRow("Como a proteção é administrada", translate(answers.endpointManagementModel))}
+                ${emailRow("O que acontece quando surge um alerta", translateEndpointResponse(answers.endpointResponse))}
+                ${emailRow("Inventário de equipamentos", translateInventory(answers.assetInventory))}
+                ${emailRow("Verificação de vulnerabilidades", translateVulnerability(answers.vulnerabilityManagement))}
+                ${emailRow("Servidores administrados", getNumber(answers, ["servers"]) ?? "Não informado")}
+              </table>
+            </div>
+
+            <div style="margin:0 0 16px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+              <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px;">4. Dados, backup e continuidade</div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
+                ${emailRow("Onde ficam os dados importantes", translateDataLocation(answers.dataLocation))}
+                ${emailRow("Como o backup é feito", translate(answers.backupLevel))}
+                ${emailRow("Volume aproximado", getNumber(answers, ["backupVolumeGb"]) ? `${getNumber(answers, ["backupVolumeGb"])} GB` : "Não informado")}
+                ${emailRow("Responsável pelo backup", translateBackupResponsibility(answers.backupResponsibility))}
+                ${emailRow("Cópia separada do ambiente principal", translate(answers.backupIsolation))}
+                ${emailRow("Teste de restauração", translate(answers.restoreTests))}
+                ${emailRow("Tempo tolerável de parada", translate(answers.maxDowntime))}
+                ${emailRow("Impacto de uma parada", translate(answers.operationalImpact))}
+              </table>
+            </div>
+
+            <div style="margin:0 0 16px;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+              <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px;">5. Contas, resposta, IA e contexto</div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
+                ${emailRow("MFA / confirmação além da senha", translate(answers.mfa))}
+                ${emailRow("Contas ou senhas compartilhadas", translate(answers.sharedAccounts))}
+                ${emailRow("Remoção de acessos no desligamento", translate(answers.offboarding))}
+                ${emailRow("Proteção de e-mail", translate(answers.emailProtection))}
+                ${emailRow("Quem coordena um incidente", translate(answers.incidentResponse))}
+                ${emailRow("Resposta fora do expediente", translate(answers.afterHoursResponse))}
+                ${emailRow("Uso e governança de IA", translate(answers.aiUsageGovernance))}
+                ${emailRow("Dados pessoais ou sensíveis", translate(answers.sensitiveData))}
+                ${emailRow("Histórico de incidente", translate(answers.incidentHistory))}
+                ${emailRow("Principal preocupação", getString(answers, ["mainConcern"]) || "Não informado")}
+              </table>
+            </div>
 
             ${sectionTitle(
               "Indicadores técnicos",
@@ -3530,9 +3648,9 @@ async function sendAssessmentNotification(
               )}
 
               ${emailRow(
-                "Gestão central",
+                "Como a proteção é administrada",
                 translate(
-                  answers.endpointCentralManagement,
+                  answers.endpointManagementModel || answers.endpointCentralManagement,
                 ),
               )}
 

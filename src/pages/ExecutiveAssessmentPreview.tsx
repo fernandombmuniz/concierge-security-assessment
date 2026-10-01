@@ -214,6 +214,70 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+type ExecutiveResultChapter = 'overview' | 'findings' | 'impact' | 'actions';
+
+const executiveResultChapters: Array<{ key: ExecutiveResultChapter; label: string; shortLabel: string }> = [
+  { key: 'overview', label: 'Visão geral', shortLabel: 'Visão geral' },
+  { key: 'findings', label: 'O que encontramos', shortLabel: 'Achados' },
+  { key: 'impact', label: 'O que isso significa', shortLabel: 'Impacto' },
+  { key: 'actions', label: 'Por onde começar', shortLabel: 'Ações' },
+];
+
+function joinLabels(labels: string[]) {
+  if (labels.length <= 1) return labels[0] || '';
+  if (labels.length === 2) return `${labels[0]} e ${labels[1]}`;
+  return `${labels.slice(0, -1).join(', ')} e ${labels[labels.length - 1]}`;
+}
+
+function executiveOverviewSummary(companyName: string, weakestAreas: string[], mainConcern: string) {
+  const company = companyName || 'A empresa';
+  const areas = joinLabels(weakestAreas);
+  const concern = concernLabel(mainConcern).toLowerCase();
+  if (!areas) {
+    return `${company} já informou uma base inicial do ambiente. O diagnóstico abaixo mostra onde vale validar controles, continuidade e capacidade de resposta.`;
+  }
+  return `${company} mostrou sinais de maior atenção em ${areas}. Isso sugere exposição relevante para continuidade, reação a incidentes e proteção das informações, especialmente quando a principal preocupação declarada envolve ${concern}.`;
+}
+
+function executiveOverviewSupport(score: number, prioritiesCount: number) {
+  if (score < 40) return `O resultado pede validação rápida dos pontos abaixo. Há espaço para reduzir risco com decisões simples e objetivas.`;
+  if (score < 60) return `O cenário já tem alguma base, mas ainda existem ${prioritiesCount} frentes que merecem revisão antes de virarem impacto operacional.`;
+  if (score < 80) return `O ambiente demonstra organização, porém ainda há pontos que merecem confirmação para evitar confiança excessiva.`;
+  return `Mesmo em ambientes mais maduros, o objetivo é confirmar o que está consistente hoje e o que ainda pode ser refinado.`;
+}
+
+function executiveTransitionCopy(nextChapter: ExecutiveResultChapter | undefined) {
+  if (!nextChapter) {
+    return {
+      title: 'Seu diagnóstico executivo está completo.',
+      body: 'Você pode baixar o relatório ou refazer o diagnóstico quando quiser.',
+      button: '',
+    };
+  }
+
+  if (nextChapter === 'findings') {
+    return {
+      title: 'Confira agora os pontos que mais chamaram atenção neste diagnóstico',
+      body: 'A próxima parte mostra, de forma direta, onde o ambiente parece mais exposto e por que isso merece uma conversa mais objetiva.',
+      button: 'O que encontramos',
+    };
+  }
+
+  if (nextChapter === 'impact') {
+    return {
+      title: 'Agora veja o que esses sinais podem representar para o negócio',
+      body: 'A próxima leitura conecta os achados ao impacto operacional, financeiro e de continuidade.',
+      button: 'O que isso significa',
+    };
+  }
+
+  return {
+    title: 'Feche a leitura com prioridades claras para a próxima conversa',
+    body: 'Na última parte, o diagnóstico transforma os achados em próximos passos objetivos.',
+    button: 'Por onde começar',
+  };
+}
+
 export default function ExecutiveAssessmentPreview() {
   const [started, setStarted] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
@@ -221,6 +285,8 @@ export default function ExecutiveAssessmentPreview() {
   const [answers, setAnswers] = useState<ExecutiveAnswers>(initialAnswers);
   const [completed, setCompleted] = useState(false);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [pdfMode, setPdfMode] = useState(false);
+  const [activeResultChapter, setActiveResultChapter] = useState<ExecutiveResultChapter>('overview');
   const [answered, setAnswered] = useState<Set<keyof ExecutiveAnswers>>(() => new Set());
   const [remoteSession, setRemoteSession] = useState<ExecutiveSession | null>(null);
   const [isStartingRemote, setIsStartingRemote] = useState(false);
@@ -298,6 +364,47 @@ export default function ExecutiveAssessmentPreview() {
 
     return () => window.cancelAnimationFrame(frame);
   }, [completed]);
+
+  useEffect(() => {
+    if (!started || completed) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [step, started, completed]);
+
+  useEffect(() => {
+    if (!completed || typeof window === 'undefined') return;
+
+    const syncFromHash = () => {
+      const hash = window.location.hash.replace('#', '') as ExecutiveResultChapter;
+      if (executiveResultChapters.some((chapter) => chapter.key === hash)) {
+        setActiveResultChapter(hash);
+      } else {
+        setActiveResultChapter('overview');
+      }
+    };
+
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, [completed]);
+
+  const goToResultChapter = (chapter: ExecutiveResultChapter) => {
+    setActiveResultChapter(chapter);
+    if (typeof window !== 'undefined') {
+      const nextUrl = `${window.location.pathname}${window.location.search}#${chapter}`;
+      window.history.pushState(null, '', nextUrl);
+      window.requestAnimationFrame(() => {
+        document.getElementById('executive-result-chapter-top')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
+    }
+  };
 
   const set = <K extends keyof ExecutiveAnswers>(key: K, value: ExecutiveAnswers[K]) => {
     setAnswers((current) => ({ ...current, [key]: value }));
@@ -452,6 +559,14 @@ export default function ExecutiveAssessmentPreview() {
       responseImpact: responseImpactText(answers.afterHours),
     };
   }, [answers]);
+
+  const overviewSummary = executiveOverviewSummary(
+    answers.companyName,
+    result.areas.slice(0, 3).map((area) => area.label),
+    answers.mainConcern,
+  );
+
+  const overviewSupport = executiveOverviewSupport(result.overall, result.priorities.length);
 
   const steps = [
     {
@@ -615,9 +730,12 @@ export default function ExecutiveAssessmentPreview() {
     }
 
     setIsPdfGenerating(true);
+    setPdfMode(true);
 
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 120));
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+      });
 
       const companyName = answers.companyName.trim() || 'empresa';
 
@@ -629,6 +747,7 @@ export default function ExecutiveAssessmentPreview() {
       console.error('Falha ao gerar PDF executivo:', error);
       alert('Não foi possível gerar o PDF neste momento. Tente novamente em alguns instantes.');
     } finally {
+      setPdfMode(false);
       setIsPdfGenerating(false);
     }
   };
@@ -642,6 +761,10 @@ export default function ExecutiveAssessmentPreview() {
     setAnswered(new Set());
     setRemoteSession(null);
     setRemoteStatus(null);
+    setActiveResultChapter('overview');
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
   };
 
 
@@ -800,6 +923,11 @@ export default function ExecutiveAssessmentPreview() {
   }
 
   if (completed) {
+    const activeChapterIndex = executiveResultChapters.findIndex(
+      (chapter) => chapter.key === activeResultChapter,
+    );
+    const nextChapter = executiveResultChapters[activeChapterIndex + 1];
+
     return (
       <main className="relative min-h-screen overflow-hidden bg-[#07101f] px-4 py-8 text-white md:py-10">
         <CyberBackdrop />
@@ -807,11 +935,20 @@ export default function ExecutiveAssessmentPreview() {
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-cyan-300/[0.10] bg-[#081426]/62 px-4 py-3 backdrop-blur-md">
             <ExecutiveBrandLockup compact />
             <div className="flex flex-wrap gap-2" data-pdf-ignore="true">
-              <button type="button" onClick={handleDownloadReport} disabled={isPdfGenerating} className="inline-flex items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-2.5 text-sm font-semibold text-teal-200 transition hover:bg-teal-500/15 disabled:cursor-not-allowed disabled:opacity-60">
+              <button
+                type="button"
+                onClick={handleDownloadReport}
+                disabled={isPdfGenerating}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-2.5 text-sm font-semibold text-teal-200 transition hover:bg-teal-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 {isPdfGenerating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                 {isPdfGenerating ? 'Gerando PDF...' : 'Baixar relatório'}
               </button>
-              <button type="button" onClick={reset} className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:border-slate-700 hover:text-white">
+              <button
+                type="button"
+                onClick={reset}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-slate-700 hover:text-white"
+              >
                 <RotateCcw size={16} />
                 Refazer diagnóstico
               </button>
@@ -824,199 +961,287 @@ export default function ExecutiveAssessmentPreview() {
             </div>
           )}
 
-          <div data-executive-report="true">
-          <section className={`${sectionCard} mt-6 p-6 md:p-8`}>
-            <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-center">
-              <SecurityMaturityMeter value={result.overall} level={maturity(result.overall)} />
-              <div>
-                <span className="section-kicker">Resultado executivo</span>
-                <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white md:text-4xl">
-                  {resultHeadline(answers.companyName, result.overall)}
-                </h1>
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-                  Este resultado não tenta substituir uma avaliação técnica. Ele mostra onde existe maior exposição para o negócio e quais pontos vale validar primeiro em uma conversa mais detalhada.
-                </p>
+          <div id="executive-result-chapter-top" className="scroll-mt-5" data-pdf-ignore="true">
+            <div className="mt-5 hidden grid-cols-4 gap-2 rounded-2xl border border-cyan-300/[0.10] bg-[#081426]/62 p-2 backdrop-blur-md md:grid">
+              {executiveResultChapters.map((chapter, index) => (
+                <button
+                  key={chapter.key}
+                  type="button"
+                  onClick={() => goToResultChapter(chapter.key)}
+                  className={`cursor-pointer rounded-xl px-3 py-3 text-left transition ${
+                    activeResultChapter === chapter.key
+                      ? 'border border-cyan-400/25 bg-cyan-500/10 text-white'
+                      : 'border border-transparent text-slate-500 hover:bg-slate-900/55 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-300/70">
+                    0{index + 1}
+                  </span>
+                  <span className="mt-1 block text-sm font-semibold">{chapter.label}</span>
+                </button>
+              ))}
+            </div>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {result.areas.map((area) => (
-                    <div key={area.key} className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs font-semibold text-slate-400">{area.label}</span>
-                        <strong className="text-lg text-white">{area.score}</strong>
-                      </div>
-                      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
-                        <div className="h-full rounded-full bg-teal-500" style={{ width: `${area.score}%` }} />
-                      </div>
-                    </div>
+            <div className="mt-5 rounded-2xl border border-cyan-300/[0.10] bg-[#081426]/62 px-4 py-3 backdrop-blur-md md:hidden">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-300/70">
+                    {activeChapterIndex + 1} de {executiveResultChapters.length}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-white">
+                    {executiveResultChapters[activeChapterIndex]?.label}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {executiveResultChapters.map((chapter) => (
+                    <button
+                      key={chapter.key}
+                      type="button"
+                      aria-label={`Abrir ${chapter.label}`}
+                      onClick={() => goToResultChapter(chapter.key)}
+                      className={`h-2 cursor-pointer rounded-full transition-all ${
+                        chapter.key === activeResultChapter ? 'w-7 bg-cyan-400' : 'w-2.5 bg-slate-700'
+                      }`}
+                    />
                   ))}
                 </div>
               </div>
             </div>
-          </section>
-
-          <section className="mt-6 grid gap-5 lg:grid-cols-[1.08fr_.92fr] lg:items-start">
-            <div className={`${sectionCard} overflow-hidden`}>
-              <div className="border-b border-cyan-300/[0.10] px-6 py-5">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl border border-amber-400/20 bg-amber-400/5 text-amber-300">
-                    <TriangleAlert size={20} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Impacto operacional</p>
-                    <h2 className="mt-1 text-xl font-bold text-white">{result.impact.label}</h2>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-base font-semibold leading-7 text-white">{result.impactLead}</p>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{result.impact.copy}</p>
-
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
-                    <div className="flex items-start gap-3">
-                      <DatabaseBackup size={18} className="mt-0.5 shrink-0 text-cyan-300" />
-                      <div>
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Capacidade de recuperação</span>
-                        <p className="mt-1.5 text-sm leading-6 text-slate-200">{result.recoveryImpact}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
-                    <div className="flex items-start gap-3">
-                      <Clock3 size={18} className="mt-0.5 shrink-0 text-cyan-300" />
-                      <div>
-                        <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Tempo de reação</span>
-                        <p className="mt-1.5 text-sm leading-6 text-slate-200">{result.responseImpact}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-4">
-                  <span className="text-xs font-bold uppercase tracking-wide text-amber-300">Risco que mais preocupa hoje</span>
-                  <p className="mt-2 font-semibold text-white">{concernLabel(answers.mainConcern)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className={`${sectionCard} self-start p-6`}>
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-400/20 bg-cyan-400/5 text-cyan-300">
-                  <Sparkles size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">IA e proteção de dados</p>
-                  <h2 className="mt-1 text-lg font-bold text-white">Uso de IA também precisa de regra simples</h2>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-7 text-slate-300">
-                {answers.aiGovernance === 'controlled'
-                  ? 'A empresa informou que já possui alguma regra para uso de IA. Vale revisar periodicamente ferramentas permitidas e tipos de informação que podem ser enviados.'
-                  : 'Sem orientação clara, colaboradores podem enviar informações internas ou dados pessoais a ferramentas de IA sem perceber o risco. Uma política curta já ajuda a reduzir esse ponto cego.'}
-              </p>
-              <a href="https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-lanca-versao-ingles-rt-ingles" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-teal-300 hover:text-teal-200">
-                ANPD · Radar Tecnológico sobre IA Generativa
-                <ChevronRight size={14} />
-              </a>
-            </div>
-          </section>
-
-          <section className={`${sectionCard} mt-6 overflow-hidden`}>
-            <div className="border-b border-cyan-300/[0.10] px-6 py-5 md:px-8">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">O que isso pode significar para o negócio</p>
-              <h2 className="mt-2 text-2xl font-extrabold text-white">Dados que ajudam a colocar o resultado em perspectiva</h2>
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
-                Os exemplos abaixo não significam que um incidente vai acontecer. Eles mostram por que os pontos identificados merecem validação antes de virarem impacto operacional.
-              </p>
-            </div>
-            <div className="grid gap-4 p-6 md:grid-cols-3 md:p-8">
-              {result.evidence.map((item) => (
-                <article key={item.title} className="rounded-2xl border border-cyan-300/[0.10] bg-[#061121]/62 p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-cyan-400/20 bg-cyan-400/5 text-cyan-300">
-                      {item.icon === 'backup' ? <DatabaseBackup size={18} /> : item.icon === 'identity' ? <KeyRound size={18} /> : item.icon === 'ai' ? <Sparkles size={18} /> : item.icon === 'response' ? <Clock3 size={18} /> : <TriangleAlert size={18} />}
-                    </div>
-                    <h3 className="text-sm font-bold leading-5 text-white">{item.title}</h3>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-slate-300">{item.copy}</p>
-                  <a href={item.href} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-teal-300 hover:text-teal-200">
-                    {item.source}
-                    <ChevronRight size={14} />
-                  </a>
-                </article>
-              ))}
-            </div>
-            <div className="mx-6 mb-6 rounded-2xl border border-teal-500/20 bg-teal-500/[0.04] p-5 md:mx-8 md:mb-8">
-              <div className="grid gap-4 md:grid-cols-[auto_1fr] md:items-center">
-                <div className="grid h-11 w-11 place-items-center rounded-xl border border-teal-500/20 bg-teal-500/10 text-teal-300">
-                  <ShieldCheck size={22} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-300">Você sabia?</p>
-                  <h3 className="mt-1 text-lg font-extrabold text-white">Uma microempresa já recebeu R$ 14.400 em multas da ANPD.</h3>
-                  <p className="mt-2 text-[13px] leading-5 text-slate-300">Em 2023, a ANPD aplicou suas primeiras multas por descumprimento da LGPD a uma microempresa. O caso é específico, mas mostra que porte menor não elimina responsabilidades sobre dados pessoais.</p>
-                  <a href="https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-aplica-a-primeira-multa-por-descumprimento-a-lgpd" target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-teal-300 hover:text-teal-200">
-                    Ver caso oficial da ANPD
-                    <ChevronRight size={14} />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section data-report-slide-break="true" data-report-keep-together="true" className={`${sectionCard} mt-6 overflow-hidden`}>
-            <div className="border-b border-cyan-300/[0.10] px-6 py-4 md:px-8">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-300">Por onde começar</p>
-              <h2 className="mt-2 text-2xl font-extrabold text-white">Três prioridades para a próxima conversa</h2>
-              <p className="mt-2 text-sm text-slate-400">A ordem abaixo considera as respostas fornecidas nesta avaliação executiva.</p>
-            </div>
-
-            <div className="divide-y divide-slate-800">
-              {result.priorities.map((priority, index) => (
-                <article key={`${priority.area}-${priority.title}`} data-report-keep-together="true" className="grid gap-4 px-6 py-4 md:grid-cols-[64px_1fr] md:px-8">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-teal-500/20 bg-teal-500/5 text-lg font-extrabold text-teal-300">
-                    {String(index + 1).padStart(2, '0')}
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-slate-800 bg-slate-950/50 px-2.5 py-1 text-xs font-semibold text-slate-400">{priority.area}</span>
-                      {index === 0 && <span className="rounded-full border border-amber-400/20 bg-amber-400/5 px-2.5 py-1 text-xs font-semibold text-amber-300">Revisar primeiro</span>}
-                    </div>
-                    <h3 className="mt-3 text-lg font-bold text-white">{priority.title}</h3>
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Por que isso importa</p>
-                        <p className="mt-2 text-[13px] leading-5 text-slate-300">{priority.why}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Próximo passo</p>
-                        <p className="mt-2 text-[13px] leading-5 text-slate-300">{priority.action}</p>
-                      </div>
-                    </div>
-                    <p className="mt-4 text-xs font-medium text-slate-500">Referência: {priority.reference}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section data-report-keep-together="true" className="mt-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/[0.08] to-teal-500/[0.04] p-6 md:p-7">
-            <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">Próxima conversa</p>
-                <h2 className="mt-2 text-2xl font-extrabold text-white">Transforme estes sinais em decisões objetivas para o seu cenário.</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Uma conversa curta serve para validar o que realmente se aplica ao ambiente, separar prioridade de ruído e entender quais ações fazem sentido agora. O diagnóstico já mostra onde começar.</p>
-              </div>
-              <div className="flex flex-wrap gap-2" data-pdf-ignore="true">
-                <button type="button" onClick={handleDownloadReport} disabled={isPdfGenerating} className="inline-flex items-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-5 py-3 text-sm font-bold text-teal-200 transition hover:bg-teal-500/15 disabled:cursor-not-allowed disabled:opacity-60">
-                  {isPdfGenerating ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
-                  {isPdfGenerating ? 'Gerando PDF...' : 'Baixar relatório'}
-                </button>
-              </div>
-            </div>
-          </section>
-
           </div>
+
+          <div data-executive-report="true">
+            {(pdfMode || activeResultChapter === 'overview') && (
+              <section data-pdf-page="true" className={`${sectionCard} mt-6 p-6 md:p-8`}>
+                <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-center">
+                  <SecurityMaturityMeter value={result.overall} level={maturity(result.overall)} />
+                  <div>
+                    <span className="section-kicker">Resultado executivo</span>
+                    <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white md:text-4xl">
+                      {resultHeadline(answers.companyName, result.overall)}
+                    </h1>
+
+                    <div className="mt-4 rounded-2xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4 md:p-5">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">Leitura inicial do ambiente</p>
+                      <p className="mt-2 text-base font-semibold leading-7 text-white">{overviewSummary}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-300">{overviewSupport}</p>
+                    </div>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {result.areas.map((area) => (
+                        <div key={area.key} className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold text-slate-400">{area.label}</span>
+                            <strong className="text-lg text-white">{area.score}</strong>
+                          </div>
+                          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                            <div className="h-full rounded-full bg-teal-500" style={{ width: `${area.score}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {(pdfMode || activeResultChapter === 'findings') && (
+              <section data-pdf-page="true" className={`${sectionCard} mt-6 overflow-hidden`}>
+                <div className="border-b border-cyan-300/[0.10] px-6 py-5 md:px-8">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">O que encontramos no seu cenário</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-white">Os sinais que merecem atenção primeiro</h2>
+                  <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
+                    Aqui estão os pontos identificados a partir das suas respostas. A leitura é executiva: mostra onde existe exposição sem transformar o resultado em uma análise técnica detalhada.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 p-6 md:p-8 lg:grid-cols-3">
+                  {result.priorities.map((priority, index) => (
+                    <article key={`${priority.area}-${priority.title}`} className="rounded-2xl border border-cyan-300/[0.10] bg-[#061121]/62 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="rounded-full border border-slate-800 bg-slate-950/50 px-2.5 py-1 text-[11px] font-semibold text-slate-400">
+                          {priority.area}
+                        </span>
+                        <span className={`text-[11px] font-bold uppercase tracking-wide ${index === 0 ? 'text-amber-300' : 'text-cyan-300'}`}>
+                          {index === 0 ? 'Revisar primeiro' : 'Vale revisar'}
+                        </span>
+                      </div>
+                      <h3 className="mt-4 text-lg font-bold leading-6 text-white">{priority.title}</h3>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">{priority.why}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="mx-6 mb-6 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] p-5 md:mx-8 md:mb-8">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Principal preocupação informada</p>
+                  <p className="mt-2 text-lg font-bold text-white">{concernLabel(answers.mainConcern)}</p>
+                </div>
+              </section>
+            )}
+
+            {(pdfMode || activeResultChapter === 'impact') && (
+              <section data-pdf-page="true" className={`${sectionCard} mt-6 overflow-hidden`}>
+                <div className="border-b border-cyan-300/[0.10] px-6 py-5 md:px-8">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">O que isso significa para o negócio</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-white">Impacto em números que fazem sentido para PMEs</h2>
+                  <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
+                    Os dados abaixo ajudam a colocar os sinais encontrados em perspectiva. Eles não significam que um incidente vai acontecer, mas mostram por que vale agir antes que um ponto técnico vire problema operacional.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 p-6 md:grid-cols-3 md:p-8">
+                  {[
+                    {
+                      value: '32%',
+                      title: 'Operação interrompida',
+                      copy: 'Entre PMEs brasileiras que relataram incidentes graves, a interrupção de processos de negócio foi a consequência mais citada.',
+                    },
+                    {
+                      value: '29%',
+                      title: 'Perda financeira',
+                      copy: 'Perdas financeiras apareceram logo depois entre os principais impactos relatados pelas PMEs brasileiras.',
+                    },
+                    {
+                      value: '21%',
+                      title: 'Vazamento público de dados',
+                      copy: 'Exposição pública de dados também apareceu entre as consequências mais relevantes dos incidentes graves.',
+                    },
+                  ].map((item) => (
+                    <article key={item.value} className="rounded-2xl border border-cyan-300/[0.10] bg-[#061121]/62 p-5">
+                      <div className="text-3xl font-extrabold tracking-tight text-cyan-300">{item.value}</div>
+                      <h3 className="mt-3 text-base font-bold text-white">{item.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-300">{item.copy}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="mx-6 mb-6 grid gap-4 md:mx-8 md:mb-8 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-cyan-300/[0.10] bg-[#061121]/62 p-5">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Contexto para pequenas e médias empresas</p>
+                    <div className="mt-3 text-3xl font-extrabold tracking-tight text-white">88%</div>
+                    <h3 className="mt-2 text-lg font-bold text-white">Ransomware pesa mais nas empresas menores</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      No DBIR 2025 da Verizon, ransomware apareceu em 88% das violações envolvendo SMBs analisadas, contra 39% nas organizações maiores.
+                    </p>
+                    <a href="https://www.verizon.com/business/resources/T85f/reports/2025-dbir-data-breach-investigations-report.pdf" target="_blank" rel="noreferrer" className="mt-4 inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-teal-300 hover:text-teal-200">
+                      Verizon · 2025 Data Breach Investigations Report
+                      <ChevronRight size={14} />
+                    </a>
+                  </div>
+
+                  <div className="rounded-2xl border border-teal-500/20 bg-teal-500/[0.04] p-5">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-300">Responsabilidade também chega às empresas menores</p>
+                    <div className="mt-3 text-3xl font-extrabold tracking-tight text-white">R$ 14,4 mil</div>
+                    <h3 className="mt-2 text-lg font-bold text-white">Primeira multa aplicada pela ANPD</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      A primeira multa por descumprimento da LGPD foi aplicada a uma microempresa e totalizou R$ 14.400. O caso é específico, mas mostra que porte menor não elimina responsabilidade sobre dados pessoais.
+                    </p>
+                    <a href="https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-aplica-a-primeira-multa-por-descumprimento-a-lgpd" target="_blank" rel="noreferrer" className="mt-4 inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-teal-300 hover:text-teal-200">
+                      ANPD · primeira multa por descumprimento da LGPD
+                      <ChevronRight size={14} />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="mx-6 mb-6 rounded-2xl border border-amber-400/15 bg-amber-400/[0.04] p-5 md:mx-8 md:mb-8">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Leitura aplicada ao seu cenário</p>
+                  <p className="mt-2 text-base font-semibold leading-7 text-white">{result.impactLead}</p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Recuperação</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-300">{result.recoveryImpact}</p>
+                    </div>
+                    <div className="rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Tempo de resposta</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-300">{result.responseImpact}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {(pdfMode || activeResultChapter === 'actions') && (
+              <>
+                <section data-pdf-page="true" className={`${sectionCard} mt-6 overflow-hidden`}>
+                  <div className="border-b border-cyan-300/[0.10] px-6 py-4 md:px-8">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-300">Por onde começar</p>
+                    <h2 className="mt-2 text-2xl font-extrabold text-white">Três prioridades para a próxima conversa</h2>
+                    <p className="mt-2 text-sm text-slate-400">A ordem abaixo considera as respostas fornecidas nesta avaliação executiva.</p>
+                  </div>
+
+                  <div className="divide-y divide-slate-800">
+                    {result.priorities.map((priority, index) => (
+                      <article key={`${priority.area}-${priority.title}`} className="grid gap-4 px-6 py-4 md:grid-cols-[64px_1fr] md:px-8">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-teal-500/20 bg-teal-500/5 text-lg font-extrabold text-teal-300">
+                          {String(index + 1).padStart(2, '0')}
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-slate-800 bg-slate-950/50 px-2.5 py-1 text-xs font-semibold text-slate-400">{priority.area}</span>
+                            {index === 0 && <span className="rounded-full border border-amber-400/20 bg-amber-400/5 px-2.5 py-1 text-xs font-semibold text-amber-300">Revisar primeiro</span>}
+                          </div>
+                          <h3 className="mt-3 text-lg font-bold text-white">{priority.title}</h3>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Por que isso importa</p>
+                              <p className="mt-2 text-[13px] leading-5 text-slate-300">{priority.why}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Próximo passo</p>
+                              <p className="mt-2 text-[13px] leading-5 text-slate-300">{priority.action}</p>
+                            </div>
+                          </div>
+                          <p className="mt-4 text-xs font-medium text-slate-500">Referência: {priority.reference}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                <section data-pdf-ignore="true" className="mt-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/[0.08] to-teal-500/[0.04] p-6 md:p-7">
+                  <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">Próxima conversa</p>
+                      <h2 className="mt-2 text-2xl font-extrabold text-white">Transforme estes sinais em decisões objetivas para o seu cenário.</h2>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Uma conversa curta serve para validar o que realmente se aplica ao ambiente, separar prioridade de ruído e entender quais ações fazem sentido agora.</p>
+                    </div>
+                    <button type="button" onClick={handleDownloadReport} disabled={isPdfGenerating} className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-5 py-3 text-sm font-bold text-teal-200 transition hover:bg-teal-500/15 disabled:cursor-not-allowed disabled:opacity-60">
+                      {isPdfGenerating ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+                      {isPdfGenerating ? 'Gerando PDF...' : 'Baixar relatório'}
+                    </button>
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+
+          {!pdfMode && (() => {
+            const transitionCopy = executiveTransitionCopy(nextChapter?.key);
+            return (
+              <div className="mt-6" data-pdf-ignore="true">
+                <div className="rounded-2xl border border-cyan-500/18 bg-gradient-to-r from-cyan-500/[0.07] to-teal-500/[0.035] p-5 md:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-cyan-300">
+                        {nextChapter ? 'Continue a leitura' : 'Fim da leitura'}
+                      </p>
+                      <h3 className="mt-2 text-lg font-bold text-white">{transitionCopy.title}</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{transitionCopy.body}</p>
+                    </div>
+                    {nextChapter && (
+                      <button
+                        type="button"
+                        onClick={() => goToResultChapter(nextChapter.key)}
+                        className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:brightness-110"
+                      >
+                        {transitionCopy.button}
+                        <ArrowRight size={17} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           <p className="mt-6 text-center text-xs leading-5 text-slate-600">
             Diagnóstico executivo inicial baseado nas informações fornecidas. A validação técnica detalhada acontece na próxima conversa.

@@ -445,125 +445,34 @@ export function scoreAssessment(
     a.firewallThreatPrevention,
   );
 
+  const segmentationScore =
+    a.vlans >= 3 ? 95 : a.vlans === 2 ? 65 : a.vlans === 1 ? 25 : 50;
+
   const networkControls: Control[] = [
     {
-      known:
-        a.firewallLevel !== 'unknown',
-
-      score:
-        firewallBase[a.firewallLevel],
-
-      weight: 25,
-
+      known: a.firewallLevel !== 'unknown',
+      score: firewallBase[a.firewallLevel],
+      weight: 35,
       critical: true,
     },
-
     {
-      known:
-        a.firewallThreatPrevention !==
-        'unknown',
-
-      score: threat.score,
-
-      weight: 25,
-
-      critical: true,
-    },
-
-    {
-      known:
-        a.networkMaintenance !==
-        'unknown',
-
-      score:
-        maintenance[
-          a.networkMaintenance
-        ],
-
-      weight: 15,
-    },
-
-    {
-      known:
-        a.monitoring !== 'unknown',
-
-      score:
-        monitoring[a.monitoring],
-
-      weight: 20,
-
-      critical: true,
-    },
-
-    {
-      known:
-        a.firewallLicense !== 'unknown' &&
-        !['none', 'isp', 'router'].includes(
-          a.firewallLevel,
-        ),
-
-      score: license.score,
-
-      weight: 15,
-
-      applicable:
-        !['none', 'isp', 'router'].includes(
-          a.firewallLevel,
-        ),
-    },
-
-    {
-      known: knownOptional(
-        a.firewallManagement,
-      ),
-
+      known: knownOptional(a.firewallManagement),
       score: a.firewallManagement
-        ? firewallManagementScore[
-            a.firewallManagement
-          ]
+        ? firewallManagementScore[a.firewallManagement]
         : 50,
-
-      weight: 10,
-
-      applicable:
-        a.firewallManagement !==
-        undefined,
-    },
-
-    {
-      known: knownOptional(
-        a.firewallReporting,
-      ),
-
-      score: a.firewallReporting
-        ? reportingScore[
-            a.firewallReporting
-          ]
-        : 50,
-
-      weight: 10,
-
-      applicable:
-        a.firewallReporting !==
-        undefined,
-    },
-
-    {
-      known: knownOptional(
-        a.firewallMonitoring24x7,
-      ),
-
-      score: capability(
-        a.firewallMonitoring24x7,
-      ).score,
-
-      weight: 15,
-
+      weight: 20,
       critical: true,
-
-      applicable:
-        a.firewallMonitoring24x7 !==
-        undefined,
+    },
+    {
+      known: a.monitoring !== 'unknown',
+      score: monitoring[a.monitoring],
+      weight: 30,
+      critical: true,
+    },
+    {
+      known: a.vlans > 0,
+      score: segmentationScore,
+      weight: 15,
     },
   ];
 
@@ -944,11 +853,51 @@ export function scoreAssessment(
   const identityResult =
     scoreControls(identityControls);
 
+  const capScore = (score: DomainScore, cap: number) =>
+    score === null ? null : Math.min(score, cap);
+
+  const operationalCap: Record<AssessmentData['securityOperationsModel'], number> = {
+    dedicated: 100,
+    scheduled: 88,
+    generalist_overloaded: 78,
+    reactive: 65,
+    managed_support: 95,
+    unknown: 82,
+  };
+
+  const afterHoursCap: Record<AssessmentData['afterHoursResponse'], number> = {
+    managed_24x7: 100,
+    on_call: 90,
+    ad_hoc: 78,
+    business_hours: 72,
+    unknown: 82,
+  };
+
+  const networkCap = Math.min(
+    a.monitoring === 'none' ? 55 : a.monitoring === 'reactive_it' ? 72 : a.monitoring === 'unknown' ? 78 : 100,
+    a.firewallManagement === 'unmanaged' ? 58 : a.firewallManagement === 'unknown' || a.firewallManagement === undefined ? 82 : 100,
+  );
+
+  const endpointCap = Math.min(
+    a.endpointResponse === 'none' ? 55 : a.endpointResponse === 'alerts_only' ? 72 : a.endpointResponse === 'unknown' ? 78 : 100,
+    operationalCap[a.securityOperationsModel],
+  );
+
+  const backupCap = Math.min(
+    a.restoreTests === 'never' ? 60 : a.restoreTests === 'unknown' ? 78 : 100,
+    a.backupResponsibility === 'nobody' ? 55 : a.backupResponsibility === 'unknown' || a.backupResponsibility === undefined ? 82 : 100,
+  );
+
+  const identityCap = Math.min(
+    a.incidentResponse === 'none' ? 58 : a.incidentResponse === 'informal' ? 78 : a.incidentResponse === 'unknown' ? 80 : 100,
+    afterHoursCap[a.afterHoursResponse],
+  );
+
   const scores = {
-    network: networkResult.score,
-    endpoint: endpointResult.score,
-    backup: backupResult.score,
-    identity: identityResult.score,
+    network: capScore(networkResult.score, networkCap),
+    endpoint: capScore(endpointResult.score, endpointCap),
+    backup: capScore(backupResult.score, backupCap),
+    identity: capScore(identityResult.score, identityCap),
   };
 
   const domainCoverage = {
@@ -978,17 +927,21 @@ export function scoreAssessment(
     ([, value]) => value !== null,
   ) as [DomainKey, number][];
 
-  const overall = evaluated.length
+  const rawOverall = evaluated.length
     ? clamp(
         evaluated.reduce(
-          (
-            sum,
-            [, value],
-          ) => sum + value,
+          (sum, [, value]) => sum + value,
           0,
         ) / evaluated.length,
       )
     : null;
+
+  const maturityCap = Math.min(
+    operationalCap[a.securityOperationsModel],
+    afterHoursCap[a.afterHoursResponse],
+  );
+
+  const overall = rawOverall === null ? null : Math.min(rawOverall, maturityCap);
 
   /**
    * Mantemos os labels internos atuais para compatibilidade
@@ -1005,6 +958,48 @@ export function scoreAssessment(
   };
 
   const findings: Finding[] = [];
+
+  if (a.securityOperationsModel === 'generalist_overloaded' || a.securityOperationsModel === 'reactive') {
+    findings.push({
+      domain: labels.endpoint,
+      title: 'A capacidade de segurança depende demais da disponibilidade da TI',
+      situation:
+        a.securityOperationsModel === 'reactive'
+          ? 'A segurança costuma entrar na rotina principalmente quando aparece um problema.'
+          : 'A mesma equipe acumula suporte, infraestrutura e segurança, o que pode limitar tempo para revisar alertas, investigar eventos e acompanhar melhorias.',
+      consequence: 'Mesmo com boas ferramentas instaladas, alertas podem ficar sem análise, ajustes podem ser adiados e a resposta pode depender de a equipe estar disponível naquele momento.',
+      technical: 'Capacidade operacional, rotina de revisão, apoio especializado, responsáveis e tempo reservado para atividades de segurança.',
+      severity: a.securityOperationsModel === 'reactive' ? 'Alta' : 'Média',
+    });
+  }
+
+  if (a.afterHoursResponse === 'business_hours' || a.afterHoursResponse === 'ad_hoc') {
+    findings.push({
+      domain: labels.identity,
+      title: 'A resposta fora do expediente ainda depende de disponibilidade',
+      situation:
+        a.afterHoursResponse === 'business_hours'
+          ? 'Um incidente iniciado à noite, em feriado ou no fim de semana tende a ser tratado apenas no próximo expediente.'
+          : 'Fora do expediente, a empresa depende de localizar alguém quando necessário, sem uma cobertura previamente definida.',
+      consequence: 'As primeiras horas podem passar sem contenção coordenada, aumentando tempo de exposição e impacto operacional.',
+      technical: 'Cobertura fora do expediente, escalação, contatos de emergência e processo de resposta a incidentes.',
+      severity: 'Alta',
+    });
+  }
+
+  if (a.aiUsageGovernance === 'open' || a.aiUsageGovernance === 'partial') {
+    findings.push({
+      domain: labels.identity,
+      title: 'O uso de IA precisa de regras mais claras para dados corporativos',
+      situation:
+        a.aiUsageGovernance === 'open'
+          ? 'Ferramentas de IA generativa são utilizadas sem uma regra definida sobre ferramentas permitidas e informações que podem ser enviadas.'
+          : 'Existem orientações sobre IA, mas elas ainda não são padronizadas em toda a empresa.',
+      consequence: 'Informações internas, dados pessoais ou conteúdo sensível podem ser enviados a serviços externos sem que a empresa tenha visibilidade ou critérios consistentes.',
+      technical: 'Política de uso de IA, ferramentas autorizadas, classificação de dados e conscientização dos usuários.',
+      severity: a.aiUsageGovernance === 'open' ? 'Alta' : 'Média',
+    });
+  }
 
   const firewallName = [
     cleanLabel(a.firewallVendor),
@@ -1464,6 +1459,51 @@ export function scoreAssessment(
 
       severity: 'Alta',
     });
+  }
+
+  // O assessment sempre deve entregar próximos passos úteis. Quando poucas lacunas
+  // explícitas aparecem, completamos a leitura com ações de evolução e validação,
+  // sem inventar uma falha que o respondente não informou.
+  const evolutionFindings: Finding[] = [
+    {
+      domain: labels.endpoint,
+      title: 'Validar continuamente a exposição e as vulnerabilidades do ambiente',
+      situation: 'Mesmo quando os principais controles de endpoint já existem, novas vulnerabilidades, versões desatualizadas e ativos esquecidos podem surgir ao longo do tempo.',
+      consequence: 'Sem uma rotina de validação, a empresa pode manter uma boa estrutura de proteção e ainda carregar exposições que passam despercebidas até uma auditoria ou incidente.',
+      technical: 'Gestão contínua de vulnerabilidades, inventário, priorização por risco e validações técnicas periódicas.',
+      severity: 'Baixa',
+    },
+    {
+      domain: labels.backup,
+      title: 'Comprovar periodicamente que a recuperação funciona como esperado',
+      situation: 'Ter backup e até realizar restaurações pontuais não elimina a necessidade de validar a recuperação conforme sistemas, dados e dependências mudam.',
+      consequence: 'Mudanças no ambiente podem aumentar o tempo de recuperação ou criar dependências que só aparecem durante um teste mais completo.',
+      technical: 'Testes de restauração, exercícios de recuperação, revisão de RTO/RPO e validação das cópias críticas.',
+      severity: 'Baixa',
+    },
+    {
+      domain: labels.identity,
+      title: 'Revisar continuamente acessos, pessoas e risco humano',
+      situation: 'Contas, privilégios, fornecedores e hábitos dos usuários mudam ao longo do tempo, mesmo em ambientes tecnicamente bem estruturados.',
+      consequence: 'A maturidade pode cair sem que um controle técnico tenha sido removido, especialmente com novos acessos, phishing e mudanças de função.',
+      technical: 'Revisão de privilégios, IAM/PAM quando aplicável, conscientização e simulações de phishing.',
+      severity: 'Baixa',
+    },
+    {
+      domain: labels.network,
+      title: 'Testar se os controles de rede continuam respondendo como esperado',
+      situation: 'Regras, aplicações, links e formas de acesso mudam. Uma configuração que era adequada pode deixar de refletir o cenário atual.',
+      consequence: 'Controles podem permanecer ativos, mas com cobertura menor do que a empresa imagina.',
+      technical: 'Revisão de políticas, análise de exposição, pentest/BAS quando aplicável e validação periódica da configuração.',
+      severity: 'Baixa',
+    },
+  ];
+
+  for (const evolution of evolutionFindings) {
+    if (findings.length >= 3) break;
+    if (!findings.some((finding) => finding.title === evolution.title)) {
+      findings.push(evolution);
+    }
   }
 
   const allControls = [

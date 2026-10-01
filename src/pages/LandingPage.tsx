@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, ChevronDown, Clock3, LoaderCircle, Sparkles } from 'lucide-react';
 import { startAssessment } from '../lib/assessment.functions';
 import {
   clearSession,
@@ -8,17 +9,7 @@ import {
   saveSession,
 } from '../lib/assessment-session';
 import { clearPreviousRespondentState } from '../storage';
-import ClientHeader from '../components/ClientHeader';
-import {
-  ArrowRight,
-  LoaderCircle,
-  ShieldCheck,
-  Wifi,
-  MonitorSmartphone,
-  Database,
-  KeyRound,
-  ChevronDown,
-} from 'lucide-react';
+import { ConciergeBrandLockup } from '../components/ExecutiveVisual';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -33,15 +24,6 @@ export default function LandingPage() {
   const isPublicEntry = Boolean(publicRef || publicSource);
 
   useEffect(() => {
-    /**
-     * Um link público com `ref` e/ou `src` representa uma NOVA entrada.
-     * Antes de renderizar o cabeçalho ou permitir navegação, removemos todo o
-     * estado local do respondente anterior. Assim um dispositivo compartilhado
-     * não mostra rascunho, resultado ou sessão de outra pessoa.
-     *
-     * Ao navegar internamente de volta para `/` sem ref/src, não limpamos nada.
-     * Isso preserva o assessment em andamento do próprio respondente.
-     */
     if (isPublicEntry) {
       clearPreviousRespondentState();
       clearSession();
@@ -55,12 +37,6 @@ export default function LandingPage() {
     if (!consent || starting) return;
 
     setStarting(true);
-
-    /**
-     * Segunda proteção: mesmo que o usuário tenha chegado à landing por uma
-     * navegação incomum, iniciar explicitamente um novo diagnóstico sempre
-     * começa com estado local limpo.
-     */
     clearPreviousRespondentState();
     clearSession();
 
@@ -71,17 +47,8 @@ export default function LandingPage() {
     const { ref, source } = readAttribution();
 
     try {
-      // Mantém uma transição visual mínima para evitar a sensação de refresh
-      // quando a API responde muito rápido. A criação da sessão e o tempo
-      // mínimo acontecem em paralelo, sem atrasar chamadas mais lentas.
       const [session] = await Promise.all([
-        startAssessment({
-          data: {
-            ref,
-            source,
-            consent: true,
-          },
-        }),
+        startAssessment({ data: { ref, source, consent: true } }),
         new Promise((resolve) => setTimeout(resolve, 450)),
       ]);
 
@@ -92,255 +59,167 @@ export default function LandingPage() {
         consentAt: new Date().toISOString(),
       });
 
-      // Mantém o mesmo overlay também no primeiro paint do formulário,
-      // evitando o flash entre a desmontagem da landing e a montagem da rota.
       sessionStorage.setItem('concierge-assessment-route-transition', '1');
-
       navigate('/diagnostico', { replace: true });
     } catch (error) {
       console.error('Falha ao iniciar assessment:', error);
-
       alert(
-        'Não foi possível iniciar o diagnóstico neste momento. ' +
-          'Verifique sua conexão e tente novamente.',
+        'Não foi possível iniciar o diagnóstico neste momento. Verifique sua conexão e tente novamente.',
       );
-
       setStarting(false);
     }
   };
 
-  const features = [
-    {
-      title: 'Rede e Perímetro',
-      desc: 'Análise de internet, firewalls e controle de acessos externos.',
-      icon: Wifi,
-      color: 'text-cyan-400',
-    },
-    {
-      title: 'Dispositivos',
-      desc: 'Proteção de computadores, notebooks, servidores e atualizações.',
-      icon: MonitorSmartphone,
-      color: 'text-teal-400',
-    },
-    {
-      title: 'Continuidade',
-      desc: 'Estratégias de backup, testes de restauração e tempo de parada.',
-      icon: Database,
-      color: 'text-blue-400',
-    },
-    {
-      title: 'Identidade e Acesso',
-      desc: 'Controle de contas, múltiplos fatores (MFA) e offboarding.',
-      icon: KeyRound,
-      color: 'text-indigo-400',
-    },
-  ];
-
-  /**
-   * Durante a limpeza de uma nova entrada pública não renderizamos o header.
-   * Isso evita até mesmo um flash visual com o nome/resultado do respondente
-   * anterior antes do useEffect concluir.
-   */
   if (!entryReady) {
-    return (
-      <main className="min-h-screen bg-dashboard-animate bg-grid-tech" />
-    );
+    return <main className="min-h-screen bg-[#07101f]" />;
   }
 
   return (
-    <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">
-      <div className="mx-auto max-w-5xl">
-        <ClientHeader lockAssessmentNavigation />
+    <main
+      className="relative min-h-screen overflow-hidden bg-[#07101f] px-4 py-6 text-white md:py-10"
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at 74% 18%, rgba(6,182,212,0.13), transparent 30%), radial-gradient(circle at 18% 12%, rgba(14,116,144,0.08), transparent 26%), linear-gradient(180deg, #07101f 0%, #081426 58%, #07101f 100%)',
+      }}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-50"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(34,211,238,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.055) 1px, transparent 1px)',
+          backgroundSize: '64px 64px',
+        }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-[32%] left-[-8%] h-[76%] w-[116%] origin-bottom opacity-55"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(34,211,238,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.10) 1px, transparent 1px)',
+          backgroundSize: '58px 58px',
+          transform: 'perspective(850px) rotateX(63deg)',
+        }}
+      />
 
-        <div className="glass-card relative mt-6 overflow-hidden p-8 text-center md:p-12">
-          <div className="pointer-events-none absolute right-0 top-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-teal-500/5 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 rounded-full bg-cyan-500/5 blur-3xl" />
+      <div className="relative mx-auto max-w-7xl">
+        <section className="relative overflow-hidden rounded-[28px] border border-cyan-300/[0.10] bg-[#0a1425]/78 px-6 py-8 shadow-[0_28px_90px_rgba(0,0,0,.35)] backdrop-blur-[2px] md:px-10 md:py-10 lg:px-12 lg:py-12">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/[0.035] via-transparent to-blue-950/10" />
+            <div className="absolute right-[-8%] top-[-16%] h-[420px] w-[650px] rounded-full bg-cyan-400/[0.055] blur-[80px]" />
+            <div className="absolute left-[48%] top-[7%] h-px w-[42%] bg-gradient-to-r from-transparent via-cyan-300/30 to-transparent" />
+            <svg
+              className="absolute right-[-2%] top-[1%] hidden h-[255px] w-[300px] opacity-35 lg:block"
+              viewBox="0 0 320 280"
+              fill="none"
+              aria-hidden="true"
+            >
+              <defs>
+                <linearGradient id="technicalShieldStroke" x1="40" y1="20" x2="285" y2="255" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#22d3ee" stopOpacity="0.9" />
+                  <stop offset="1" stopColor="#0ea5e9" stopOpacity="0.18" />
+                </linearGradient>
+              </defs>
+              <path d="M160 28 254 62v70c0 61-34 102-94 127-60-25-94-66-94-127V62l94-34Z" stroke="url(#technicalShieldStroke)" strokeWidth="2.4" />
+              <path d="M130 127v-18c0-20 13-35 30-35s30 15 30 35v18" stroke="#22d3ee" strokeOpacity=".78" strokeWidth="5" strokeLinecap="round" />
+              <rect x="119" y="126" width="82" height="67" rx="14" stroke="#22d3ee" strokeOpacity=".82" strokeWidth="4" />
+              <circle cx="160" cy="157" r="7" fill="#22d3ee" fillOpacity=".85" />
+              <path d="M160 164v15" stroke="#22d3ee" strokeOpacity=".8" strokeWidth="4" strokeLinecap="round" />
+            </svg>
+          </div>
 
-          <div className="relative z-10 mx-auto max-w-3xl">
-            <span className="section-kicker">Assessment Executivo</span>
+          <div className="relative z-10 grid gap-10 lg:grid-cols-[1.13fr_.87fr] lg:items-start lg:gap-12">
+            <div>
+              <span className="section-kicker">Diagnóstico Técnico de Segurança</span>
+              <h1 className="mt-5 max-w-[760px] text-[2.65rem] font-extrabold leading-[1.03] tracking-[-0.035em] text-white sm:text-5xl md:text-[3.35rem] lg:text-[3.65rem]">
+                Entenda como os principais <span className="text-cyan-300">controles de segurança</span> funcionam na prática.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 md:text-lg">
+                Uma leitura técnica e objetiva de rede, computadores, continuidade, acessos e capacidade de resposta para mostrar o que já está estruturado, o que precisa ser validado e onde evoluir primeiro.
+              </p>
 
-            <h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-white md:text-5xl">
-              Concierge Security Assessment
-            </h2>
-
-            <p className="mt-6 text-xl font-medium text-slate-200 md:text-2xl">
-              Uma avaliação inicial da postura de segurança da sua empresa.
-            </p>
-
-            <p className="mt-4 text-base leading-relaxed text-slate-400 md:text-lg">
-              A partir de algumas informações sobre rede, computadores,
-              proteção de dados e acessos, identificamos pontos que merecem
-              atenção e ajudamos a compreender como eles podem afetar a
-              operação.
-            </p>
-
-            <div className="mt-8 flex justify-center">
-              <div className="flex items-center gap-2 rounded-xl border border-teal-500/20 bg-teal-500/5 px-5 py-3.5 text-sm font-medium text-slate-300">
-                <ShieldCheck className="text-teal-400" size={22} />
-                <span>
-                  Leva cerca de <b>6 a 8 minutos</b>
-                </span>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 rounded-xl border border-teal-500/20 bg-teal-500/5 px-4 py-3 text-sm text-slate-300">
+                  <Clock3 size={18} className="text-teal-400" />
+                  Cerca de <b className="text-white">5 minutos</b>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-cyan-300/[0.10] bg-[#061121]/62 px-4 py-3 text-sm text-slate-300">
+                  <Sparkles size={18} className="text-cyan-400" />
+                  Perguntas voltadas para profissionais de TI
+                </div>
               </div>
             </div>
 
-            <div className="mt-12 grid gap-6 text-left sm:grid-cols-2 md:grid-cols-4">
-              {features.map((feature) => {
-                const Icon = feature.icon;
+            <div className="relative lg:min-h-[500px]">
+              <div className="relative z-10 flex items-center justify-center py-2 lg:justify-start lg:pl-4">
+                <ConciergeBrandLockup />
+              </div>
 
-                return (
-                  <div
-                    key={feature.title}
-                    className="rounded-xl border border-slate-800 bg-slate-950/45 p-5 transition hover:border-slate-700/60"
-                  >
-                    <div
-                      className={`grid h-10 w-10 place-items-center rounded-lg border border-slate-800 bg-slate-900/50 ${feature.color}`}
-                    >
-                      <Icon size={20} />
+              <div className="relative z-10 mt-6 rounded-[28px] border border-cyan-300/35 bg-[#061121]/88 p-6 shadow-[0_24px_70px_rgba(0,0,0,.36),0_0_34px_rgba(34,211,238,.055)] backdrop-blur-md md:p-7">
+                <p className="text-base font-bold text-white">Ao final, você recebe:</p>
+                <div className="mt-4 space-y-3">
+                  {[
+                    'uma visão consolidada dos controles e da operação',
+                    'os pontos que merecem validação técnica primeiro',
+                    'três próximos passos mesmo em ambientes mais maduros',
+                    'uma base objetiva para aprofundar a próxima conversa',
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-200 md:text-[15px]">
+                      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-cyan-300 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,.12)]">
+                        <CheckCircle2 size={14} strokeWidth={2.2} />
+                      </span>
+                      <span>{item}</span>
                     </div>
-
-                    <h3 className="mt-4 font-bold text-slate-100">
-                      {feature.title}
-                    </h3>
-
-                    <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                      {feature.desc}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-xl border border-slate-800 bg-slate-950/45 text-left">
-              <label
-                htmlFor="privacy-acknowledgement"
-                className="flex cursor-pointer items-start gap-3 p-5"
-              >
-                <input
-                  id="privacy-acknowledgement"
-                  type="checkbox"
-                  checked={consent}
-                  onChange={(event) => setConsent(event.target.checked)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-teal-500"
-                />
-
-                <span className="text-sm leading-6 text-slate-300">
-                  Li e estou ciente de que as informações fornecidas serão
-                  tratadas pela Concierge Segurança Digital para realizar este
-                  diagnóstico, gerar o resultado e permitir o acompanhamento
-                  pelo responsável comercial. Os dados são mantidos por prazo
-                  limitado e eliminados automaticamente. Evite informar senhas,
-                  credenciais ou dados pessoais sensíveis neste formulário.
-                </span>
-              </label>
-
-              <div className="border-t border-slate-800/90">
-                <button
-                  type="button"
-                  onClick={() => setPrivacyOpen((current) => !current)}
-                  aria-expanded={privacyOpen}
-                  aria-controls="privacy-details"
-                  className="flex w-full items-center justify-between gap-4 px-5 py-3.5 text-left text-sm font-semibold text-teal-300 transition hover:bg-slate-900/50 hover:text-teal-200"
-                >
-                  <span>Ver detalhes sobre privacidade</span>
-                  <ChevronDown
-                    size={18}
-                    className={`shrink-0 transition-transform duration-200 ${
-                      privacyOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {privacyOpen && (
-                  <div
-                    id="privacy-details"
-                    className="border-t border-slate-800/80 px-5 pb-5 pt-4"
-                  >
-                    <div className="grid gap-4 text-sm leading-6 text-slate-400 sm:grid-cols-2">
-                      <div>
-                        <p className="font-semibold text-slate-200">Finalidade</p>
-                        <p className="mt-1">
-                          Realizar o diagnóstico, gerar o resultado e permitir o
-                          acompanhamento do atendimento pela equipe responsável.
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="font-semibold text-slate-200">Retenção</p>
-                        <p className="mt-1">
-                          Rascunhos por até 7 dias, diagnósticos concluídos por
-                          até 15 dias e link interno de acesso por até 5 dias.
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="font-semibold text-slate-200">Acesso e operação</p>
-                        <p className="mt-1">
-                          O acesso é limitado às pessoas autorizadas envolvidas
-                          no atendimento. Fornecedores de infraestrutura podem
-                          processar dados quando necessários à operação do serviço.
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="font-semibold text-slate-200">Eliminação</p>
-                        <p className="mt-1">
-                          Encerrados os prazos definidos, os dados relacionados
-                          ao assessment são eliminados automaticamente.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="mt-6 flex justify-center">
+          <div className="relative z-10 mt-9 rounded-2xl border border-slate-700/85 bg-[#071120]/82 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.015)]">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(event) => setConsent(event.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0 accent-cyan-500"
+              />
+              <span className="text-sm leading-6 text-slate-300">
+                Li e estou ciente de que as informações serão usadas para gerar este diagnóstico e apoiar o acompanhamento comercial. Evite informar senhas, documentos pessoais ou dados sensíveis.
+              </span>
+            </label>
+
+            <div className="mt-4 border-t border-slate-800/80 pt-4">
               <button
                 type="button"
-                onClick={start}
-                disabled={!consent || starting}
-                aria-busy={starting}
-                className="flex min-w-[220px] items-center justify-center gap-2 rounded-xl bg-teal-600 px-7 py-4 font-bold text-white shadow-lg shadow-teal-950/40 transition hover:scale-[1.02] hover:bg-teal-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+                onClick={() => setPrivacyOpen((current) => !current)}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 hover:text-cyan-200"
               >
-                {starting ? (
-                  <>
-                    <LoaderCircle className="animate-spin" size={20} />
-                    Preparando diagnóstico...
-                  </>
-                ) : (
-                  <>
-                    Iniciar diagnóstico
-                    <ArrowRight size={20} />
-                  </>
-                )}
+                Ver detalhes sobre privacidade
+                <ChevronDown size={17} className={privacyOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
               </button>
+
+              {privacyOpen && (
+                <div className="mt-4 grid gap-4 text-sm leading-6 text-slate-400 sm:grid-cols-2">
+                  <div><b className="text-slate-200">Finalidade</b><p className="mt-1">Gerar o diagnóstico, o resultado e permitir o acompanhamento da equipe responsável.</p></div>
+                  <div><b className="text-slate-200">Retenção</b><p className="mt-1">Rascunhos por até 7 dias, diagnósticos concluídos por até 15 dias e link interno por até 5 dias.</p></div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
+
+          <div className="relative z-10 mt-6 flex justify-end">
+            <button
+              type="button"
+              disabled={!consent || starting}
+              onClick={start}
+              className="inline-flex min-w-[285px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-[0_14px_38px_rgba(13,148,136,.20)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {starting ? <LoaderCircle size={18} className="animate-spin" /> : null}
+              {starting ? 'Preparando...' : 'Iniciar diagnóstico técnico'}
+              {!starting && <ArrowRight size={18} />}
+            </button>
+          </div>
+        </section>
       </div>
-
-      {starting && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/72 px-4 backdrop-blur-sm"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-teal-500/20 bg-slate-950/95 p-7 text-center shadow-2xl shadow-black/40">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-teal-500/20 bg-teal-500/10 text-teal-400">
-              <LoaderCircle className="animate-spin" size={26} />
-            </div>
-
-            <h3 className="mt-5 text-lg font-bold text-white">
-              Preparando seu diagnóstico
-            </h3>
-
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-              Estamos organizando as informações iniciais para começar sua
-              avaliação. Isso leva apenas alguns instantes.
-            </p>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

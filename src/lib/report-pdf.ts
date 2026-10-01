@@ -8,23 +8,18 @@ export interface AssessmentPdfOptions {
 }
 
 const PDF_BACKGROUND = '#020617';
-const CAPTURE_WIDTH_PX = 1440;
-const SLIDE_WIDTH_MM = 338.67;  // 13.333 in
-const SLIDE_HEIGHT_MM = 190.50; // 7.5 in
-const SLIDE_PADDING_MM = 8;
-
+const CAPTURE_WIDTH_PX = 1240;
+const SLIDE_WIDTH_MM = 320;
+const SLIDE_HEIGHT_MM = 180;
+const SLIDE_PADDING_MM = 10;
 const BACKGROUND_RGB = { r: 2, g: 6, b: 23 };
 
 const isCanvasMostlyBackground = (canvas: HTMLCanvasElement) => {
   const context = canvas.getContext('2d', { willReadFrequently: true });
-
-  if (!context) {
-    return false;
-  }
+  if (!context) return false;
 
   const { width, height } = canvas;
   const imageData = context.getImageData(0, 0, width, height).data;
-
   let total = 0;
   let backgroundLike = 0;
   const step = 10;
@@ -37,29 +32,21 @@ const isCanvasMostlyBackground = (canvas: HTMLCanvasElement) => {
       const g = imageData[index + 1];
       const b = imageData[index + 2];
       const a = imageData[index + 3];
-
       if (a < 8) continue;
-
       total += 1;
 
-      const isBackgroundPixel =
+      if (
         Math.abs(r - BACKGROUND_RGB.r) <= tolerance &&
         Math.abs(g - BACKGROUND_RGB.g) <= tolerance &&
-        Math.abs(b - BACKGROUND_RGB.b) <= tolerance;
-
-      if (isBackgroundPixel) {
+        Math.abs(b - BACKGROUND_RGB.b) <= tolerance
+      ) {
         backgroundLike += 1;
       }
     }
   }
 
-  if (total === 0) {
-    return true;
-  }
-
-  return backgroundLike / total >= 0.992;
+  return total === 0 || backgroundLike / total >= 0.992;
 };
-
 
 const nextFrame = () =>
   new Promise<void>((resolve) => {
@@ -68,11 +55,9 @@ const nextFrame = () =>
 
 const waitForImages = async (root: HTMLElement) => {
   const images = Array.from(root.querySelectorAll('img'));
-
   await Promise.all(
     images.map(async (image) => {
       if (image.complete) return;
-
       await new Promise<void>((resolve) => {
         const done = () => resolve();
         image.addEventListener('load', done, { once: true });
@@ -90,17 +75,24 @@ const removeInteractiveElements = (root: HTMLElement) => {
 
 const prepareClone = (source: HTMLElement) => {
   const clone = source.cloneNode(true) as HTMLElement;
-
   clone.removeAttribute('data-assessment-report');
   clone.style.width = `${CAPTURE_WIDTH_PX}px`;
   clone.style.maxWidth = `${CAPTURE_WIDTH_PX}px`;
   clone.style.minWidth = `${CAPTURE_WIDTH_PX}px`;
   clone.style.margin = '0';
-  clone.style.padding = '34px';
+  clone.style.padding = '30px 42px 42px';
   clone.style.boxSizing = 'border-box';
   clone.style.background = PDF_BACKGROUND;
 
   removeInteractiveElements(clone);
+
+  clone
+    .querySelectorAll<HTMLElement>('section, article, [data-report-keep-together="true"]')
+    .forEach((element) => {
+      element.style.overflow = 'visible';
+      element.style.maxHeight = 'none';
+      element.style.height = 'auto';
+    });
 
   const host = document.createElement('div');
   host.setAttribute('aria-hidden', 'true');
@@ -111,197 +103,22 @@ const prepareClone = (source: HTMLElement) => {
   host.style.zIndex = '-9999';
   host.style.background = PDF_BACKGROUND;
   host.style.pointerEvents = 'none';
-  host.style.overflow = 'hidden';
+  host.style.overflow = 'visible';
 
   host.appendChild(clone);
   document.body.appendChild(host);
-
   return { host, clone };
 };
 
-type SlideSlice = {
-  start: number;
-  end: number;
-};
-
-const collectUsefulBreaks = (root: HTMLElement) => {
-  const rootRect = root.getBoundingClientRect();
-
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(
-      'section, article, [data-report-slide-break="true"]',
-    ),
-  )
-    .map((element) => {
-      const rect = element.getBoundingClientRect();
-
-      return {
-        top: Math.max(0, rect.top - rootRect.top),
-        height: rect.height,
-      };
-    })
-    .filter((item) => item.top > 0 && item.height > 0)
-    .map((item) => item.top)
-    .sort((a, b) => a - b);
-};
-
-
-const collectTopLevelSectionStarts = (root: HTMLElement) => {
-  const rootRect = root.getBoundingClientRect();
-
-  return Array.from(root.children)
-    .filter((element): element is HTMLElement => element instanceof HTMLElement)
-    .filter((element) => element.tagName.toLowerCase() === 'section')
-    .map((element) => {
-      const rect = element.getBoundingClientRect();
-      return Math.max(0, rect.top - rootRect.top);
-    })
-    .filter((top) => top > 0)
-    .sort((a, b) => a - b);
-};
-
-
-type ProtectedRange = {
-  start: number;
-  end: number;
-};
-
-const collectProtectedRanges = (root: HTMLElement): ProtectedRange[] => {
-  const rootRect = root.getBoundingClientRect();
-
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(
-      'article, [data-report-keep-together="true"]',
-    ),
-  )
-    .map((element) => {
-      const rect = element.getBoundingClientRect();
-
-      return {
-        start: Math.max(0, rect.top - rootRect.top),
-        end: Math.max(0, rect.bottom - rootRect.top),
-      };
-    })
-    .filter((range) => range.end > range.start)
-    .sort((a, b) => a.start - b.start);
-};
-
-const buildSlideSlices = (
-  totalHeight: number,
-  targetHeight: number,
-  breaks: number[],
-  protectedRanges: ProtectedRange[] = [],
-): SlideSlice[] => {
-  const slides: SlideSlice[] = [];
-  let start = 0;
-
-  while (start < totalHeight - 1) {
-    let idealEnd = Math.min(totalHeight, start + targetHeight);
-
-    if (idealEnd >= totalHeight) {
-      slides.push({ start, end: totalHeight });
-      break;
-    }
-
-    // Se o corte cair no meio de um card de "Pontos principais",
-    // preservamos o card inteiro.
-    const crossingRange = protectedRanges.find(
-      (range) =>
-        range.start < idealEnd &&
-        range.end > idealEnd &&
-        range.end > start,
-    );
-
-    if (crossingRange) {
-      const contentBeforeCard = crossingRange.start - start;
-      const fullCardHeight = crossingRange.end - crossingRange.start;
-
-      // Se já existe conteúdo suficiente antes do card, encerramos o slide
-      // exatamente antes dele.
-      if (contentBeforeCard >= targetHeight * 0.34) {
-        idealEnd = crossingRange.start;
-      } else {
-        // Caso o card comece cedo no slide, mantemos o card inteiro.
-        // Mesmo que a faixa fique um pouco maior, o conteúdo é reduzido
-        // proporcionalmente para caber no slide 16:9.
-        idealEnd = Math.min(
-          totalHeight,
-          Math.max(crossingRange.end, start + Math.min(fullCardHeight, targetHeight)),
-        );
-      }
-    } else {
-      const minUseful = start + targetHeight * 0.64;
-
-      const candidate = breaks
-        .filter((point) => point > minUseful && point < idealEnd)
-        .at(-1);
-
-      if (candidate && candidate > start + 250) {
-        idealEnd = candidate;
-      }
-    }
-
-    // Proteção contra loops por arredondamento ou ranges muito próximos.
-    if (idealEnd <= start + 1) {
-      idealEnd = Math.min(totalHeight, start + targetHeight);
-    }
-
-    slides.push({ start, end: idealEnd });
-    start = idealEnd;
-  }
-
-  return slides;
-};
-
-const cropCanvas = (
-  source: HTMLCanvasElement,
-  startY: number,
-  endY: number,
-) => {
-  const height = Math.max(1, endY - startY);
-  const slice = document.createElement('canvas');
-
-  slice.width = source.width;
-  slice.height = height;
-
-  const context = slice.getContext('2d');
-
-  if (!context) {
-    throw new Error('Não foi possível preparar o slide do relatório.');
-  }
-
-  context.fillStyle = PDF_BACKGROUND;
-  context.fillRect(0, 0, slice.width, slice.height);
-
-  context.drawImage(
-    source,
-    0,
-    startY,
-    source.width,
-    height,
-    0,
-    0,
-    source.width,
-    height,
-  );
-
-  return slice;
-};
-
-const fitInsideSlide = (
-  imageWidth: number,
-  imageHeight: number,
-) => {
+const fitInsideSlide = (imageWidth: number, imageHeight: number) => {
   const availableWidth = SLIDE_WIDTH_MM - SLIDE_PADDING_MM * 2;
   const availableHeight = SLIDE_HEIGHT_MM - SLIDE_PADDING_MM * 2;
-
   const imageRatio = imageWidth / imageHeight;
   const boxRatio = availableWidth / availableHeight;
 
   if (imageRatio >= boxRatio) {
     const width = availableWidth;
     const height = width / imageRatio;
-
     return {
       width,
       height,
@@ -312,13 +129,69 @@ const fitInsideSlide = (
 
   const height = availableHeight;
   const width = height * imageRatio;
-
   return {
     width,
     height,
     x: (SLIDE_WIDTH_MM - width) / 2,
     y: SLIDE_PADDING_MM,
   };
+};
+
+const createGroupedPage = (
+  host: HTMLElement,
+  elements: HTMLElement[],
+  columns: 1 | 2,
+) => {
+  const wrapper = document.createElement('div');
+  wrapper.style.width = `${CAPTURE_WIDTH_PX}px`;
+  wrapper.style.boxSizing = 'border-box';
+  wrapper.style.background = PDF_BACKGROUND;
+  wrapper.style.padding = '24px 28px';
+  wrapper.style.display = 'grid';
+  wrapper.style.gridTemplateColumns = columns === 2 ? 'repeat(2, minmax(0, 1fr))' : '1fr';
+  wrapper.style.gap = '20px';
+  wrapper.style.alignItems = 'stretch';
+
+  elements.forEach((element) => {
+    const child = element.cloneNode(true) as HTMLElement;
+    child.style.margin = '0';
+    child.style.width = '100%';
+    child.style.maxWidth = 'none';
+    child.style.minWidth = '0';
+    child.style.height = 'auto';
+    child.style.maxHeight = 'none';
+    child.style.overflow = 'visible';
+    wrapper.appendChild(child);
+  });
+
+  host.appendChild(wrapper);
+  return wrapper;
+};
+
+const captureElement = async (element: HTMLElement) => {
+  element.style.overflow = 'visible';
+  element.style.maxHeight = 'none';
+  element.style.height = 'auto';
+
+  await nextFrame();
+
+  const rect = element.getBoundingClientRect();
+  const width = Math.max(Math.ceil(rect.width), element.scrollWidth, 1);
+  const height = Math.max(Math.ceil(rect.height), element.scrollHeight, 1) + 12;
+
+  return html2canvas(element, {
+    backgroundColor: PDF_BACKGROUND,
+    scale: 2,
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    width,
+    height,
+    windowWidth: CAPTURE_WIDTH_PX,
+    windowHeight: height,
+    scrollX: 0,
+    scrollY: 0,
+  });
 };
 
 export const sanitizePdfFileName = (value: string) => {
@@ -343,18 +216,6 @@ export async function generateAssessmentPdf(
     await nextFrame();
     await waitForImages(clone);
 
-    const capture = await html2canvas(clone, {
-      backgroundColor: PDF_BACKGROUND,
-      scale: 1.5,
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-      width: CAPTURE_WIDTH_PX,
-      windowWidth: 1440,
-      scrollX: 0,
-      scrollY: 0,
-    });
-
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -369,88 +230,85 @@ export async function generateAssessmentPdf(
       creator: 'Concierge Security Assessment',
     });
 
-    const printableWidthMm = SLIDE_WIDTH_MM - SLIDE_PADDING_MM * 2;
-    const printableHeightMm = SLIDE_HEIGHT_MM - SLIDE_PADDING_MM * 2;
+    const logicalPages = Array.from(
+      clone.querySelectorAll<HTMLElement>('[data-pdf-page="true"]'),
+    ).filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
 
-    const targetSlideHeightCss =
-      clone.scrollWidth * (printableHeightMm / printableWidthMm);
-
-    const breaks = collectUsefulBreaks(clone);
-    const topLevelSections = collectTopLevelSectionStarts(clone);
-    const protectedRanges = collectProtectedRanges(clone);
-
-    // O primeiro slide deve preservar como um único bloco:
-    // cabeçalho + "Resumo do diagnóstico" + "Indicador de maturidade / Visão por área".
-    // Em vez de cortar no meio do score, encerramos o primeiro slide
-    // exatamente antes da terceira seção principal ("O que entendemos").
-    const firstSlideEnd =
-      topLevelSections.length >= 3
-        ? topLevelSections[2]
-        : Math.min(clone.scrollHeight, targetSlideHeightCss);
-
-    const remainingBreaks = breaks.filter((point) => point > firstSlideEnd);
-
-    const remainingSlices =
-      firstSlideEnd < clone.scrollHeight
-        ? buildSlideSlices(
-            clone.scrollHeight - firstSlideEnd,
-            targetSlideHeightCss,
-            remainingBreaks.map((point) => point - firstSlideEnd),
-            protectedRanges
-              .filter((range) => range.end > firstSlideEnd)
-              .map((range) => ({
-                start: Math.max(0, range.start - firstSlideEnd),
-                end: Math.max(0, range.end - firstSlideEnd),
-              })),
-          ).map(({ start, end }) => ({
-            start: start + firstSlideEnd,
-            end: end + firstSlideEnd,
-          }))
-        : [];
-
-    const slicesCss = [
-      { start: 0, end: firstSlideEnd },
-      ...remainingSlices,
-    ];
-
-    const scaleY = capture.height / clone.scrollHeight;
-
-    const rawSlides = slicesCss.map(({ start, end }) => ({
-      start: Math.max(0, Math.round(start * scaleY)),
-      end: Math.min(capture.height, Math.round(end * scaleY)),
-    }));
-
-    // Remove com segurança apenas páginas finais efetivamente vazias.
-    const slides = [...rawSlides];
-    while (slides.length > 1) {
-      const last = slides.at(-1);
-      if (!last) break;
-
-      const lastCanvas = cropCanvas(capture, last.start, last.end);
-      if (!isCanvasMostlyBackground(lastCanvas)) {
-        break;
-      }
-
-      slides.pop();
+    if (logicalPages.length === 0) {
+      throw new Error('Nenhum bloco de página foi encontrado para gerar o PDF.');
     }
 
-    const totalSlides = slides.length;
+    const pageCanvases: HTMLCanvasElement[] = [];
+    const temporaryPages: HTMLElement[] = [];
 
-    slides.forEach(({ start, end }, index) => {
-      if (index > 0) {
-        pdf.addPage([SLIDE_WIDTH_MM, SLIDE_HEIGHT_MM], 'landscape');
+    for (let index = 0; index < logicalPages.length; index += 1) {
+      const element = logicalPages[index];
+
+      const groupName = element.dataset['pdfGroup'];
+      if (groupName) {
+        const group: HTMLElement[] = [element];
+        while (
+          index + 1 < logicalPages.length &&
+          logicalPages[index + 1]?.dataset['pdfGroup'] === groupName
+        ) {
+          group.push(logicalPages[index + 1]);
+          index += 1;
+        }
+
+        const wrapper = createGroupedPage(host, group, 1);
+        wrapper.style.padding = '26px 34px';
+        wrapper.style.gap = '18px';
+        temporaryPages.push(wrapper);
+        const canvas = await captureElement(wrapper);
+        if (!isCanvasMostlyBackground(canvas)) pageCanvases.push(canvas);
+        continue;
       }
+
+      if (element.dataset['pdfDetail'] === 'true') {
+        const batch: HTMLElement[] = [element];
+        const next = logicalPages[index + 1];
+        if (next?.dataset['pdfDetail'] === 'true') {
+          batch.push(next);
+          index += 1;
+        }
+
+        const wrapper = createGroupedPage(host, batch, batch.length === 2 ? 2 : 1);
+        if (batch.length === 1) {
+          const onlyChild = wrapper.firstElementChild as HTMLElement | null;
+          if (onlyChild) {
+            onlyChild.style.maxWidth = '820px';
+            onlyChild.style.margin = '0 auto';
+          }
+        }
+        temporaryPages.push(wrapper);
+        const canvas = await captureElement(wrapper);
+        if (!isCanvasMostlyBackground(canvas)) pageCanvases.push(canvas);
+        continue;
+      }
+
+      const canvas = await captureElement(element);
+      if (!isCanvasMostlyBackground(canvas)) pageCanvases.push(canvas);
+    }
+
+    temporaryPages.forEach((element) => element.remove());
+
+    if (pageCanvases.length === 0) {
+      throw new Error('O relatório não possui conteúdo visível para exportação.');
+    }
+
+    const totalSlides = pageCanvases.length;
+
+    pageCanvases.forEach((slideCanvas, index) => {
+      if (index > 0) pdf.addPage([SLIDE_WIDTH_MM, SLIDE_HEIGHT_MM], 'landscape');
 
       pdf.setFillColor(2, 6, 23);
       pdf.rect(0, 0, SLIDE_WIDTH_MM, SLIDE_HEIGHT_MM, 'F');
 
-      const slideCanvas = cropCanvas(capture, start, end);
-      const image = slideCanvas.toDataURL('image/jpeg', 0.95);
-
-      const placement = fitInsideSlide(
-        slideCanvas.width,
-        slideCanvas.height,
-      );
+      const image = slideCanvas.toDataURL('image/jpeg', 0.98);
+      const placement = fitInsideSlide(slideCanvas.width, slideCanvas.height);
 
       pdf.addImage(
         image,
@@ -460,25 +318,20 @@ export async function generateAssessmentPdf(
         placement.width,
         placement.height,
         undefined,
-        'FAST',
+        'MEDIUM',
       );
 
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.2);
       pdf.setTextColor(100, 116, 139);
-
       pdf.text(
         `Concierge Security Assessment${options.companyName ? ` | ${options.companyName}` : ''}`,
         8,
         SLIDE_HEIGHT_MM - 4.5,
       );
-
-      pdf.text(
-        `${index + 1} / ${totalSlides}`,
-        SLIDE_WIDTH_MM - 8,
-        SLIDE_HEIGHT_MM - 4.5,
-        { align: 'right' },
-      );
+      pdf.text(`${index + 1} / ${totalSlides}`, SLIDE_WIDTH_MM - 8, SLIDE_HEIGHT_MM - 4.5, {
+        align: 'right',
+      });
     });
 
     const dateLabel = new Intl.DateTimeFormat('pt-BR', {

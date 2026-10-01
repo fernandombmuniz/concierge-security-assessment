@@ -74,6 +74,12 @@ export type EmailProtectionLevel =
   | 'none'
   | 'unknown';
 
+export type EndpointManagementModel =
+  | 'individual'
+  | 'central_internal'
+  | 'central_partner'
+  | 'unknown';
+
 export type EndpointResponseLevel =
   | 'managed_soc'
   | 'defined_team'
@@ -123,6 +129,22 @@ export type TechnicalDepth =
   | 'informed'
   | 'technical';
 
+
+export type SecurityOperationsModel =
+  | 'dedicated'
+  | 'scheduled'
+  | 'generalist_overloaded'
+  | 'reactive'
+  | 'managed_support'
+  | 'unknown';
+
+export type AfterHoursResponseLevel =
+  | 'managed_24x7'
+  | 'on_call'
+  | 'ad_hoc'
+  | 'business_hours'
+  | 'unknown';
+
 export type AiUsageGovernanceLevel =
   | 'controlled'
   | 'partial'
@@ -142,6 +164,7 @@ export interface AssessmentData {
   devices: number;
   itTeamSize: number;
   sites: number;
+  securityOperationsModel: SecurityOperationsModel;
 
   internetLinkCount: number;
   links: { speedMbps: number }[];
@@ -171,6 +194,7 @@ export interface AssessmentData {
   byod: 'yes' | 'no' | 'unknown';
 
   endpointCentralManagement: CapabilityLevel;
+  endpointManagementModel?: EndpointManagementModel;
   endpointResponse: EndpointResponseLevel;
 
   assetInventory: InventoryLevel;
@@ -190,6 +214,7 @@ export interface AssessmentData {
 
   emailProtection: EmailProtectionLevel;
   incidentResponse: ProcessLevel;
+  afterHoursResponse: AfterHoursResponseLevel;
 
   criticalSystems: string[];
   sensitiveData: 'yes' | 'no' | 'unknown';
@@ -226,6 +251,7 @@ export const emptyAssessment: AssessmentData = {
   devices: 0,
   itTeamSize: 0,
   sites: 1,
+  securityOperationsModel: 'unknown',
 
   internetLinkCount: 1,
   links: [{ speedMbps: 0 }],
@@ -255,6 +281,7 @@ export const emptyAssessment: AssessmentData = {
   byod: 'unknown',
 
   endpointCentralManagement: 'unknown',
+  endpointManagementModel: 'unknown',
   endpointResponse: 'unknown',
 
   assetInventory: 'unknown',
@@ -274,6 +301,7 @@ export const emptyAssessment: AssessmentData = {
 
   emailProtection: 'unknown',
   incidentResponse: 'unknown',
+  afterHoursResponse: 'unknown',
 
   criticalSystems: [],
   sensitiveData: 'unknown',

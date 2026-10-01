@@ -23,8 +23,9 @@ import {
 
 import SecurityMaturityMeter from '../components/SecurityMaturityMeter';
 import ImpactChart from '../components/ImpactChart';
-import PriorityPlan from '../components/PriorityPlan';
 import ClientHeader from '../components/ClientHeader';
+import { CyberBackdrop } from '../components/ExecutiveVisual';
+import logo from '../assets/logo-concierge.jpg';
 
 import {
   getValidatedSource,
@@ -62,6 +63,10 @@ import {
   Download,
   Loader2,
   LockKeyhole,
+  Shield,
+  Lock,
+  ArrowDown,
+  ArrowRight,
 } from 'lucide-react';
 
 import {
@@ -69,14 +74,8 @@ import {
 } from '../lib/finding-priority';
 
 import {
-  buildPriorityPlan,
-} from '../lib/priority-engine';
-
-import {
   loadInternalAssessmentReport,
 } from '../lib/assessment.functions';
-
-import { loadSession, readAttribution } from '../lib/assessment-session';
 
 type ResultState = {
   data: AssessmentData;
@@ -84,25 +83,57 @@ type ResultState = {
   protected: boolean;
 };
 
-type AssessmentContact = {
-  name: string;
-  email: string;
-};
+type ResultChapter =
+  | 'overview'
+  | 'findings'
+  | 'impact'
+  | 'actions'
+  | 'details';
 
-const CONTACT_BY_REF: Record<string, AssessmentContact> = {
-  fernando: {
-    name: 'Fernando Muniz',
-    email: 'fernando.muniz@concierge.seg.br',
-  },
-  leonardo: {
-    name: 'Leonardo Araujo',
-    email: 'leonardo.araujo@concierge.seg.br',
-  },
-};
+const resultChapters: Array<{ key: ResultChapter; label: string; shortLabel: string }> = [
+  { key: 'overview', label: 'Visão geral', shortLabel: 'Visão geral' },
+  { key: 'findings', label: 'O que encontramos', shortLabel: 'Achados' },
+  { key: 'impact', label: 'O que isso significa', shortLabel: 'Impacto' },
+  { key: 'actions', label: 'Por onde começar', shortLabel: 'Ações' },
+  { key: 'details', label: 'Detalhes do ambiente', shortLabel: 'Detalhes' },
+];
 
-const resolveAssessmentContact = (): AssessmentContact | null => {
-  const ref = readAttribution().ref?.trim().toLowerCase();
-  return ref ? CONTACT_BY_REF[ref] ?? null : null;
+const answerLabel = (value: unknown) => {
+  const labels: Record<string, string> = {
+    unknown: 'Não sei informar', yes: 'Sim', no: 'Não', partial: 'Parcialmente', none: 'Não',
+    internal: 'Equipe interna', outsourced: 'Empresa terceirizada', shared: 'Responsabilidade compartilhada',
+    unmanaged: 'Sem responsável definido', nobody: 'Sem responsável definido',
+    periodic: 'Sim, periodicamente', on_demand: 'Quando necessário', incident_only: 'Apenas quando há incidente',
+    reactive_it: 'A TI verifica quando aparece um problema', outsourced_it: 'Empresa terceirizada acompanha',
+    security_team: 'Equipe especializada de segurança', soc: 'Acompanhamento contínuo / SOC',
+    managed_soc: 'Equipe especializada acompanha e responde', defined_team: 'Pessoa ou equipe definida verifica',
+    alerts_only: 'Alertas verificados quando necessário', managed: 'Gerenciado', informal: 'Informal / caso a caso',
+    formal: 'Processo definido', regular: 'Periodicamente', occasional: 'Ocasionalmente', reactive: 'Quando surge um problema',
+    continuous: 'Continuamente', immutable: 'Cópia protegida contra alteração', isolated: 'Cópia separada ou offline',
+    separate_account: 'Cópia administrada separadamente', same_environment: 'Depende do mesmo ambiente',
+    once: 'Já testamos alguma vez', never: 'Nunca testamos', basic_av: 'Antivírus básico / proteção nativa',
+    business_av: 'Antivírus corporativo com gestão central', edr: 'EDR / proteção com investigação',
+    managed_edr: 'Proteção avançada acompanhada por equipe especializada', isp: 'Roteador da operadora',
+    router: 'MikroTik ou roteador corporativo', utm: 'Firewall dedicado / open source',
+    ngfw: 'Firewall corporativo NGFW', managed_ngfw: 'Firewall gerenciado por equipe especializada',
+    individual: 'Administrada individualmente em cada computador', central_internal: 'Painel central pela equipe de TI',
+    central_partner: 'Painel central por empresa terceirizada', dedicated: 'Há pessoas dedicadas à segurança',
+    scheduled: 'Há rotina e tempo reservado', generalist_overloaded: 'A equipe acumula segurança com outras demandas',
+    managed_support: 'Há apoio especializado externo', managed_24x7: 'Cobertura 24x7', on_call: 'Há alguém de sobreaviso',
+    ad_hoc: 'A equipe é acionada quando alguém percebe', business_hours: 'Normalmente só no horário comercial',
+    controlled: 'Uso de IA com regras definidas', open: 'Uso de IA sem regras claras', not_used: 'A empresa não utiliza IA generativa',
+    advanced: 'Proteção avançada', standard: 'Proteção adicional administrada', basic: 'Proteção básica / filtro padrão',
+    corporate_central: 'Local corporativo centralizado', mixed: 'Dados distribuídos entre vários locais',
+    endpoints: 'Principalmente computadores e notebooks', personal_cloud: 'Contas pessoais ou locais não administrados',
+    saas_only: 'Principalmente aplicações em nuvem', light: 'Uso leve', medium: 'Uso moderado', high: 'Uso intenso',
+    low: 'Impacto pequeno', major: 'Impacto alto', halt: 'A operação pararia',
+    '4h': 'Até 4 horas', '8h': 'Até 8 horas', '1d': 'Até 1 dia', '2d': 'Até 2 dias', more: 'Mais de 2 dias',
+  };
+
+  if (value === null || value === undefined || value === '') return 'Não informado';
+  if (typeof value === 'number') return value > 0 ? String(value) : 'Não informado';
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+  return labels[String(value)] || String(value);
 };
 
 const rangeLabel = (
@@ -228,13 +259,13 @@ const resolveResultState = (
   }
 
   /**
-   * Sem um assessment concluído, não exibimos resultado a partir de rascunho.
-   * Isso impede abrir /resultado antes do fim do diagnóstico.
+   * Último fallback permitido:
+   * rascunho do próprio navegador.
    */
   return {
     data: loadDraft(),
     fromSubmission: false,
-    protected: true,
+    protected: false,
   };
 };
 
@@ -256,30 +287,6 @@ export default function ClientResults() {
     searchParams.get(
       'internalReport',
     );
-
-  const [clientAccessReady, setClientAccessReady] = useState(
-    Boolean(internalReportToken),
-  );
-
-  useEffect(() => {
-    if (internalReportToken) {
-      setClientAccessReady(true);
-      return;
-    }
-
-    const session = loadSession();
-
-    if (!session) {
-      navigate('/', { replace: true });
-      return;
-    }
-
-    setClientAccessReady(true);
-  }, [internalReportToken, navigate]);
-
-  const assessmentContact = internalReportToken
-    ? null
-    : resolveAssessmentContact();
 
   const [resultState, setResultState] =
     useState<ResultState>(() =>
@@ -339,6 +346,41 @@ export default function ClientResults() {
 
   const [pdfMode, setPdfMode] =
     useState(false);
+
+
+  const [activeChapter, setActiveChapter] = useState<ResultChapter>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    const hash = window.location.hash.replace('#', '') as ResultChapter;
+    return resultChapters.some((chapter) => chapter.key === hash) ? hash : 'overview';
+  });
+
+  useEffect(() => {
+    const syncChapterFromUrl = () => {
+      const hash = window.location.hash.replace('#', '') as ResultChapter;
+      setActiveChapter(
+        resultChapters.some((chapter) => chapter.key === hash) ? hash : 'overview',
+      );
+    };
+
+    window.addEventListener('popstate', syncChapterFromUrl);
+    window.addEventListener('hashchange', syncChapterFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncChapterFromUrl);
+      window.removeEventListener('hashchange', syncChapterFromUrl);
+    };
+  }, []);
+
+  const goToChapter = (chapter: ResultChapter) => {
+    setActiveChapter(chapter);
+    const nextUrl = `${window.location.pathname}${window.location.search}#${chapter}`;
+    window.history.pushState(null, '', nextUrl);
+    window.requestAnimationFrame(() => {
+      document.getElementById('result-chapter-top')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  };
 
   useEffect(() => {
     let cancelled =
@@ -530,12 +572,6 @@ export default function ClientResults() {
       }
     };
 
-  if (!clientAccessReady) {
-    return (
-      <main className="min-h-screen bg-dashboard-animate bg-grid-tech" />
-    );
-  }
-
   if (
     isInternalReportLoading
   ) {
@@ -637,11 +673,11 @@ export default function ClientResults() {
 
             <button
               onClick={() =>
-                navigate('/', { replace: true })
+                navigate('/diagnostico')
               }
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-3 font-semibold text-white transition hover:bg-teal-500"
             >
-              Voltar ao início
+              Iniciar novo diagnóstico
             </button>
           </div>
         </div>
@@ -697,11 +733,11 @@ export default function ClientResults() {
 
             <button
               onClick={() =>
-                navigate('/', { replace: true })
+                navigate('/diagnostico')
               }
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-3 font-semibold text-white transition hover:bg-teal-500"
             >
-              Voltar ao início
+              Iniciar diagnóstico
             </button>
           </div>
         </div>
@@ -900,13 +936,6 @@ export default function ClientResults() {
       3,
     );
 
-  const priorityPlan =
-    buildPriorityPlan(
-      draftData,
-      r,
-      3,
-    );
-
   const evaluatedScoresList =
     Object.entries(r.scores)
       .filter(
@@ -970,12 +999,87 @@ export default function ClientResults() {
       ? r.impactRange[1]
       : 0;
 
-  const anpdFirstFineSource = getValidatedSource('anpd-first-fine');
+  const environmentFacts = [
+    (draftData.endpointCount || draftData.devices) > 0
+      ? `${draftData.endpointCount || draftData.devices} computadores/notebooks`
+      : null,
+    draftData.servers > 0 ? `${draftData.servers} servidores` : null,
+    draftData.internetLinkCount > 0
+      ? `${draftData.internetLinkCount} ${draftData.internetLinkCount === 1 ? 'link de internet' : 'links de internet'}`
+      : null,
+    draftData.sites > 1 ? `${draftData.sites} unidades` : null,
+  ].filter(Boolean) as string[];
+
+
+
+  const summaryFronts = topFindings
+    .slice(0, 3)
+    .map((finding) => presentFinding(finding, draftData).title)
+    .filter(Boolean);
+
+  const consequenceSignals = [
+    ['reactive_it', 'alerts_only', 'none'].includes(draftData.monitoring)
+      ? 'aumentar o tempo para perceber atividades suspeitas'
+      : null,
+    ['alerts_only', 'none'].includes(draftData.endpointResponse)
+      ? 'deixar alertas importantes sem tratamento rápido'
+      : null,
+    ['business_hours', 'ad_hoc', 'no'].includes(draftData.afterHoursResponse)
+      ? 'postergar a resposta quando um incidente começa fora do expediente'
+      : null,
+    ['never', 'unknown'].includes(draftData.restoreTests)
+      ? 'trazer incerteza sobre a recuperação quando a empresa mais precisa dela'
+      : null,
+    ['partial', 'no'].includes(draftData.mfa)
+      ? 'ampliar o impacto de uma credencial comprometida'
+      : null,
+  ].filter(Boolean) as string[];
+
+  const overviewSignals = summaryFronts.length
+    ? summaryFronts.slice(0, 3)
+    : [
+        'Os principais controles informados estão presentes no ambiente',
+        'A operação e a resposta ainda precisam ser validadas na prática',
+        'A continuidade deve ser revisada periodicamente para confirmar a recuperação',
+      ];
+
+  const overviewImpact = consequenceSignals.length
+    ? `Na prática, esses sinais podem ${consequenceSignals.slice(0, 2).join(' e ')}.`
+    : 'O cenário apresenta uma base de controles relativamente estruturada, mas ainda merece validação de operação, resposta e recuperação.';
+
+  const environmentOverview = summaryFronts.length
+    ? `O ambiente informado possui ${environmentFacts.length ? environmentFacts.join(', ') : 'os principais ativos descritos no assessment'}. As respostas indicam como frentes de atenção ${summaryFronts.join('; ')}. ${overviewImpact}`
+    : `O ambiente informado possui ${environmentFacts.length ? environmentFacts.join(', ') : 'os principais ativos descritos no assessment'}. Os controles avaliados apresentam uma condição relativamente estruturada. Ainda assim, vale validar operação, resposta e recuperação para confirmar como funcionam na prática.`;
+
+
+  const chapterBridgeCopy: Record<ResultChapter, { title: string; description: string }> = {
+    overview: {
+      title: 'Agora vamos conectar a visão geral aos pontos que mais merecem atenção',
+      description: 'A próxima parte mostra quais respostas tiveram maior peso na leitura e por que elas foram sinalizadas.',
+    },
+    findings: {
+      title: 'Depois dos achados, vale entender o impacto para a operação',
+      description: 'A próxima parte traduz os sinais técnicos em continuidade, resposta, dados e exposição para o negócio.',
+    },
+    impact: {
+      title: 'Com o contexto claro, o próximo passo é priorizar',
+      description: 'A próxima parte organiza o que revisar primeiro sem transformar o diagnóstico em uma lista infinita de ações.',
+    },
+    actions: {
+      title: 'Por fim, os detalhes preservam exatamente o que foi informado',
+      description: 'A última parte reúne as respostas do assessment para facilitar a validação técnica na próxima conversa.',
+    },
+    details: {
+      title: 'Leitura concluída',
+      description: 'O diagnóstico termina aqui, mas os próximos passos continuam disponíveis na seção de ações e no relatório em PDF.',
+    },
+  };
 
   return (
-    <main className="min-h-screen bg-dashboard-animate bg-grid-tech px-4 py-7 md:py-10">
+    <main className="relative min-h-screen overflow-hidden bg-[#07101f] px-4 py-7 text-white md:py-10">
+      <CyberBackdrop />
       <div
-        className="mx-auto max-w-5xl"
+        className="relative z-10 mx-auto max-w-5xl"
         data-assessment-report="true"
       >
         <ClientHeader />
@@ -1025,480 +1129,1096 @@ export default function ClientResults() {
             </div>
           )}
 
-        {/* 1. RESUMO EXECUTIVO + POSTURA */}
-        <section id="postura" className="glass-card overflow-hidden scroll-mt-24">
-          <div className="border-b border-slate-800/70 p-5 md:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <span className="section-kicker">Seu diagnóstico</span>
-                <h2 className="mt-2 text-2xl font-bold text-white">
-                  Resultado do diagnóstico e onde olhar primeiro
-                </h2>
-                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">
-                  Veja primeiro o indicador geral, compare as áreas avaliadas e use o ponto de atenção destacado como guia para os achados e prioridades.
-                </p>
+        <div id="result-chapter-top" className="scroll-mt-6" data-pdf-ignore="true">
+          <div className="mb-6 rounded-2xl border border-slate-800/90 bg-[#071426]/88 p-2 shadow-[0_18px_50px_rgba(2,6,23,0.22)] backdrop-blur">
+            <div className="hidden grid-cols-5 gap-1 md:grid">
+              {resultChapters.map((chapter, index) => (
+                <button
+                  key={chapter.key}
+                  type="button"
+                  onClick={() => goToChapter(chapter.key)}
+                  className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeChapter === chapter.key
+                      ? 'border border-cyan-400/25 bg-cyan-500/10 text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,0.08)]'
+                      : 'border border-transparent text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="block text-[10px] font-bold uppercase tracking-[.16em] text-slate-600">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="mt-0.5 block">{chapter.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 px-2 py-2 md:hidden">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[.16em] text-cyan-400">
+                  {resultChapters.findIndex((chapter) => chapter.key === activeChapter) + 1} de {resultChapters.length}
+                </div>
+                <div className="mt-0.5 text-sm font-bold text-white">
+                  {resultChapters.find((chapter) => chapter.key === activeChapter)?.label}
+                </div>
               </div>
 
-              <button
-                type="button"
-                data-pdf-ignore="true"
-                onClick={() =>
-                  document
-                    .getElementById('prioridades')
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }
-                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-2.5 text-sm font-semibold text-teal-300 transition hover:bg-teal-500/15"
-              >
-                Ver por onde começar
-                <ChevronRight size={17} />
-              </button>
+              <div className="flex gap-1.5">
+                {resultChapters.map((chapter) => (
+                  <button
+                    key={chapter.key}
+                    type="button"
+                    aria-label={`Abrir ${chapter.label}`}
+                    onClick={() => goToChapter(chapter.key)}
+                    className={`h-2.5 rounded-full transition ${
+                      chapter.key === activeChapter ? 'w-7 bg-cyan-400' : 'w-2.5 bg-slate-700'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="grid lg:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="flex flex-col items-center justify-center border-b border-slate-800/80 p-6 text-center lg:border-b-0 lg:border-r lg:p-7">
-              <span className="section-kicker self-start lg:self-auto">Indicador geral</span>
-              <div className="mt-4 w-full max-w-[280px]">
-                <SecurityMaturityMeter value={overall} level={safeLevel} />
+        {(pdfMode || activeChapter === 'overview') && (<>
+        {/* 1. CONTEXTO */}
+        <section data-pdf-page="true" data-report-keep-together="true" className="executive-surface px-6 py-7 md:px-8 md:py-8">
+          <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+            <div>
+              <span className="section-kicker">
+                Ambiente analisado
+              </span>
+
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-white md:text-4xl">
+                O que identificamos
+              </h2>
+
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400 md:text-base">
+                A leitura inicial destaca os sinais que mais ajudam a orientar o diagnóstico completo.
+              </p>
+
+              <div className="mt-5 grid gap-3">
+                {overviewSignals.map((signal, index) => (
+                  <div
+                    key={`${signal}-${index}`}
+                    className="flex items-start gap-3 rounded-2xl border border-cyan-300/[0.08] bg-slate-950/30 px-4 py-3"
+                  >
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.5)]" />
+                    <span className="text-sm leading-6 text-slate-200">{signal}</span>
+                  </div>
+                ))}
               </div>
-              <button
-                onClick={() => setIsScoreModalOpen(true)}
-                className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
-              >
-                <HelpCircle size={14} />
-                Como calculamos?
-              </button>
+
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-300">
+                {overviewImpact}
+              </p>
+
+              <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-cyan-200">
+                Confira todo o resultado do seu diagnóstico ao longo das etapas desta jornada.
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-2.5 text-sm text-slate-200">
+                <span className="flex items-center gap-1.5 rounded-xl border border-cyan-500/16 bg-cyan-500/8 px-3 py-1.5">
+                  <TrendingUp size={15} className="text-cyan-300" />
+                  Indicador geral: {safeLevel}
+                </span>
+
+                <span className="rounded-xl border border-slate-800 bg-slate-950/45 px-3 py-1.5">
+                  {rangeLabel(
+                    draftData.endpointCount || draftData.devices,
+                    'devices',
+                  )}
+                </span>
+
+                {draftData.servers > 0 && (
+                  <span className="rounded-xl border border-slate-800 bg-slate-950/45 px-3 py-1.5">
+                    {draftData.servers} servidores
+                  </span>
+                )}
+
+                <span className="rounded-xl border border-slate-800 bg-slate-950/45 px-3 py-1.5">
+                  {draftData.sites || 1} unidades
+                </span>
+              </div>
             </div>
 
-            <div className="min-w-0 p-5 md:p-6 lg:p-7">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <span className="section-kicker">Indicadores por área</span>
-                  <h3 className="mt-1 text-xl font-bold text-white">
-                    Compare as quatro áreas avaliadas
-                  </h3>
+            <div className="space-y-4 xl:pt-1">
+              <div className="rounded-[24px] border border-cyan-300/[0.12] bg-[#061121]/72 p-5 text-sm leading-6 text-slate-300 backdrop-blur">
+                <div className="text-base font-bold text-white">
+                  Como ler este resultado
                 </div>
-                <span className="shrink-0 text-xs text-slate-500">Escala de 0 a 100</span>
+
+                <ul className="mt-3 space-y-3">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 shrink-0 text-cyan-300" size={18} />
+                    <span>Os indicadores mostram maturidade percebida com base nas respostas fornecidas.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 shrink-0 text-cyan-300" size={18} />
+                    <span>Os achados e prioridades ajudam a orientar a próxima validação técnica.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 shrink-0 text-cyan-300" size={18} />
+                    <span>Mesmo quando os controles já existem, ainda há espaço para operação, visibilidade e evolução.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 2. SCORE */}
+        <section data-pdf-page="true" data-report-keep-together="true" className="glass-card mt-6 p-6 md:p-8">
+          <div className="grid gap-8 lg:grid-cols-[280px_1fr] lg:items-center">
+            <div className="mx-auto w-full max-w-[280px]">
+              <SecurityMaturityMeter
+                value={overall}
+                level={safeLevel}
+              />
+            </div>
+
+            <div>
+              <span className="section-kicker">Índice de postura</span>
+
+              <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-white md:text-3xl">
+                    {overall !== null ? `${overall}/100 · ${safeLevel}` : 'Dados insuficientes'}
+                  </h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                    Uma leitura consolidada das áreas avaliadas. As notas ajudam a comparar onde o ambiente está mais estruturado e onde ainda vale aprofundar a validação.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setIsScoreModalOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-teal-400 transition hover:text-teal-300"
+                >
+                  <HelpCircle size={16} />
+                  Como calculamos?
+                </button>
               </div>
 
-              <div className="mt-5 grid gap-x-5 gap-y-4 md:grid-cols-2">
-                {domains.map((item) => {
-                  const value = item.value ?? 0;
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {domains.map((domain) => {
+                  const value = domain.value;
+                  const width = value === null ? 0 : Math.max(0, Math.min(100, value));
                   return (
                     <div
-                      key={item.label}
-                      className="min-w-0 rounded-xl border border-slate-800/80 bg-slate-950/20 px-4 py-4"
+                      key={domain.label}
+                      className="rounded-2xl border border-cyan-300/[0.10] bg-[#061121]/62 p-4"
                     >
-                      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                        <div className="flex min-w-0 items-center gap-2.5 text-sm font-semibold text-slate-200">
-                          <span className="shrink-0">{item.icon}</span>
-                          <span className="min-w-0 leading-snug">{item.label}</span>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-400">
+                          {domain.icon}
+                          <span>{domain.label}</span>
                         </div>
-                        <div className="flex shrink-0 items-baseline gap-1">
-                          <span className="text-xl font-extrabold leading-none text-white">
-                            {item.value ?? '—'}
-                          </span>
-                          <span className="text-[10px] text-slate-500">/100</span>
-                        </div>
+                        <strong className="text-xl leading-none text-white">
+                          {value ?? '—'}
+                        </strong>
                       </div>
-                      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-800">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-teal-400"
-                          style={{ width: `${value}%` }}
+                          style={{ width: `${width}%` }}
                         />
                       </div>
-                      <div className="mt-2 text-xs text-slate-500">
-                        {maturityLevel(item.value)}
+                      <div className="mt-2 text-[11px] font-medium text-slate-500">
+                        {value === null ? 'Sem leitura' : maturityLevel(value)}
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {immediatePriority && (
-                <div className="mt-4 flex flex-col gap-2 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm leading-relaxed text-slate-300">
-                    <span className="font-semibold text-white">Área que merece atenção primeiro:</span>{' '}
-                    {immediatePriority.label} apresenta o menor indicador entre as áreas avaliadas.
-                  </div>
-                  <button
-                    type="button"
-                    data-pdf-ignore="true"
-                    onClick={() =>
-                      document
-                        .getElementById('prioridades')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
-                    className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-amber-300 transition hover:text-amber-200"
-                  >
-                    Ver prioridades
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              )}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/70 pt-5">
+                <p className="max-w-2xl text-xs leading-5 text-slate-500">
+                  O índice não representa percentual de proteção nem probabilidade de ataque. Ele organiza a maturidade percebida a partir das respostas fornecidas.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => goToChapter('actions')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/8 px-4 py-2.5 text-sm font-bold text-cyan-200 transition hover:border-cyan-300/35 hover:bg-cyan-500/12"
+                >
+                  Ver o que fazer agora
+                  <ArrowDown size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* 3. LEITURA EXECUTIVA */}
-        <section className="glass-card mt-6 p-5 md:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-4xl">
-              <span className="section-kicker">Leitura do diagnóstico</span>
-              <h3 className="mt-1 text-xl font-bold text-white">O que mais chamou atenção</h3>
-              <p className="mt-2 text-sm leading-7 text-slate-300">{executiveNarrative}</p>
+        {/* 3. LEITURA GUIADA */}
+        <section data-pdf-page="true" data-pdf-group="analysis-intro" data-report-keep-together="true" className="glass-card mt-6 p-6 md:p-7">
+          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+            <div className="max-w-3xl">
+              <span className="section-kicker">
+                O que entendemos
+              </span>
+
+              <h3 className="mt-1 text-xl font-bold text-white">
+                O que mais chamou atenção
+              </h3>
+
+              <p className="mt-3 text-sm leading-7 text-slate-300">
+                {executiveNarrative}
+              </p>
             </div>
+
             <button
-              onClick={() => setIsDiagnosisModalOpen(true)}
-              className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+              onClick={() =>
+                setIsDiagnosisModalOpen(
+                  true,
+                )
+              }
+              className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-teal-400 transition hover:text-teal-300"
             >
-              <HelpCircle size={15} />
-              Entender metodologia
+              <HelpCircle
+                size={16}
+              />
+
+              Como chegamos a esta conclusão?
             </button>
           </div>
+
+          <div className="mt-5 grid gap-3 border-t border-slate-800/70 pt-5 sm:grid-cols-3">
+            <div>
+              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
+                Indicador geral
+              </div>
+
+              <div className="mt-1 font-bold text-slate-100">
+                {overall !== null
+                  ? `${overall}/100 · ${safeLevel}`
+                  : 'Dados insuficientes'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
+                Primeiro ponto a revisar
+              </div>
+
+              <div className="mt-1 font-bold text-amber-300">
+                {r.priority
+                  ? priorityExecName[
+                      r.priority
+                    ]
+                  : 'Aguardando dados'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
+                Próximo passo
+              </div>
+
+              <div className="mt-1 font-bold text-slate-100">
+                {r.priority
+                  ? nextStepText[
+                      r.priority
+                    ]
+                  : 'Validar os pontos prioritários identificados'}
+              </div>
+            </div>
+          </div>
         </section>
 
-        {/* 4. ACHADOS PRINCIPAIS */}
-        <section id="achados" className="mt-7 scroll-mt-24">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+
+        </>)}
+
+        {(pdfMode || activeChapter === 'findings') && (<>
+        {/* 5. PRIORIDADE */}
+        {r.priority && !pdfMode && (
+          <section className="glass-card mt-6 border-l-4 border-l-amber-500/60 p-6">
+            <span className="text-xs font-bold uppercase tracking-[.16em] text-amber-400">
+              Por onde começar
+            </span>
+
+            <h3 className="mt-2 text-2xl font-bold text-white">
+              {
+                priorityExecName[
+                  r.priority
+                ]
+              }
+            </h3>
+
+            <p className="mt-3 text-sm leading-relaxed text-slate-300">
+              {
+                priorityReasonText[
+                  r.priority
+                ]
+              }
+            </p>
+
+            <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 px-3.5 py-1.5 text-xs font-semibold text-slate-400">
+              <span>
+                Indicador desta área:
+              </span>
+
+              <span className="font-bold text-amber-300">
+                {
+                  priorityExecName[
+                    r.priority
+                  ]
+                }{' '}
+                ·{' '}
+                {safeScore(
+                  r.scores[
+                    r.priority
+                  ],
+                ) ?? '—'}
+                /100
+              </span>
+            </div>
+          </section>
+        )}
+
+        {/* 6. FINDINGS */}
+        <section className="mt-8">
+          <div data-pdf-page="true" data-pdf-group="analysis-intro" className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-800/70 bg-slate-950/20 p-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span className="section-kicker">Principais achados</span>
-              <h3 className="mt-1 text-2xl font-bold text-white">
-                O que explica o resultado
+              <span className="section-kicker">
+                Pontos principais
+              </span>
+
+              <h3 className="text-2xl font-bold text-white">
+                Os principais pontos para revisar
               </h3>
+
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-400">
-                Mostramos primeiro apenas o essencial. Clique em “Ver detalhes” para consultar a explicação completa de cada achado.
+                Cada ponto começa pelo que
+                você informou e explica por
+                que aquilo merece atenção no
+                dia a dia.
               </p>
             </div>
-            <span className="text-xs text-slate-500">{topFindings.length} pontos selecionados</span>
+
+            <span className="text-sm text-slate-500">
+              {topFindings.length}{' '}
+              ponto(s) principal(is)
+            </span>
           </div>
 
-          <div className="grid gap-3">
-            {topFindings.map((finding, index) => {
-              const findingKey = `${plainDomainLabel(finding.domain)}-${finding.title}-${index}`;
-              const isExpanded = pdfMode || expandedFindings.has(findingKey);
-              const source = getValidatedSourceForFinding(finding.title, finding.domain);
-              const presentation = presentFinding(finding, draftData);
-              const severityLabel =
-                index === 0
-                  ? 'Vale revisar primeiro'
-                  : finding.severity === 'Baixa'
-                    ? 'Acompanhar'
-                    : 'Vale revisar';
+          <div className="grid gap-4">
+            {topFindings
+              .map(
+                (
+                  finding,
+                  index,
+                ) => {
+                  const findingKey =
+                    `${plainDomainLabel(
+                      finding.domain,
+                    )}-${finding.title}-${index}`;
 
-              return (
-                <article key={findingKey} className="glass-card overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!pdfMode) toggleFinding(findingKey);
-                    }}
-                    aria-expanded={isExpanded}
-                    className="group w-full cursor-pointer p-4 text-left transition hover:bg-slate-950/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 md:p-5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-slate-700/60 bg-slate-950/35 text-xs font-extrabold text-teal-300">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
+                  const isExpanded =
+                    pdfMode ||
+                    expandedFindings.has(
+                      findingKey,
+                    );
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-2xs font-bold uppercase tracking-[.12em] text-slate-500">
-                            {plainDomainLabel(finding.domain)}
-                          </span>
+                  const source =
+                    getValidatedSourceForFinding(
+                      finding.title,
+                      finding.domain,
+                    );
+
+                  const presentation =
+                    presentFinding(
+                      finding,
+                      draftData,
+                    );
+
+                  const severityLabel =
+                    severityToClientLabel(
+                      finding.severity,
+                    );
+
+                  return (
+                    <article
+                      key={
+                        findingKey
+                      }
+                      data-pdf-page="true" className="glass-card overflow-hidden"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!pdfMode) {
+                            toggleFinding(
+                              findingKey,
+                            );
+                          }
+                        }}
+                        aria-expanded={
+                          isExpanded
+                        }
+                        className="w-full p-5 text-left md:p-6"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+                                <AlertTriangle
+                                  size={15}
+                                  className="text-amber-400"
+                                />
+
+                                {plainDomainLabel(
+                                  finding.domain,
+                                )}
+                              </span>
+
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold ${
+                                  finding.severity ===
+                                  'Alta'
+                                    ? 'border border-amber-700/25 bg-amber-950/25 text-amber-300'
+                                    : finding.severity ===
+                                        'Média'
+                                      ? 'border border-cyan-800/20 bg-cyan-950/20 text-cyan-300'
+                                      : 'border border-slate-700/30 bg-slate-900/30 text-slate-300'
+                                }`}
+                              >
+                                {
+                                  severityLabel
+                                }
+                              </span>
+                            </div>
+
+                            <h4 className="mt-3 text-lg font-bold leading-snug text-slate-100">
+                              {
+                                presentation.title
+                              }
+                            </h4>
+
+                            <div className="mt-3 max-w-3xl space-y-3 text-sm leading-relaxed">
+                              <p className="text-slate-300">
+                                <b className="text-slate-100">
+                                  O que
+                                  você nos
+                                  informou:
+                                </b>{' '}
+                                {
+                                  presentation.informed
+                                }
+                              </p>
+
+                              <p className="text-slate-300">
+                                <b className="text-slate-100">
+                                  O que
+                                  isso
+                                  indica:
+                                </b>{' '}
+                                {
+                                  presentation.indication
+                                }
+                              </p>
+
+                              <p className="text-slate-400">
+                                <b className="text-slate-300">
+                                  Na
+                                  prática:
+                                </b>{' '}
+                                {
+                                  presentation.practical
+                                }
+                              </p>
+                            </div>
+                          </div>
+
                           <span
-                            className={`rounded-full px-2 py-0.5 text-2xs font-semibold ${
-                              finding.severity === 'Alta'
-                                ? 'border border-amber-700/25 bg-amber-950/25 text-amber-300'
-                                : finding.severity === 'Média'
-                                  ? 'border border-cyan-800/20 bg-cyan-950/20 text-cyan-300'
-                                  : 'border border-slate-700/30 bg-slate-900/30 text-slate-300'
-                            }`}
+                            className="mt-1 shrink-0 text-teal-400"
+                            aria-hidden="true"
                           >
-                            {severityLabel}
+                            {isExpanded ? (
+                              <ChevronDown
+                                size={20}
+                              />
+                            ) : (
+                              <ChevronRight
+                                size={20}
+                              />
+                            )}
                           </span>
                         </div>
-                        <h4 className="mt-1 text-base font-bold leading-snug text-slate-100">
-                          {presentation.title}
-                        </h4>
-                        {!isExpanded && (
-                          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-400">
-                            {presentation.indication}
-                          </p>
-                        )}
-                      </div>
 
-                      <div className="flex shrink-0 items-center gap-2 text-xs font-semibold text-teal-400" aria-hidden="true">
-                        <span className="hidden sm:inline">
-                          {isExpanded ? 'Ocultar detalhes' : 'Ver detalhes'}
-                        </span>
-                        {isExpanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
-                      </div>
-                    </div>
-                  </button>
-
-                  {isExpanded && (
-                    <div className="border-t border-slate-800/70 px-4 pb-5 pt-4 md:px-5">
-                      <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
-                        <div className="space-y-3 text-sm leading-relaxed">
-                          <p className="text-slate-300">
-                            <b className="text-slate-100">O que você nos informou:</b>{' '}
-                            {presentation.informed}
-                          </p>
-                          <p className="text-slate-300">
-                            <b className="text-slate-100">O que isso indica:</b>{' '}
-                            {presentation.indication}
-                          </p>
-                          <p className="text-slate-400">
-                            <b className="text-slate-300">Na prática:</b>{' '}
-                            {presentation.practical}
-                          </p>
+                        <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-teal-400">
+                          {isExpanded
+                            ? 'Ocultar detalhes técnicos'
+                            : 'Ver detalhes técnicos'}
                         </div>
+                      </button>
 
-                        <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
-                          <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
-                            Detalhe técnico
-                          </div>
-                          <p className="mt-2 text-sm leading-relaxed text-slate-300">{finding.technical}</p>
-                          <div className="mt-3 border-t border-slate-800/70 pt-3 text-xs leading-relaxed text-slate-500">
-                            {finding.consequence}
-                          </div>
-                        </div>
-                      </div>
+                      {isExpanded && (
+                        <div className="border-t border-slate-800/70 px-5 pb-6 pt-5 md:px-6">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
+                              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
+                                Detalhe técnico
+                              </div>
 
-                      {source && (
-                        <div className="mt-4 rounded-xl border border-teal-900/15 bg-teal-950/5 p-4">
-                          <div className="text-xs font-semibold text-teal-400">Referência do controle</div>
-                          <p className="mt-1 text-sm leading-relaxed text-slate-300">{source.statement}</p>
-                          <a
-                            href={source.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
-                          >
-                            {source.organization} · {source.reportTitle} ({source.year})
-                          </a>
+                              <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                                {
+                                  finding.technical
+                                }
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-800 bg-slate-950/25 p-4">
+                              <div className="text-3xs font-bold uppercase tracking-wider text-slate-500">
+                                Por que isso foi sinalizado
+                              </div>
+
+                              <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                                {
+                                  finding.consequence
+                                }
+                              </p>
+                            </div>
+                          </div>
+
+                          {source && (
+                            <div className="mt-4 rounded-xl border border-teal-900/15 bg-teal-950/5 p-4">
+                              <div className="text-xs font-semibold text-teal-400">
+                                Referência do controle
+                              </div>
+
+                              <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                                {
+                                  source.statement
+                                }
+                              </p>
+
+                              <a
+                                href={
+                                  source.sourceUrl
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+                              >
+                                {
+                                  source.organization
+                                }{' '}
+                                ·{' '}
+                                {
+                                  source.reportTitle
+                                }{' '}
+                                (
+                                {
+                                  source.year
+                                }
+                                )
+                              </a>
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+                    </article>
+                  );
+                },
+              )}
           </div>
         </section>
 
-        {/* 5. IMPACTO E CONTEXTO */}
-        <section
-          className="glass-card mt-6 overflow-hidden"
-          data-report-keep-together="true"
-        >
-          <div className="border-b border-slate-800/70 p-5 md:p-6">
-            <span className="section-kicker">Impacto e contexto</span>
-            <h3 className="mt-1 text-xl font-bold text-white">
-              O que esse cenário pode representar na prática
-            </h3>
-            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">
-              Uma leitura complementar para dimensionar impacto operacional e interpretar os pontos identificados.
-            </p>
-          </div>
+        </>)}
 
-          <div className="p-5 md:p-6">
-            <div className="grid gap-5 lg:grid-cols-[.8fr_1.2fr] lg:items-start">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline justify-between gap-3">
-                  <div>
-                    <div className="text-3xs font-bold uppercase tracking-[.13em] text-slate-500">
-                      Impacto operacional estimado
-                    </div>
-                    <div className="mt-2 text-xl font-bold text-white">
-                      {money(impactLow)} a {money(impactHigh)}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setIsFaixaModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-400 transition hover:text-teal-300"
-                  >
-                    <HelpCircle size={14} />
-                    Como estimamos?
-                  </button>
-                </div>
-
-                <p className="mt-3 text-sm leading-relaxed text-slate-300">{impactContext}</p>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                  A faixa considera produtividade interrompida, esforço técnico de recuperação e impacto operacional adicional. É uma ordem de grandeza, não uma previsão de prejuízo, multa ou custo real.
-                </p>
-              </div>
-
-              <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/20 p-4">
-                <ImpactChart components={r.impactComponents} />
-              </div>
-            </div>
-
-            {anpdFirstFineSource && (
-              <article className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 md:p-5">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-3xs font-bold uppercase tracking-[.13em] text-amber-300">
-                      <Info size={14} className="shrink-0" />
-                      Você sabia?
-                    </div>
-                    <h4 className="mt-2 text-base font-bold leading-snug text-white md:text-lg">
-                      Uma microempresa já recebeu R$ 14.400 em multas da ANPD
-                    </h4>
-                    <p className="mt-2 max-w-4xl text-sm leading-relaxed text-slate-300">
-                      Em 2023, a ANPD aplicou duas multas simples à microempresa Telekall Infoservice, totalizando R$ 14.400, além de advertência. O caso é específico, mas reforça um ponto importante para PMEs: porte menor não elimina responsabilidades sobre dados pessoais.
-                    </p>
-                  </div>
-
-                  <a
-                    href={anpdFirstFineSource.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-xl border border-amber-500/20 bg-slate-950/30 px-3 py-2 text-xs font-semibold text-amber-300 transition hover:border-amber-400/40 hover:text-amber-200"
-                  >
-                    ANPD · Ver caso oficial
-                    <ChevronRight size={14} />
-                  </a>
-                </div>
-              </article>
-            )}
-
-            {contextualInsights.length > 0 && (
-              <div className="mt-5 border-t border-slate-800/70 pt-5">
-                <div className="text-3xs font-bold uppercase tracking-[.13em] text-slate-500">
-                  Contexto para interpretação
-                </div>
-
-                <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  {contextualInsights.map((insight) => {
-                    const source = getValidatedSource(insight.sourceId);
-                    return (
-                      <article
-                        key={insight.id}
-                        className="min-w-0 rounded-xl border border-slate-800/80 bg-slate-950/20 p-4"
-                      >
-                        <span className="text-3xs font-bold uppercase tracking-[.12em] text-teal-500">
-                          {insight.eyebrow}
-                        </span>
-                        <h4 className="mt-1.5 text-sm font-bold leading-snug text-white">
-                          {insight.title}
-                        </h4>
-                        <p className="mt-1.5 text-xs leading-relaxed text-slate-400 sm:text-sm">
-                          {insight.body}
-                        </p>
-                        {source && (
-                          <a
-                            href={source.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
-                          >
-                            {source.organization} · {source.reportTitle}
-                          </a>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 7. PLANO DE PRIORIDADES */}
-        <section
-          id="prioridades"
-          className="mt-8 scroll-mt-24"
-          data-report-slide-break="true"
-          data-report-keep-together="true"
-        >
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        {(pdfMode || activeChapter === 'impact') && (<>
+        {/* 7. IMPACTO */}
+        <section data-pdf-page="true" data-report-keep-together="true" className="mt-8 grid gap-6 md:grid-cols-[1fr_1.2fr]">
+          <div className="glass-card flex flex-col justify-between p-6">
             <div>
-              <span className="section-kicker">Plano de prioridades</span>
-              <h3 className="mt-1 text-2xl font-bold text-white">Por onde começar</h3>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
-                A sequência abaixo organiza os três temas que merecem atenção primeiro. Ela indica ordem de revisão, sem estipular prazo de implementação.
+              <span className="section-kicker">
+                Cenário operacional ilustrativo
+              </span>
+
+              <h3 className="mt-1 text-xl font-bold text-white">
+                Quanto uma parada pode representar
+              </h3>
+
+              <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                {impactContext}
               </p>
+
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                A faixa considera
+                produtividade interrompida,
+                esforço técnico de
+                recuperação e impacto
+                operacional adicional.
+              </p>
+
+              <div className="mt-5 rounded-xl border border-cyan-900/15 bg-cyan-950/5 p-3 text-xs leading-relaxed text-slate-300">
+                Esta é uma simulação de
+                ordem de grandeza. Não é uma
+                previsão de prejuízo, multa
+                ou custo real de incidente.
+              </div>
+
+              <div className="mt-6 text-3xl font-extrabold text-white">
+                {money(
+                  impactLow,
+                )}{' '}
+                <span className="text-base font-normal text-slate-500">
+                  a
+                </span>{' '}
+                {money(
+                  impactHigh,
+                )}
+              </div>
             </div>
+
+            <button
+              onClick={() =>
+                setIsFaixaModalOpen(
+                  true,
+                )
+              }
+              className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-400 transition hover:text-teal-300"
+            >
+              <HelpCircle
+                size={16}
+              />
+
+              Como estimamos essa faixa?
+            </button>
           </div>
 
-          <PriorityPlan plan={priorityPlan} compact={pdfMode} />
+          <div className="glass-card flex flex-col justify-between p-6">
+            <div>
+              <span className="section-kicker">
+                Composição da faixa
+              </span>
 
-          {pdfMode && (
-            <div className="mt-4 rounded-xl border border-teal-900/30 bg-teal-950/10 px-5 py-4">
-              <div className="text-xs font-bold uppercase tracking-[.12em] text-teal-400">
-                Ficou com dúvidas?
-              </div>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-300">
-                {assessmentContact ? (
-                  <>
-                    Entre em contato com {assessmentContact.name}: {assessmentContact.email}
-                  </>
-                ) : (
-                  <>
-                    Entre em contato com o responsável Concierge que encaminhou este diagnóstico.
-                  </>
-                )}
+              <h3 className="mt-1 text-xl font-bold text-white">
+                De onde vem a estimativa
+              </h3>
+
+              <p className="mb-4 mt-1 text-xs text-slate-400">
+                A simulação separa o impacto
+                em três grupos para evitar
+                resumir uma parada apenas às
+                horas de trabalho perdidas.
               </p>
             </div>
-          )}
+
+            <div className="flex flex-grow flex-col justify-center">
+              <ImpactChart
+                components={
+                  r.impactComponents
+                }
+              />
+            </div>
+          </div>
         </section>
 
-        {/* 8. CTA */}
-        <section
-          className="mt-8 rounded-2xl border border-teal-950/30 bg-teal-950/10 p-5 md:p-6"
-          data-pdf-ignore="true"
-        >
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-teal-500/20 bg-teal-500/10 text-teal-400">
-                <ShieldCheck size={20} />
+        {/* 8. VOCÊ SABIA */}
+        {contextualInsights.length >
+          0 && (
+          <section data-pdf-page="true" data-report-keep-together="true" className="mt-6 grid gap-4 md:grid-cols-2">
+            {contextualInsights.map(
+              (insight) => {
+                const source =
+                  getValidatedSource(
+                    insight.sourceId,
+                  );
+
+
+                return (
+                  <article
+                    key={
+                      insight.id
+                    }
+                    className="rounded-2xl border border-slate-800 bg-slate-950/25 p-5 md:p-6"
+                  >
+                    <span className="section-kicker">
+                      {
+                        insight.eyebrow
+                      }
+                    </span>
+
+                    <h3 className="mt-2 text-lg font-bold leading-snug text-white">
+                      {
+                        insight.title
+                      }
+                    </h3>
+
+                    <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                      {
+                        insight.body
+                      }
+                    </p>
+
+                    {source && (
+                      <div className="mt-4 border-t border-slate-800/70 pt-4">
+                        <p className="text-xs leading-relaxed text-slate-500">
+                          Fonte:{' '}
+                          {
+                            source.organization
+                          }{' '}
+                          ·{' '}
+                          {
+                            source.reportTitle
+                          }
+                        </p>
+
+                        <a
+                          href={
+                            source.sourceUrl
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex text-xs font-semibold text-teal-400 transition hover:text-teal-300"
+                        >
+                          Ler a referência oficial
+                        </a>
+                      </div>
+                    )}
+                  </article>
+                );
+              },
+            )}
+          </section>
+        )}
+
+        </>)}
+
+        {(pdfMode || activeChapter === 'actions') && (<>
+        {/* 9. CAMINHO */}
+        <section data-pdf-page="true" data-report-keep-together="true" id="proximos-passos" className="glass-card mt-6 scroll-mt-6 p-6">
+          <span className="section-kicker">
+            Próximos passos
+          </span>
+
+          <h3 className="mt-1 text-xl font-bold text-white">
+            Por onde começar
+          </h3>
+
+          <p className="mb-6 mt-1 text-xs text-slate-400">
+            Uma ordem prática para revisar
+            os pontos identificados.
+          </p>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {immediatePriority && (
+              <div className="flex flex-col justify-between rounded-xl border border-amber-900/20 bg-amber-950/5 p-4">
+                <div>
+                  <span className="block text-3xs font-bold uppercase tracking-wider text-amber-400">
+                    1. Primeiro ponto a revisar
+                  </span>
+
+                  <h4 className="mt-2 text-sm font-bold text-slate-100">
+                    {
+                      priorityExecName[
+                        immediatePriority.key
+                      ]
+                    }
+                  </h4>
+
+                  <p className="mt-1 text-2xs leading-relaxed text-slate-400">
+                    Este foi o ponto que
+                    mais chamou atenção.
+                    Vale começar confirmando
+                    como ele funciona hoje e
+                    o que ainda precisa ser
+                    validado.
+                  </p>
+                </div>
+
+                <div className="mt-4 text-xs font-bold text-amber-300">
+                  Indicador atual:{' '}
+                  {
+                    immediatePriority.score
+                  }
+                  /100
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Ficou com dúvidas?</h3>
-                <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-300">
-                  {assessmentContact ? (
+            )}
+
+            {nextOpportunity && (
+              <div className="flex flex-col justify-between rounded-xl border border-cyan-900/10 bg-cyan-950/5 p-4">
+                <div>
+                  <span className="block text-3xs font-bold uppercase tracking-wider text-cyan-400">
+                    2. Próximo ponto a revisar
+                  </span>
+
+                  <h4 className="mt-2 text-sm font-bold text-slate-100">
+                    {
+                      priorityExecName[
+                        nextOpportunity.key
+                      ]
+                    }
+                  </h4>
+
+                  <p className="mt-1 text-2xs leading-relaxed text-slate-400">
+                    Depois do primeiro
+                    ponto, este é o próximo
+                    tema que vale revisar
+                    para reduzir dependências
+                    e melhorar a
+                    previsibilidade.
+                  </p>
+                </div>
+
+                <div className="mt-4 text-xs font-bold text-cyan-300">
+                  Indicador atual:{' '}
+                  {
+                    nextOpportunity.score
+                  }
+                  /100
+                </div>
+              </div>
+            )}
+
+            {mostMature && (
+              <div className="flex flex-col justify-between rounded-xl border border-emerald-900/15 bg-emerald-950/5 p-4">
+                <div>
+                  <span className="block text-3xs font-bold uppercase tracking-wider text-emerald-400">
+                    3. Área com melhor condição atual
+                  </span>
+
+                  <h4 className="mt-2 text-sm font-bold text-slate-100">
+                    {
+                      priorityExecName[
+                        mostMature.key
+                      ]
+                    }
+                  </h4>
+
+                  <p className="mt-1 text-2xs leading-relaxed text-slate-400">
+                    {mostMature.score <
+                    60
+                      ? 'Entre os pontos avaliados, este apresentou a melhor condição relativa, mas ainda há espaço importante para evolução.'
+                      : mostMature.score <
+                          80
+                        ? 'Este ponto apresenta uma base mais estruturada, mas ainda vale confirmar lacunas e revisar se os controles atuais continuam adequados.'
+                        : 'Este ponto apresenta uma condição mais madura. A recomendação é manter os controles existentes e revisá-los periodicamente.'}
+                  </p>
+                </div>
+
+                <div className="mt-4 text-xs font-bold text-emerald-300">
+                  Indicador atual:{' '}
+                  {
+                    mostMature.score
+                  }
+                  /100
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* 10. CTA */}
+        <section data-pdf-ignore="true" className="mt-8 rounded-2xl border border-teal-950/30 bg-teal-950/10 p-6">
+          <div className="flex items-start gap-4">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-teal-500/20 bg-teal-500/10 text-teal-400">
+              <ShieldCheck
+                size={20}
+              />
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-white">
+                Quer entender melhor o que apareceu aqui?
+              </h3>
+
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-300">
+                Este diagnóstico já ajuda
+                a identificar os principais
+                pontos do ambiente. Uma
+                conversa curta pode servir
+                para confirmar as respostas,
+                entender as particularidades
+                da operação e separar o que
+                realmente merece ação do que
+                já está bem resolvido.
+              </p>
+
+              <div
+                className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center"
+                data-pdf-ignore="true"
+              >
+                <button
+                  type="button"
+                  onClick={
+                    handleDownloadReport
+                  }
+                  disabled={
+                    isPdfGenerating
+                  }
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-950/30 transition hover:bg-teal-500 disabled:cursor-wait disabled:bg-teal-800 disabled:text-teal-200"
+                >
+                  {isPdfGenerating ? (
                     <>
-                      Fale com {assessmentContact.name} pelo e-mail{' '}
-                      <a
-                        href={`mailto:${assessmentContact.email}`}
-                        className="font-semibold text-teal-400 transition hover:text-teal-300"
-                      >
-                        {assessmentContact.email}
-                      </a>
-                      .
+                      <Loader2
+                        size={18}
+                        className="animate-spin"
+                      />
+
+                      Preparando relatório...
                     </>
                   ) : (
                     <>
-                      Fale com o responsável Concierge que encaminhou este diagnóstico.
+                      <Download
+                        size={18}
+                      />
+
+                      Baixar relatório em PDF
                     </>
                   )}
+                </button>
+
+                <p className="text-xs leading-relaxed text-slate-500">
+                  O PDF reúne o mesmo
+                  diagnóstico exibido nesta
+                  página e inclui os detalhes
+                  técnicos dos principais
+                  pontos.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+        </>)}
+
+        {(pdfMode || activeChapter === 'details') && (
+          <section className="glass-card mt-6 p-6 md:p-8">
+            <div data-pdf-page="true" className="rounded-2xl border border-slate-800/70 bg-slate-950/20 p-5 md:p-6">
+              <span className="section-kicker">Detalhes do ambiente</span>
+              <h3 className="mt-1 text-2xl font-bold text-white">O que foi informado no assessment</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
+                Esta seção preserva as respostas do preenchimento para facilitar a validação técnica.
+                Ela complementa a análise sem substituir a conversa com a equipe responsável.
+              </p>
+
+              <div className="mt-5 rounded-2xl border border-cyan-300/[0.10] bg-cyan-500/[0.04] p-5">
+                <div className="text-[10px] font-bold uppercase tracking-[.18em] text-cyan-300">
+                  Leitura do ambiente
+                </div>
+                <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">
+                  {environmentOverview}
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleDownloadReport}
-              disabled={isPdfGenerating}
-              data-pdf-ignore="true"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-950/30 transition hover:bg-teal-500 disabled:cursor-wait disabled:bg-teal-800 disabled:text-teal-200"
-            >
-              {isPdfGenerating ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Preparando relatório...
-                </>
-              ) : (
-                <>
-                  <Download size={18} />
-                  Baixar relatório em PDF
-                </>
+            <div className="mt-7 grid gap-4 md:grid-cols-2">
+              {[
+                {
+                  title: 'Ambiente',
+                  rows: [
+                    ['Empresa', draftData.companyName || 'Não informado'],
+                    ['Contato', draftData.contactName || 'Não informado'],
+                    ['Cargo', draftData.contactRole || 'Não informado'],
+                    ['Computadores / notebooks', answerLabel(draftData.endpointCount || draftData.devices)],
+                    ['Unidades / filiais', answerLabel(draftData.sites)],
+                    ['Equipe interna de TI', answerLabel(draftData.itTeamSize)],
+                    ['Rotina de segurança da TI', answerLabel(draftData.securityOperationsModel)],
+                  ],
+                },
+                {
+                  title: 'Internet e rede',
+                  rows: [
+                    ['Proteção atual', answerLabel(draftData.firewallLevel)],
+                    ['Modelo / solução', draftData.firewallModel || draftData.firewallVendor || 'Não informado'],
+                    ['Quem administra', answerLabel(draftData.firewallManagement)],
+                    ['Quem acompanha alertas', answerLabel(draftData.monitoring)],
+                    ['Links de internet', answerLabel(draftData.internetLinkCount)],
+                    ['Link principal', draftData.links?.[0]?.speedMbps ? `${draftData.links[0].speedMbps} Mbps` : 'Não informado'],
+                    ['Acesso remoto', answerLabel(draftData.vpnUsage)],
+                    ['Pessoas com acesso remoto', draftData.vpnRemote ? String(draftData.vpnRemote) : 'Não informado'],
+                    ['Segmentação de rede', draftData.vlans >= 3 ? 'Sim, existe segmentação clara' : draftData.vlans === 2 ? 'Parcialmente' : draftData.vlans === 1 ? 'Não' : 'Não sei informar'],
+                  ],
+                },
+                {
+                  title: 'Computadores e endpoint',
+                  rows: [
+                    ['Proteção de endpoint', answerLabel(draftData.endpointLevel)],
+                    ['Solução informada', draftData.endpointProduct || draftData.endpointVendor || 'Não informado'],
+                    ['Como é administrada', answerLabel(draftData.endpointManagementModel)],
+                    ['Resposta aos alertas', answerLabel(draftData.endpointResponse)],
+                    ['Inventário de ativos', answerLabel(draftData.assetInventory)],
+                    ['Vulnerabilidades / atualizações', answerLabel(draftData.vulnerabilityManagement)],
+                    ['Servidores', answerLabel(draftData.servers)],
+                  ],
+                },
+                {
+                  title: 'Dados e continuidade',
+                  rows: [
+                    ['Onde ficam os dados', answerLabel(draftData.dataLocation)],
+                    ['Backup', answerLabel(draftData.backupLevel)],
+                    ['Volume aproximado', draftData.backupVolumeGb ? `${draftData.backupVolumeGb} GB` : 'Não informado'],
+                    ['Cópia separada', answerLabel(draftData.backupIsolation)],
+                    ['Teste de restauração', answerLabel(draftData.restoreTests)],
+                    ['Parada tolerada', answerLabel(draftData.maxDowntime)],
+                    ['Impacto operacional', answerLabel(draftData.operationalImpact)],
+                  ],
+                },
+                {
+                  title: 'Contas, resposta e governança',
+                  rows: [
+                    ['MFA', answerLabel(draftData.mfa)],
+                    ['Contas compartilhadas', answerLabel(draftData.sharedAccounts)],
+                    ['Remoção de acessos', answerLabel(draftData.offboarding)],
+                    ['Proteção de e-mail', answerLabel(draftData.emailProtection)],
+                    ['Resposta a incidentes', answerLabel(draftData.incidentResponse)],
+                    ['Fora do expediente', answerLabel(draftData.afterHoursResponse)],
+                    ['Uso de IA', answerLabel(draftData.aiUsageGovernance)],
+                    ['Dados sensíveis', answerLabel(draftData.sensitiveData)],
+                    ['Histórico de incidente', answerLabel(draftData.incidentHistory)],
+                    ['Principal preocupação', draftData.mainConcern || 'Não informado'],
+                  ],
+                },
+              ].map((group) => (
+                <article key={group.title} data-pdf-page="true" data-pdf-detail="true" className="rounded-2xl border border-slate-800/80 bg-slate-950/30 p-5">
+                  <h4 className="text-base font-bold text-white">{group.title}</h4>
+                  <dl className="mt-4 space-y-3">
+                    {group.rows.map(([label, value]) => (
+                      <div key={label} className="grid gap-1 border-b border-slate-800/60 pb-3 last:border-0 last:pb-0 sm:grid-cols-[180px_1fr]">
+                        <dt className="text-xs font-semibold text-slate-500">{label}</dt>
+                        <dd className="text-sm leading-relaxed text-slate-200">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!pdfMode && (
+          <section className="mt-7 rounded-[22px] border border-cyan-300/[0.10] bg-gradient-to-r from-cyan-500/[0.06] via-[#071426]/82 to-teal-500/[0.05] p-5 md:p-6" data-pdf-ignore="true">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="max-w-3xl">
+                <div className="text-[10px] font-bold uppercase tracking-[.18em] text-cyan-300">
+                  {activeChapter === 'details' ? 'Fim da leitura' : 'Continue a leitura'}
+                </div>
+                <h4 className="mt-1.5 text-lg font-bold text-white">
+                  {chapterBridgeCopy[activeChapter].title}
+                </h4>
+                <p className="mt-1.5 text-sm leading-6 text-slate-400">
+                  {chapterBridgeCopy[activeChapter].description}
+                </p>
+              </div>
+
+              {activeChapter !== 'details' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const index = resultChapters.findIndex((chapter) => chapter.key === activeChapter);
+                    if (index < resultChapters.length - 1) goToChapter(resultChapters[index + 1].key);
+                  }}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-500"
+                >
+                  {resultChapters[resultChapters.findIndex((chapter) => chapter.key === activeChapter) + 1]?.label}
+                  <ArrowRight size={17} />
+                </button>
               )}
-            </button>
-          </div>
-        </section>
+            </div>
+          </section>
+        )}
+
+
       </div>
 
       {/* MODAL DIAGNÓSTICO */}

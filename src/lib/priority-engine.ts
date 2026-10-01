@@ -348,9 +348,78 @@ export function buildPriorityPlan(
     };
   });
 
-  const summary = items.length
-    ? 'As prioridades abaixo organizam os achados por criticidade e contexto, em uma ordem sugerida de atenção.'
-    : 'Não houve dados suficientes para gerar um plano de prioridades confiável.';
+  const fallbackCandidates: Omit<PriorityPlanItem, 'rank'>[] = [
+    {
+      domain: 'endpoint',
+      domainLabel: domainPublicLabel.endpoint,
+      domainScore: result.scores.endpoint,
+      title: 'Validar continuamente a superfície de exposição',
+      currentState: 'Mesmo com os principais controles presentes, novas vulnerabilidades e ativos podem surgir ao longo do tempo.',
+      gap: 'Maturidade técnica não elimina a necessidade de descobrir vulnerabilidades, ativos esquecidos e mudanças que aumentam a exposição.',
+      action: 'Manter uma rotina de gestão de vulnerabilidades e, periodicamente, complementar a validação com testes técnicos do ambiente.',
+      risk: 'Sem validação recorrente, controles aparentemente maduros podem conviver com falhas novas ou configurações que perderam eficácia.',
+      effort: 'Médio',
+      urgency: 'Baixa',
+      rationale: ['evolução contínua de segurança'],
+      commercialHint: 'Avaliar gestão de vulnerabilidades, análise de vulnerabilidade, pentest ou BAS conforme o cenário.',
+    },
+    {
+      domain: 'backup',
+      domainLabel: domainPublicLabel.backup,
+      domainScore: result.scores.backup,
+      title: 'Testar a capacidade real de resposta e recuperação',
+      currentState: 'Controles instalados precisam ser exercitados para confirmar se pessoas, processos e tecnologia funcionam juntos durante um incidente.',
+      gap: 'Ter ferramentas e procedimentos documentados não prova, sozinho, que a organização consegue detectar, conter e recuperar no tempo esperado.',
+      action: 'Executar testes controlados de restauração e exercícios de resposta, registrando tempo, responsáveis, dificuldades e melhorias necessárias.',
+      risk: 'Falhas de coordenação e recuperação costumam aparecer apenas quando o processo é testado de ponta a ponta.',
+      effort: 'Médio',
+      urgency: 'Baixa',
+      rationale: ['validação da resiliência'],
+      commercialHint: 'Avaliar exercícios de resposta, serviços de preparação, recuperação e validações controladas.',
+    },
+    {
+      domain: 'identity',
+      domainLabel: domainPublicLabel.identity,
+      domainScore: result.scores.identity,
+      title: 'Evoluir pessoas, identidades e comportamento seguro',
+      currentState: 'Ambientes tecnicamente maduros ainda dependem de decisões humanas, contas bem administradas e regras claras para novos usos de tecnologia.',
+      gap: 'Phishing, privilégios excessivos, uso inadequado de IA e mudanças de função continuam criando risco mesmo quando firewall, endpoint e backup estão estruturados.',
+      action: 'Revisar acessos privilegiados, regras de uso de IA e práticas de conscientização, incluindo simulações e acompanhamento dos pontos recorrentes.',
+      risk: 'Controles técnicos não eliminam fraude, abuso de credenciais, engenharia social ou exposição acidental de informação.',
+      effort: 'Médio',
+      urgency: 'Baixa',
+      rationale: ['evolução de identidade e risco humano'],
+      commercialHint: 'Avaliar awareness, simulação de phishing, IAM/IGA/PAM e governança de IA/dados conforme aderência.',
+    },
+    {
+      domain: 'network',
+      domainLabel: domainPublicLabel.network,
+      domainScore: result.scores.network,
+      title: 'Revisar se visibilidade e monitoramento acompanham a evolução do ambiente',
+      currentState: 'Mudanças de links, aplicações, usuários e serviços alteram o que precisa ser observado e protegido.',
+      gap: 'Uma configuração adequada hoje pode perder aderência quando o ambiente muda ou quando alertas deixam de ser revisados com a mesma frequência.',
+      action: 'Revisar periodicamente políticas, eventos relevantes, cobertura de monitoramento e critérios de escalação para incidentes.',
+      risk: 'Sem revisão, a organização pode manter tecnologia adequada com baixa visibilidade operacional.',
+      effort: 'Baixo',
+      urgency: 'Baixa',
+      rationale: ['melhoria contínua da operação'],
+      commercialHint: 'Avaliar serviços gerenciados, SOC, monitoramento e revisão periódica de configuração conforme necessidade.',
+    },
+  ];
+
+  const signatures = new Set(items.map((item) => normalize(`${item.title} ${item.action}`)));
+
+  for (const fallback of fallbackCandidates) {
+    if (items.length >= limit) break;
+    const signature = normalize(`${fallback.title} ${fallback.action}`);
+    if (signatures.has(signature)) continue;
+    items.push({ ...fallback, rank: items.length + 1 });
+    signatures.add(signature);
+  }
+
+  const summary = result.findings.length
+    ? 'As prioridades abaixo organizam os achados e os próximos passos de evolução em uma ordem sugerida de atenção.'
+    : 'Os controles informados indicam uma base mais estruturada. As prioridades abaixo focam validação, resiliência e evolução contínua.';
 
   return { items, summary };
 }

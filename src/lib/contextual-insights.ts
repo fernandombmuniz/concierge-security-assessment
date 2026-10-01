@@ -531,18 +531,24 @@ export function getContextualInsights(
     });
   }
 
+  const afterHours = data.afterHoursResponse;
+  const legacyAfterHours = data.firewallMonitoring24x7;
+
   if (
-    data.firewallMonitoring24x7 === 'no' ||
-    data.firewallMonitoring24x7 === 'partial'
+    afterHours === 'business_hours' ||
+    afterHours === 'ad_hoc' ||
+    (!afterHours && (legacyAfterHours === 'no' || legacyAfterHours === 'partial'))
   ) {
+    const waitsUntilBusinessHours =
+      afterHours === 'business_hours' || (!afterHours && legacyAfterHours === 'no');
+
     insights.push({
       id: 'after-hours-response',
       domain: 'identity',
       eyebrow: 'Fora do expediente',
-      title:
-        data.firewallMonitoring24x7 === 'no'
-          ? 'Um alerta importante à noite pode esperar até o próximo expediente'
-          : 'Existe alguém para acionar fora do horário, mas o alerta pode não ser percebido imediatamente',
+      title: waitsUntilBusinessHours
+        ? 'Um alerta importante à noite pode esperar até o próximo expediente'
+        : 'Fora do expediente, a resposta ainda depende de conseguir localizar alguém',
       body:
         'Boas práticas de resposta a incidentes recomendam responsáveis e formas de acionamento definidos. Essa capacidade pode ser interna, terceirizada ou híbrida; o ponto importante é saber quem recebe o alerta e quem pode iniciar uma resposta quando o problema acontece.',
       sourceId: 'cis-incident-response',

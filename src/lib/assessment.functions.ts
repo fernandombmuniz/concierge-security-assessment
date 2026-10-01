@@ -1,7 +1,7 @@
 import { parseAssessmentData } from "@/lib/assessment-schema";
 import { scoreAssessment } from "@/scoring";
 
-export const METHODOLOGY_VERSION = "v4.1-adaptive-refined";
+export const METHODOLOGY_VERSION = "v5.1-technical-operational";
 export const PRIVACY_NOTICE_VERSION = "2026-01";
 
 interface ApiResponse {

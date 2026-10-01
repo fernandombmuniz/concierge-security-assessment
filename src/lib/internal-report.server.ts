@@ -40,9 +40,9 @@ const LABELS: Record<string, string> = {
 
   isp: "Equipamento / gestão da operadora",
   router: "Roteador ou firewall tradicional",
-  utm: "UTM",
-  ngfw: "NGFW",
-  managed_ngfw: "NGFW com gestão especializada",
+  utm: "Firewall open source, como pfSense ou OPNsense",
+  ngfw: "Firewall corporativo NGFW",
+  managed_ngfw: "Firewall gerenciado por equipe ou serviço especializado",
 
   internal: "Equipe interna",
   outsourced: "Empresa terceirizada",
@@ -58,10 +58,10 @@ const LABELS: Record<string, string> = {
   security_team: "Equipe especializada de segurança",
   soc: "Acompanhamento contínuo / SOC",
 
-  basic_av: "Antivírus individual / básico",
-  business_av: "Antivírus corporativo",
-  edr: "EDR / XDR",
-  managed_edr: "EDR / XDR gerenciado",
+  basic_av: "Antivírus básico ou proteção nativa",
+  business_av: "Antivírus corporativo com gestão central",
+  edr: "EDR ou proteção com investigação de ameaças",
+  managed_edr: "Proteção avançada acompanhada por equipe especializada",
 
   managed_soc: "Equipe especializada acompanha e responde",
   defined_team: "Responsável / equipe definida",
@@ -108,6 +108,24 @@ const LABELS: Record<string, string> = {
 
   once: "Já testou alguma vez",
   never: "Nunca testou",
+
+  dedicated: "Há pessoa ou equipe com foco dedicado em segurança",
+  scheduled: "A TI reserva tempo regularmente para segurança",
+  generalist_overloaded: "A mesma equipe acumula suporte, infraestrutura e segurança",
+  managed_support: "Um fornecedor especializado apoia ou opera a segurança",
+
+  individual: "Em cada computador individualmente",
+  central_internal: "Em painel central pela equipe de TI",
+  central_partner: "Em painel central por empresa terceirizada",
+
+  managed_24x7: "Há equipe ou serviço com cobertura 24x7",
+  on_call: "Há alguém de sobreaviso",
+  ad_hoc: "Tentamos localizar alguém quando necessário",
+  business_hours: "Normalmente seria tratado no próximo expediente",
+
+  controlled: "Existem ferramentas permitidas e regras claras sobre dados",
+  open: "Uso livre, sem regra definida",
+  not_used: "A empresa não utiliza IA generativa no trabalho",
 };
 
 const esc = (value: unknown) =>
@@ -204,6 +222,18 @@ function section(
     </h2>
 
     ${body}
+  `;
+}
+
+function responseGroup(
+  title: string,
+  items: [string, unknown][],
+) {
+  return `
+    <div style="margin:0 0 18px;border:1px solid #e2e8f0;border-radius:12px;padding:14px 15px">
+      <div style="margin-bottom:8px;font-size:13px;font-weight:800;color:#0f172a">${esc(title)}</div>
+      ${table(items)}
+    </div>
   `;
 }
 
@@ -858,11 +888,6 @@ export function buildInternalReport(
           ],
 
           [
-            "Usuários",
-            a.users,
-          ],
-
-          [
             "Equipamentos",
             a.endpointCount ||
               a.devices,
@@ -878,6 +903,74 @@ export function buildInternalReport(
             a.sites,
           ],
         ]),
+      )}
+
+      ${section(
+        "Respostas fornecidas no assessment",
+        `
+          <p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#475569">
+            Registro fiel das respostas do onboarding técnico. Os textos abaixo refletem o que foi informado pelo respondente e ficam separados das interpretações, scores e recomendações.
+          </p>
+
+          ${responseGroup("1. Empresa e operação", [
+            ["Nome da empresa", a.companyName],
+            ["Nome do respondente", a.contactName],
+            ["Cargo", a.contactRole],
+            ["E-mail", a.contactEmail],
+            ["Computadores e notebooks", a.endpointCount || a.devices],
+            ["Unidades ou filiais", a.sites],
+            ["Equipe interna de TI", a.itTeamSize ? `${a.itTeamSize} pessoa(s) / faixa informada` : "Não há equipe interna / não sei"],
+            ["Como a segurança entra na rotina da TI", a.securityOperationsModel],
+          ])}
+
+          ${responseGroup("2. Internet e rede", [
+            ["Como a empresa protege a conexão com a internet", a.firewallLevel],
+            ["Modelo ou solução informada", a.firewallModel],
+            ["Quem administra essa proteção", a.firewallManagement],
+            ["O que acontece quando surge um alerta importante da rede", a.monitoring],
+            ["Quantidade de links de internet", a.internetLinkCount],
+            ["Velocidade do link principal", a.links?.[0]?.speedMbps ? `${a.links[0].speedMbps} Mbps` : "Não informado"],
+            ["Velocidade do segundo link", a.links?.[1]?.speedMbps ? `${a.links[1].speedMbps} Mbps` : "Não informado"],
+            ["Acesso remoto", a.vpnUsage],
+            ["Pessoas com acesso remoto", a.vpnRemote || "Não informado"],
+            ["VPN entre unidades", a.vpnSite || "Não informado"],
+            ["Segmentação de rede / VLANs", a.vlans || "Não informado"],
+          ])}
+
+          ${responseGroup("3. Computadores e endpoints", [
+            ["Cenário de proteção atual", a.endpointLevel],
+            ["Solução utilizada", a.endpointProduct],
+            ["Como a proteção é administrada", a.endpointManagementModel],
+            ["O que acontece quando surge um alerta importante", a.endpointResponse],
+            ["Inventário de equipamentos", a.assetInventory],
+            ["Verificação de vulnerabilidades e correções", a.vulnerabilityManagement],
+            ["Servidores administrados", a.servers],
+          ])}
+
+          ${responseGroup("4. Dados, backup e continuidade", [
+            ["Onde ficam os dados importantes", a.dataLocation],
+            ["Como o backup é feito hoje", a.backupLevel],
+            ["Volume aproximado protegido", a.backupVolumeGb ? `${a.backupVolumeGb} GB` : "Não informado"],
+            ["Responsável pelo backup", a.backupResponsibility],
+            ["Existe cópia separada do ambiente principal", a.backupIsolation],
+            ["Teste de restauração", a.restoreTests],
+            ["Tempo máximo tolerável de parada", a.maxDowntime],
+            ["Impacto de uma parada", a.operationalImpact],
+          ])}
+
+          ${responseGroup("5. Contas, resposta, IA e contexto", [
+            ["MFA / confirmação além da senha", a.mfa],
+            ["Contas ou senhas compartilhadas", a.sharedAccounts],
+            ["Remoção de acessos no desligamento", a.offboarding],
+            ["Proteção de e-mail", a.emailProtection],
+            ["Quem coordena um incidente", a.incidentResponse],
+            ["Resposta fora do expediente", a.afterHoursResponse],
+            ["Uso e governança de IA generativa", a.aiUsageGovernance],
+            ["Dados pessoais ou sensíveis", a.sensitiveData],
+            ["Histórico de incidente", a.incidentHistory],
+            ["Principal preocupação", a.mainConcern],
+          ])}
+        `,
       )}
 
       ${section(
@@ -1007,13 +1100,8 @@ export function buildInternalReport(
           ],
 
           [
-            "Relatórios",
-            firewallSnapshot.reporting,
-          ],
-
-          [
-            "Monitoramento 24x7",
-            firewallSnapshot.monitoring24x7,
+            "Acompanhamento de eventos",
+            a.monitoring,
           ],
 
           [
@@ -1031,15 +1119,6 @@ export function buildInternalReport(
             firewallSnapshot.vlans,
           ],
 
-          [
-            "Proteção contra ameaças",
-            a.firewallThreatPrevention,
-          ],
-
-          [
-            "Licenciamento ativo",
-            a.firewallLicense,
-          ],
         ]),
       )}
 
@@ -1062,18 +1141,19 @@ export function buildInternalReport(
           ],
 
           [
-            "Gestão central",
-            a.endpointCentralManagement,
+            "Como a proteção é administrada",
+            a.endpointManagementModel === 'individual'
+              ? 'Em cada computador individualmente'
+              : a.endpointManagementModel === 'central_internal'
+                ? 'Em painel central pela equipe de TI'
+                : a.endpointManagementModel === 'central_partner'
+                  ? 'Em painel central por empresa terceirizada'
+                  : a.endpointCentralManagement,
           ],
 
           [
             "Resposta aos alertas",
             endpointSnapshot.response,
-          ],
-
-          [
-            "Atualizações automáticas",
-            a.autoUpdates,
           ],
 
           [
@@ -1232,6 +1312,32 @@ export function buildInternalReport(
             </div>
           </div>
         `,
+      )}
+
+      ${section(
+        "Capacidade operacional de segurança",
+        table([
+          [
+            "Tamanho da equipe interna de TI",
+            a.itTeamSize || "Não informado",
+          ],
+          [
+            "Como a segurança entra na rotina",
+            a.securityOperationsModel,
+          ],
+          [
+            "Coordenação de incidente",
+            a.incidentResponse,
+          ],
+          [
+            "Resposta fora do expediente",
+            a.afterHoursResponse,
+          ],
+          [
+            "Governança de IA",
+            a.aiUsageGovernance,
+          ],
+        ]),
       )}
 
       ${section(
