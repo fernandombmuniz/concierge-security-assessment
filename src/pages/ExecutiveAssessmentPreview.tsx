@@ -229,21 +229,32 @@ function joinLabels(labels: string[]) {
   return `${labels.slice(0, -1).join(', ')} e ${labels[labels.length - 1]}`;
 }
 
+function executiveAreaBusinessLabel(label: string) {
+  const labels: Record<string, string> = {
+    'Contas e acessos': 'controle de acessos',
+    'Resposta e governança': 'clareza de responsabilidade e tempo de resposta',
+    'Proteção do ambiente': 'proteção e acompanhamento do ambiente',
+    'Dados e continuidade': 'recuperação e continuidade dos dados',
+  };
+
+  return labels[label] || label.toLowerCase();
+}
+
 function executiveOverviewSummary(companyName: string, weakestAreas: string[], mainConcern: string) {
   const company = companyName || 'A empresa';
-  const areas = joinLabels(weakestAreas);
+  const areas = joinLabels(weakestAreas.map(executiveAreaBusinessLabel));
   const concern = concernLabel(mainConcern).toLowerCase();
   if (!areas) {
-    return `${company} já informou uma base inicial do ambiente. O diagnóstico abaixo mostra onde vale validar controles, continuidade e capacidade de resposta.`;
+    return `${company} compartilhou uma visão inicial do ambiente. A leitura abaixo mostra onde a operação pode ficar mais dependente de pessoas, improviso ou tempo de reação.`;
   }
-  return `${company} mostrou sinais de maior atenção em ${areas}. Isso sugere exposição relevante para continuidade, reação a incidentes e proteção das informações, especialmente quando a principal preocupação declarada envolve ${concern}.`;
+  return `${company} hoje parece mais exposta em ${areas}. Para a liderança, isso importa porque um problema nessa base costuma aparecer como parada, retrabalho, atraso ou pressão sobre a equipe — especialmente quando a principal preocupação já envolve ${concern}.`;
 }
 
 function executiveOverviewSupport(score: number, prioritiesCount: number) {
-  if (score < 40) return `O resultado pede validação rápida dos pontos abaixo. Há espaço para reduzir risco com decisões simples e objetivas.`;
-  if (score < 60) return `O cenário já tem alguma base, mas ainda existem ${prioritiesCount} frentes que merecem revisão antes de virarem impacto operacional.`;
-  if (score < 80) return `O ambiente demonstra organização, porém ainda há pontos que merecem confirmação para evitar confiança excessiva.`;
-  return `Mesmo em ambientes mais maduros, o objetivo é confirmar o que está consistente hoje e o que ainda pode ser refinado.`;
+  if (score < 40) return `O ponto principal aqui não é apenas ter ferramentas, e sim a capacidade de perceber um problema, reagir com rapidez e manter a operação funcionando. Os destaques abaixo mostram onde essa base parece mais frágil hoje.`;
+  if (score < 60) return `O cenário já mostra alguma estrutura, mas ainda existem ${prioritiesCount} frentes que podem gerar impacto operacional, sobrecarga da equipe ou perda de continuidade se ficarem sem revisão.`;
+  if (score < 80) return `A empresa demonstra organização, mas ainda vale confirmar alguns pontos para reduzir dependência de pessoas e evitar que falhas isoladas virem impacto para o negócio.`;
+  return `A base atual parece mais consistente. Ainda assim, a leitura abaixo ajuda a validar o que sustenta essa maturidade e o que pode ser refinado sem perder agilidade.`;
 }
 
 function executiveTransitionCopy(nextChapter: ExecutiveResultChapter | undefined) {
@@ -1082,9 +1093,9 @@ export default function ExecutiveAssessmentPreview() {
               <section data-pdf-page="true" className={`${sectionCard} mt-6 overflow-hidden`}>
                 <div className="border-b border-cyan-300/[0.10] px-6 py-5 md:px-8">
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-300">O que isso significa para o negócio</p>
-                  <h2 className="mt-2 text-2xl font-extrabold text-white">Impacto em números que fazem sentido para PMEs</h2>
+                  <h2 className="mt-2 text-2xl font-extrabold text-white">Como esses sinais costumam aparecer no dia a dia da empresa</h2>
                   <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
-                    Os dados abaixo ajudam a colocar os sinais encontrados em perspectiva. Eles não significam que um incidente vai acontecer, mas mostram por que vale agir antes que um ponto técnico vire problema operacional.
+                    Os dados abaixo servem como referência para mostrar como incidentes costumam se traduzir para uma PME: parada, perda financeira e exposição de dados. Eles não preveem o que vai acontecer no seu caso, mas ajudam a entender por que alguns pontos merecem atenção antes de afetarem a rotina.
                   </p>
                 </div>
 
