@@ -17,7 +17,8 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import SecurityMaturityMeter from '../components/SecurityMaturityMeter';
-import { generateAssessmentPdf, sanitizePdfFileName } from '../lib/report-pdf';
+import { downloadExecutiveReport } from '../lib/executive-report-download';
+import { isExecutiveAssessmentAnswers } from '../lib/assessment-report-mode';
 
 type ItOwner = 'internal' | 'outsourced' | 'shared' | 'none' | 'unknown';
 type OperationalImpact = 'low' | 'partial' | 'major' | 'halt' | 'unknown';
@@ -298,7 +299,7 @@ export default function ExecutiveAssessmentPreview() {
   const [answers, setAnswers] = useState<ExecutiveAnswers>(initialAnswers);
   const [completed, setCompleted] = useState(false);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
-  const [pdfMode, setPdfMode] = useState(false);
+  const pdfMode = false; // A exportação agora usa um documento executivo separado.
   const [activeResultChapter, setActiveResultChapter] = useState<ExecutiveResultChapter>('overview');
   const [answered, setAnswered] = useState<Set<keyof ExecutiveAnswers>>(() => new Set());
   const [remoteSession, setRemoteSession] = useState<ExecutiveSession | null>(null);
@@ -344,6 +345,13 @@ export default function ExecutiveAssessmentPreview() {
         }
 
         if (cancelled) return;
+
+        if (!isExecutiveAssessmentAnswers(response.answers)) {
+          const target = new URL('/resultado', window.location.origin);
+          target.searchParams.set('internalReport', internalReportToken);
+          window.location.replace(target.toString());
+          return;
+        }
 
         const loaded = executiveAnswersFromRemote(response.answers);
         setAnswers(loaded);
@@ -733,34 +741,13 @@ export default function ExecutiveAssessmentPreview() {
   const handleDownloadReport = async () => {
     if (isPdfGenerating) return;
 
-    const reportRoot = document.querySelector<HTMLElement>(
-      '[data-executive-report="true"]',
-    );
-
-    if (!reportRoot) {
-      alert('Não foi possível localizar o relatório executivo.');
-      return;
-    }
-
     setIsPdfGenerating(true);
-    setPdfMode(true);
-
     try {
-      await new Promise<void>((resolve) => {
-        window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
-      });
-
-      const companyName = answers.companyName.trim() || 'empresa';
-
-      await generateAssessmentPdf(reportRoot, {
-        companyName,
-        fileName: `concierge-executive-security-assessment-${sanitizePdfFileName(companyName)}.pdf`,
-      });
+      await downloadExecutiveReport(buildExecutiveAssessmentReport(answers, result));
     } catch (error) {
       console.error('Falha ao gerar PDF executivo:', error);
       alert('Não foi possível gerar o PDF neste momento. Tente novamente em alguns instantes.');
     } finally {
-      setPdfMode(false);
       setIsPdfGenerating(false);
     }
   };

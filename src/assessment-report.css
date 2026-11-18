@@ -72,3 +72,102 @@
   .assessment-lumina:not(.al-export) .al-action h3{font-size:20px}
   .assessment-lumina:not(.al-export) .al-impact-lead h3{font-size:26px}
 }
+
+/* Abertura institucional: marca vetorial já usada no app, sem placa branca. */
+.assessment-lumina .al-cover{position:relative;isolation:isolate;background:radial-gradient(ellipse at 85% 18%,#0d49624d,transparent 55%),#07192b}
+.al-cover:before{content:'';position:absolute;inset:0;border-radius:inherit;background-image:linear-gradient(#2ab9d50a 1px,transparent 1px),linear-gradient(90deg,#2ab9d50a 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:-1}
+.al-cover .al-body{position:relative;gap:24px}
+.al-cover-heading{display:none}
+.al-cover-watermark{position:absolute;width:290px;height:320px;right:0;top:95px;color:#36c9df;opacity:.12;pointer-events:none;z-index:-1}
+.al-opening-brand{display:flex;justify-content:space-between;align-items:center;gap:28px;padding:24px 0 12px}
+.al-opening-brand>div:first-child{flex-shrink:0}
+.al-group-signature{display:flex;align-items:center;gap:13px}
+.al-group-signature img{width:65px;height:58px;object-fit:contain;flex-shrink:0}
+.al-group-signature span{display:block;font-size:8px;letter-spacing:.13em;color:#8dafc2;line-height:1.5}
+.al-group-signature strong{display:block;font-size:17px;line-height:1.4;color:#ecf6fc;white-space:nowrap}
+.al-opening-main{margin:auto 0;max-width:850px;padding:20px 0}
+.assessment-lumina .al-opening-main h1{font-size:32px;line-height:1.25;margin:12px 0 18px;overflow-wrap:anywhere}
+.assessment-lumina .al-opening-statement{font-size:43px;line-height:1.19;margin:0 0 20px;max-width:850px;letter-spacing:-.035em}
+.al-opening-statement em{font-style:normal;color:#58dcec}
+.assessment-lumina .al-opening-main>p{font-size:15px;line-height:1.7;max-width:700px;color:#b6ccdc}
+.al-opening-meta{display:grid;grid-template-columns:1fr 1.15fr 1.4fr;gap:24px}
+.al-opening-meta>.al-field{border-top:1px solid #306078;padding-top:13px}
+.al-opening-meta p{margin-top:8px}
+.al-opening-principles{display:flex;align-items:center;gap:12px;color:#a5c5d8;font-size:9px;letter-spacing:.12em;padding-top:7px}
+.al-opening-principles i{width:25px;height:1px;background:#45bfd1}
+.al-about-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;flex:1}
+.al-about-service,.al-about-group{display:flex;flex-direction:column;gap:16px;justify-content:center;padding:25px}
+.assessment-lumina .al-about-service h3{font-size:28px;line-height:1.3}
+.assessment-lumina .al-about-group h3{font-size:23px;line-height:1.3}
+.al-about-group .al-group-signature{margin-bottom:6px}
+.al-about-pills{display:flex;flex-wrap:wrap;gap:9px;margin-top:6px}
+.al-about-pills span{font-size:10px;padding:7px 10px;border:1px solid #286076;background:#0c3445;color:#8fe4ec;border-radius:30px}
+.assessment-lumina:not(.al-export) .al-opening-main>p{font-size:18px}
+.assessment-lumina:not(.al-export) .al-opening-statement{font-size:44px}
+.assessment-lumina:not(.al-export) .al-group-signature span{font-size:10px}
+.assessment-lumina:not(.al-export) .al-group-signature strong{font-size:20px}
+.assessment-lumina:not(.al-export) .al-about-service h3{font-size:30px}
+.assessment-lumina:not(.al-export) .al-about-pills span{font-size:13px}
+.al-export .al-opening-statement{font-size:43px}
+.al-export .al-cover .al-body{gap:21px}
+@media(max-width:800px){
+ .assessment-lumina:not(.al-export) .al-opening-brand{flex-wrap:wrap;padding-top:18px;gap:22px}
+ .assessment-lumina:not(.al-export) .al-about-grid{grid-template-columns:1fr}
+ .assessment-lumina:not(.al-export) .al-opening-meta{grid-template-columns:1fr;gap:16px}
+ .assessment-lumina:not(.al-export) .al-opening-statement{font-size:36px}
+ .assessment-lumina:not(.al-export) .al-opening-main h1{font-size:27px}
+ .assessment-lumina:not(.al-export) .al-about-service h3{font-size:26px}
+}
+
+/* PDF: mesma hierarquia legível da tela, com paginação entre cartões inteiros. */
+.assessment-lumina.al-export h2{font-size:36px}
+.assessment-lumina.al-export h3{font-size:24px}
+.assessment-lumina.al-export p{font-size:17px;line-height:1.6}
+.assessment-lumina.al-export a{font-size:14px;line-height:1.6}
+.assessment-lumina.al-export .al-heading>p{font-size:16px;line-height:1.6}
+.assessment-lumina.al-export .al-label,
+.assessment-lumina.al-export .al-field>b{font-size:12px;line-height:1.5}
+.assessment-lumina.al-export .al-top,
+.assessment-lumina.al-export .al-footer{font-size:10px;line-height:1.5}
+.assessment-lumina.al-export .al-metrics span,
+.assessment-lumina.al-export .al-areas span{font-size:14px;line-height:1.5}
+.assessment-lumina.al-export .al-metrics strong{font-size:30px}
+.assessment-lumina.al-export .al-areas strong{font-size:28px}
+.assessment-lumina.al-export .al-grade p{font-size:16px;line-height:1.55}
+.assessment-lumina.al-export .al-grade{align-items:flex-start}
+.assessment-lumina.al-export .al-gauge{width:145px;height:145px}
+.assessment-lumina.al-export .al-ranking>div{font-size:16px;line-height:1.55}
+.assessment-lumina.al-export .al-strip,
+.assessment-lumina.al-export .al-note{font-size:14px;line-height:1.6}
+.assessment-lumina.al-export .al-finding h3,
+.assessment-lumina.al-export .al-action h3{font-size:22px}
+.assessment-lumina.al-export .al-finding header small{font-size:13px;line-height:1.5}
+.assessment-lumina.al-export .al-number{font-size:15px}
+.assessment-lumina.al-export .al-tag{font-size:12px;line-height:1.5}
+.assessment-lumina.al-export .al-finding-grid p,
+.assessment-lumina.al-export .al-action p,
+.assessment-lumina.al-export .al-method-grid p{font-size:17px;line-height:1.6}
+.assessment-lumina.al-export .al-finding-grid a{font-size:14px;line-height:1.6}
+.assessment-lumina.al-export .al-impact-grid h3{font-size:24px}
+.assessment-lumina.al-export .al-impact-lead h3{font-size:30px}
+.assessment-lumina.al-export .al-references h3{font-size:22px}
+.assessment-lumina.al-export .al-details dt{font-size:15px;line-height:1.6}
+.assessment-lumina.al-export .al-details dd{font-size:17px;line-height:1.6}
+.assessment-lumina.al-export .al-opening-statement{font-size:43px}
+.assessment-lumina.al-export .al-opening-main>p{font-size:17px}
+.assessment-lumina.al-export .al-about-service h3{font-size:28px}
+.assessment-lumina.al-export .al-about-group h3{font-size:23px}
+.assessment-lumina.al-export .al-about-pills span{font-size:13px}
+
+/* O panorama permanece inteiro, antes da apresentação institucional. */
+.assessment-lumina.al-export .al-panorama .al-body{gap:12px}
+.assessment-lumina.al-export .al-panorama .al-strip{font-size:12px;line-height:1.5;padding:10px 14px}
+.assessment-lumina.al-export .al-panorama .al-metrics>div,
+.assessment-lumina.al-export .al-panorama .al-areas>article{padding:12px 15px}
+.assessment-lumina.al-export .al-panorama .al-heading>p{font-size:15px}
+.assessment-lumina.al-export .al-methodology .al-panel{padding:16px}
+.assessment-lumina.al-export .al-methodology .al-method-grid p{font-size:16px;line-height:1.55}
+.assessment-lumina.al-export .al-methodology .al-references{gap:4px;padding:8px 0}
+.assessment-lumina.al-export .al-gauge strong{font-size:40px}
+.assessment-lumina.al-export .al-gauge span{font-size:11px}
+.assessment-lumina.al-export .al-gauge>div{gap:2px}

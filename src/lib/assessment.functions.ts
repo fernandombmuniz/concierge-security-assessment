@@ -1,3 +1,4 @@
+import { isExecutiveAssessmentAnswers } from './assessment-report-mode';
 import { parseAssessmentData } from "@/lib/assessment-schema";
 import { scoreAssessment } from "@/scoring";
 
@@ -342,9 +343,7 @@ export async function completeAssessment({
 export async function loadInternalAssessmentReport(
   token: string,
 ): Promise<{
-  data: ReturnType<
-    typeof parseAssessmentData
-  >;
+  data: ReturnType<typeof parseAssessmentData>;
   expiresAt?: string;
 }> {
   if (!token.trim()) {
@@ -366,6 +365,14 @@ export async function loadInternalAssessmentReport(
     throw new Error(
       "A API não retornou os dados do relatório.",
     );
+  }
+
+  if (isExecutiveAssessmentAnswers(result.answers)) {
+    const target = new URL('/executive', window.location.origin);
+    target.searchParams.set('internalReport', token.trim());
+    window.location.replace(target.toString());
+    // Mantém a tela em carregamento até a navegação; não usa o rascunho completo.
+    return new Promise<never>(() => {});
   }
 
   const data =
