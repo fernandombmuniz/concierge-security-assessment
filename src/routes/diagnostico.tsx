@@ -6,6 +6,8 @@ const description =
   "Responda o diagnóstico de segurança da Concierge: rede e perímetro, dispositivos, continuidade e identidade.";
 
 export const Route = createFileRoute("/diagnostico")({
+  // O formulário depende de localStorage e do estado deste navegador.
+  ssr: false,
   head: () => ({
     meta: [
       { title },

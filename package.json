@@ -1,15 +1,17 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "concierge-assessment-lumina-v3",
   "private": true,
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
-    "preview": "vite preview",
+    "dev": "node scripts/project.mjs dev",
+    "build": "node scripts/project.mjs build",
+    "build:dev": "node scripts/project.mjs build --mode development",
+    "preview": "node scripts/project.mjs preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "setup": "node scripts/project.mjs setup",
+    "check": "node scripts/project.mjs check"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -93,5 +95,9 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "8.1.5"
+  },
+  "version": "3.0.2",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

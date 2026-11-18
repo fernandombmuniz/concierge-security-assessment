@@ -1,0 +1,15 @@
+CONCIERGE ASSESSMENT LUMINA V3.0.2
+
+PARA ABRIR O APP
+1. Extraia o ZIP.
+2. Copie .env.local do Assessment atual para esta pasta.
+3. Abra INICIAR_WINDOWS.bat.
+
+PARA GERAR O BUILD
+Abra GERAR_BUILD_WINDOWS.bat ou execute npm run build.
+
+As dependencias sao preparadas automaticamente.
+No primeiro uso, aguarde a instalacao. Ela precisa de internet.
+O build gera arquivos de producao. O iniciador abre o app no navegador.
+
+Instrucoes completas no README.md.

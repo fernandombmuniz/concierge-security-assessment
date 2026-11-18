@@ -1,0 +1,23 @@
+ASSESSMENT LUMINA - FONTES MAIORES NA APRESENTACAO
+
+APLICAR
+1. Abra a pasta atual do Assessment, onde esta o package.json.
+2. Extraia o conteudo deste ZIP nessa pasta, mantendo a pasta src.
+3. Substitua src/assessment-report.css.
+4. Com o app em desenvolvimento, atualize a pagina (Ctrl+F5). Se ele estiver fechado, use o iniciador habitual.
+
+Para publicar, gere o build pelo fluxo habitual.
+
+ALTERACAO
+- Textos dos cartoes: de 11,5 px para 17 px.
+- Textos gerais: 18 px; referencias: 14 px; legendas: 12 px.
+- Titulos e indicadores ajustados proporcionalmente.
+- Paineis acompanham a altura do texto, sem cortes.
+
+PDF
+As novas regras de tela excluem explicitamente a classe de exportacao .al-export. As medidas e a tipografia do PDF foram preservadas.
+
+VALIDACAO
+Build aprovado. Leitura e transbordamento conferidos no navegador para o diagnostico completo e o executivo. Comparacao visual pagina a pagina dos PDFs gerados antes e depois, com os mesmos dados demonstrativos: 23 paginas no completo e 12 no executivo, sem diferencas de imagem.
+
+Este incremental altera somente o CSS da devolutiva. Nao altera perguntas, notas, dados, integracoes ou dependencias.
